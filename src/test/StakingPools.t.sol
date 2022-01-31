@@ -2,7 +2,10 @@
 pragma solidity 0.8.11;
 
 import {DSTest} from "ds-test/test.sol";
+import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
+import {gALCX} from "../gALCX.sol";
+import {StakingPools} from "../interfaces/StakingPools.sol";
 import {DSTestPlus} from "./utils/DSTestPlus.sol";
 import {Hevm} from "./utils/Hevm.sol";
 
@@ -10,38 +13,28 @@ interface Vm {
     function prank(address) external;
 }
 
-interface StakingPools {
-    function acceptGovernance() external;
-    function claim(uint256 _poolId) external;
-    function createPool(address _token) external returns (uint256);
-    function deposit(uint256 _poolId, uint256 _depositAmount) external;
-    function exit(uint256 _poolId) external;
-    function getPoolRewardRate(uint256 _poolId) view external returns (uint256);
-    function getPoolRewardWeight(uint256 _poolId) view external returns (uint256);
-    function getPoolToken(uint256 _poolId) view external returns (address);
-    function getPoolTotalDeposited(uint256 _poolId) view external returns (uint256);
-    function getStakeTotalDeposited(address _account, uint256 _poolId) view external returns (uint256);
-    function getStakeTotalUnclaimed(address _account, uint256 _poolId) view external returns (uint256);
-    function governance() view external returns (address);
-    function pendingGovernance() view external returns (address);
-    function poolCount() view external returns (uint256);
-    function reward() view external returns (address);
-    function rewardRate() view external returns (uint256);
-    function setPendingGovernance(address _pendingGovernance) external;
-    function setRewardRate(uint256 _rewardRate) external;
-    function setRewardWeights(uint256[] memory _rewardWeights) external;
-    function tokenPoolIds(address) view external returns (uint256);
-    function totalRewardWeight() view external returns (uint256);
-    function withdraw(uint256 _poolId, uint256 _withdrawAmount) external;
-}
-
 contract ContractTest is DSTestPlus {
     // Hevm internal constant hevm = Hevm(HEVM_ADDRESS);
+    IERC20 public alcx = IERC20(0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF);
     StakingPools internal constant pool = StakingPools(0xAB8e74017a8Cc7c15FFcCd726603790d26d7DeCa);
     address internal constant user = 0x7DcE9D1cFB18a0Db23E7e3037F1e56A3070517E2;
+    address holder = 0x000000000000000000000000000000000000dEaD;
+    gALCX govALCX;
+
 
     function setUp() public {
         // ALCX single-sided is pool id 1
+        govALCX = new gALCX("governance ALCX", "gALCX");
+    }
+
+    function testDeposit() public {
+        hevm.startPrank(holder);
+        uint gAmount = 999 ether;
+        bool success = alcx.approve(address(govALCX), gAmount);
+        assertTrue(success);
+        govALCX.stake(gAmount);
+        uint gBalance = govALCX.balanceOf(holder);
+        assertEq(gBalance, gAmount);
     }
 
     function testRead() public {
@@ -83,4 +76,5 @@ contract ContractTest is DSTestPlus {
         hevm.prank(user);
         pool.withdraw(1, amount);
     }
+
 }
