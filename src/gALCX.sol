@@ -6,6 +6,7 @@ import {ERC20} from "solmate/tokens/ERC20.sol";
 
 import {StakingPools} from "./interfaces/StakingPools.sol";
 
+/// @title A wrapper for single-sided ALCX staking
 contract gALCX is ERC20 {
 
     IERC20 public alcx = IERC20(0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF);
@@ -19,6 +20,8 @@ contract gALCX is ERC20 {
     event Stake(address _from, uint _gAmount, uint _amount);
     event Unstake(address _from, uint _gAmount, uint _amount);
 
+    /// @param _name The token name
+    /// @param _symbol The token symbol
     constructor(string memory _name, string memory _symbol) ERC20(_name, _symbol, 18) {
         owner = msg.sender;
         reApprove();
@@ -31,10 +34,15 @@ contract gALCX is ERC20 {
         _;
     }
 
+    /// @notice Transfer contract ownership
+    /// @param _owner The new owner address
     function transferOwnership(address _owner) external onlyOwner {
         owner = _owner;
     }
 
+    /// @notice Set a new staking pool address and migrate funds there
+    /// @param _pools The new pool address
+    /// @param _poolId The new pool id
     function migrateStakingPools(address _pools, uint _poolId) external onlyOwner {
         // Withdraw ALCX
         bumpExchangeRate();
@@ -47,12 +55,14 @@ contract gALCX is ERC20 {
         pools.deposit(poolId, balance);
     }
 
+    /// @notice Approve the staking pool to move funds in this address, can be called by anyone
     function reApprove() public {
         bool success = alcx.approve(address(pools), type(uint).max);
     }
 
     // PUBLIC FUNCTIONS
 
+    /// @notice Claim and autocompound rewards
     function bumpExchangeRate() public {
         // Claim from pool
         pools.claim(poolId);
@@ -67,6 +77,8 @@ contract gALCX is ERC20 {
         }
     }
 
+    /// @notice Deposit new funds into the staking pool
+    /// @param amount The amount of ALCX to deposit
     function stake(uint amount) external {
         // Get current exchange rate between ALCX and gALCX
         bumpExchangeRate();
@@ -80,6 +92,8 @@ contract gALCX is ERC20 {
         emit Stake(msg.sender, gAmount, amount);
     }
 
+    /// @notice Withdraw funds from the staking pool
+    /// @param gAmount the amount of gALCX to withdraw
     function unstake(uint gAmount) external {
         bumpExchangeRate();
         uint amount = gAmount * exchangeRate / exchangeRatePrecision;
