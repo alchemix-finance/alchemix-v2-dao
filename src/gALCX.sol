@@ -13,12 +13,45 @@ contract gALCX is ERC20 {
     uint public poolId = 1;
     uint public constant exchangeRatePrecision = 1e18;
     uint public exchangeRate = exchangeRatePrecision;
+    address public owner;
 
+    event ExchangeRateChange(uint _exchangeRate);
+    event Stake(address _from, uint _gAmount, uint _amount);
+    event Unstake(address _from, uint _gAmount, uint _amount);
 
     constructor(string memory _name, string memory _symbol) ERC20(_name, _symbol, 18) {
-        // Set infinite approval
+        owner = msg.sender;
+        reApprove();
+    }
+
+    // OWNERSHIP
+
+    modifier onlyOwner {
+        require(msg.sender == owner, "Not owner");
+        _;
+    }
+
+    function transferOwnership(address _owner) external onlyOwner {
+        owner = _owner;
+    }
+
+    function migrateStakingPools(address _pools, uint _poolId) external onlyOwner {
+        // Withdraw ALCX
+        bumpExchangeRate();
+        pools.claim(poolId);
+        // Update staking pool address and id
+        pools = StakingPools(_pools);
+        poolId = _poolId;
+        // Deposit ALCX
+        uint balance = alcx.balanceOf(address(this));
+        pools.deposit(poolId, balance);
+    }
+
+    function reApprove() public {
         bool success = alcx.approve(address(pools), type(uint).max);
     }
+
+    // PUBLIC FUNCTIONS
 
     function bumpExchangeRate() public {
         // Claim from pool
@@ -28,6 +61,7 @@ contract gALCX is ERC20 {
 
         if (balance > 0) {
             exchangeRate += (balance * exchangeRatePrecision) / totalSupply;
+            emit ExchangeRateChange(exchangeRate);
             // Restake
             pools.deposit(poolId, balance);
         }
@@ -43,6 +77,7 @@ contract gALCX is ERC20 {
         // gAmount always <= amount
         uint gAmount = amount * exchangeRatePrecision / exchangeRate;
         _mint(msg.sender, gAmount);
+        emit Stake(msg.sender, gAmount, amount);
     }
 
     function unstake(uint gAmount) external {
@@ -53,5 +88,6 @@ contract gALCX is ERC20 {
         pools.withdraw(poolId, amount);
         bool success = alcx.transfer(msg.sender, amount); // Should return true or revert, but doesn't hurt
         require(success, "Transfer failed"); 
+        emit Unstake(msg.sender, gAmount, amount);
     }
 }
