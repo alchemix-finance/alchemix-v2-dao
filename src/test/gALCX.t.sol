@@ -13,7 +13,7 @@ interface Vm {
     function prank(address) external;
 }
 
-contract ContractTest is DSTestPlus {
+contract gALCXTest is DSTestPlus {
     // Hevm internal constant hevm = Hevm(HEVM_ADDRESS);
     IERC20 public alcx = IERC20(0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF);
     StakingPools internal constant pool = StakingPools(0xAB8e74017a8Cc7c15FFcCd726603790d26d7DeCa);
@@ -75,6 +75,13 @@ contract ContractTest is DSTestPlus {
         amount = bound(amount, deposited+1, amount);
         hevm.prank(user);
         pool.withdraw(1, amount);
+    }
+
+    function testMigrateStakingPools() public {
+        address owner = govALCX.owner();
+        assertEq(owner, address(this));
+        // Migrate to the same address (no-op)
+        govALCX.migrateStakingPools(address(govALCX.pools()), govALCX.poolId());
     }
 
 }
