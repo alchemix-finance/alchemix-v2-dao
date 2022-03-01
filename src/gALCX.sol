@@ -4,13 +4,13 @@ pragma solidity 0.8.11;
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
 
-import {StakingPools} from "./interfaces/StakingPools.sol";
+import {IALCXSource} from "./interfaces/IALCXSource.sol";
 
 /// @title A wrapper for single-sided ALCX staking
 contract gALCX is ERC20 {
 
     IERC20 public alcx = IERC20(0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF);
-    StakingPools public pools = StakingPools(0xAB8e74017a8Cc7c15FFcCd726603790d26d7DeCa);
+    IALCXSource public pools = IALCXSource(0xAB8e74017a8Cc7c15FFcCd726603790d26d7DeCa);
     uint public poolId = 1;
     uint public constant exchangeRatePrecision = 1e18;
     uint public exchangeRate = exchangeRatePrecision;
@@ -43,15 +43,18 @@ contract gALCX is ERC20 {
     /// @notice Set a new staking pool address and migrate funds there
     /// @param _pools The new pool address
     /// @param _poolId The new pool id
-    function migrateStakingPools(address _pools, uint _poolId) external onlyOwner {
+    function migrateSource(address _pools, uint _poolId) external onlyOwner {
         // Withdraw ALCX
         bumpExchangeRate();
-        pools.claim(poolId);
+
+        uint poolBalance = pools.getStakeTotalDeposited(address(this), poolId);
+        pools.withdraw(poolId, poolBalance);
         // Update staking pool address and id
-        pools = StakingPools(_pools);
+        pools = IALCXSource(_pools);
         poolId = _poolId;
         // Deposit ALCX
         uint balance = alcx.balanceOf(address(this));
+        alcx.approve(address(pools), balance);
         pools.deposit(poolId, balance);
     }
 

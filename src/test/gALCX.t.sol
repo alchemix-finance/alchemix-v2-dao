@@ -5,83 +5,140 @@ import {DSTest} from "ds-test/test.sol";
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
 import {gALCX} from "../gALCX.sol";
-import {StakingPools} from "../interfaces/StakingPools.sol";
+import {IALCXSource} from "../interfaces/IALCXSource.sol";
 import {DSTestPlus} from "./utils/DSTestPlus.sol";
 import {Hevm} from "./utils/Hevm.sol";
+import {ALCXSource} from "./mocks/ALCXSource.sol";
 
 interface Vm {
     function prank(address) external;
 }
 
+/// @dev See https://onbjerg.github.io/foundry-book/forge/writing-tests.html for details on how this is run
+/// @dev See https://onbjerg.github.io/foundry-book/reference/ds-test.html for assertions list
+/// @dev See https://onbjerg.github.io/foundry-book/reference/cheatcodes.html for cheatcodes like prank()
+/// @dev asserts are (actual, expected)
 contract gALCXTest is DSTestPlus {
-    // Hevm internal constant hevm = Hevm(HEVM_ADDRESS);
     IERC20 public alcx = IERC20(0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF);
-    StakingPools internal constant pool = StakingPools(0xAB8e74017a8Cc7c15FFcCd726603790d26d7DeCa);
+    IALCXSource internal constant pool = IALCXSource(0xAB8e74017a8Cc7c15FFcCd726603790d26d7DeCa);
     address internal constant user = 0x7DcE9D1cFB18a0Db23E7e3037F1e56A3070517E2;
     address holder = 0x000000000000000000000000000000000000dEaD;
     gALCX govALCX;
 
+    uint depositAmount = 999 ether;
 
+    /// @dev Deploy the contract
     function setUp() public {
-        // ALCX single-sided is pool id 1
         govALCX = new gALCX("governance ALCX", "gALCX");
     }
 
-    function testDeposit() public {
+    /// @dev Deposit ALCX into gALCX
+    function testStake() public {
         hevm.startPrank(holder);
-        uint gAmount = 999 ether;
-        bool success = alcx.approve(address(govALCX), gAmount);
+        uint oldBalance = alcx.balanceOf(holder);
+        uint amount = depositAmount;
+        bool success = alcx.approve(address(govALCX), amount);
         assertTrue(success);
-        govALCX.stake(gAmount);
+        govALCX.stake(amount);
         uint gBalance = govALCX.balanceOf(holder);
-        assertEq(gBalance, gAmount);
+        uint newBalance = alcx.balanceOf(holder);
+        assertEq(gBalance, amount);
+        assertEq(oldBalance-newBalance, amount);
+        hevm.stopPrank();
     }
 
-    function testRead() public {
-        uint rewardRate = pool.rewardRate();
-        assertEq(rewardRate, 357911209175627000);
-        // emit log_uint(rewardRate);
-        // emit log_address(HEVM_ADDRESS);
-        // assertTrue(true);
+    /// @dev Fuzz staking with a variety of staking amounts
+    function testStakeFuzz(uint amount) public {
+        // Constrain the param to lie within user balance
+        amount = bound(amount, 0, alcx.balanceOf(holder));
+
+        hevm.startPrank(holder);
+        bool success = alcx.approve(address(govALCX), amount);
+        assertTrue(success);
+        govALCX.stake(amount);
+        uint gBalance = govALCX.balanceOf(holder);
+        assertEq(gBalance, amount);
+        hevm.stopPrank();
     }
 
-    function testWithdraw() public {
-        uint deposited = pool.getStakeTotalDeposited(user, 1);
-        // emit log_uint(deposited);
-        hevm.prank(user);
-        pool.withdraw(1, deposited);
+    /// @dev Check if reverts when you try to stake more than approved
+    function testFailStake() public {
+        hevm.startPrank(holder);
+        uint amount = depositAmount;
+        bool success = alcx.approve(address(govALCX), amount);
+        assertTrue(success);
+        govALCX.stake(amount+1);
     }
 
-    function testWithdraw(uint256 amount) public {
-        uint deposited = pool.getStakeTotalDeposited(user, 1);
-        amount = bound(amount, 0, deposited);
-        hevm.startPrank(user);
-        pool.withdraw(1, amount);
+    /// @dev Deposit ALCX into gALCX, then withdraw
+    function testStakeAndUnstake() public {
+        testStake();
+        hevm.startPrank(holder);
+        uint gBalance = govALCX.balanceOf(holder);
+        uint prevBalance = alcx.balanceOf(holder);
+        govALCX.unstake(gBalance);
+        uint balance = alcx.balanceOf(holder);
+        // Check that ALCX diff equals the old gALCX balance
+        assertEq(gBalance, balance-prevBalance);
+        hevm.stopPrank();
     }
 
-    function testFailWithdrawExtra() public {
-        // hevm.expectRevert(
-        //     bytes("SafeMath: subtraction overflow")
-        // );
-        uint deposited = pool.getStakeTotalDeposited(user, 1);
-        assertGt(deposited, 0);
-        hevm.prank(user);
-        pool.withdraw(1, deposited+1);
+    /// @dev Deposit ALCX into gALCX, then fail to withdraw more than your gALCX amount
+    function testFailStakeAndUnstake() public {
+        testStake();
+        hevm.startPrank(holder);
+        uint gBalance = govALCX.balanceOf(holder);
+        uint prevBalance = alcx.balanceOf(holder);
+        govALCX.unstake(gBalance+1);
     }
 
-    function testFailWithdrawExtra(uint256 amount) public {
-        uint deposited = pool.getStakeTotalDeposited(user, 1);
-        assertGt(deposited, 0);
-        amount = bound(amount, deposited+1, amount);
-        hevm.prank(user);
-        pool.withdraw(1, amount);
+    /// @dev Deposit, then rebase upwards, then withdraw
+    function testStakeAndRebaseAndUnstake() public {
+        testStake();
+        uint oldExchangeRate = govALCX.exchangeRate();
+        hevm.startPrank(holder);
+        // Send ALCX to the StakingPool, mocking reward distribution
+        uint rewardAmount = 100000 ether;
+        alcx.approve(address(pool), rewardAmount);
+        pool.deposit(1, rewardAmount);
+        // Time travel one block, IALCXSource has some equality defaults
+        hevm.warp(block.timestamp + 13);
+        hevm.roll(block.number + 1);
+        // Now check the new exchange rate
+        govALCX.bumpExchangeRate();
+        uint newExchangeRate = govALCX.exchangeRate();
+        assertGt(newExchangeRate, oldExchangeRate);
+        // Unstake
+        uint oldBalance = alcx.balanceOf(holder);
+        uint gBalance = govALCX.balanceOf(holder);
+        govALCX.unstake(gBalance);
+        uint newBalance = alcx.balanceOf(holder);
+        assertGt(newBalance-oldBalance, depositAmount);
     }
 
-    function testMigrateStakingPools() public {
+    function testMigrateSource() public returns (ALCXSource) {
+        testStake();
         address owner = govALCX.owner();
         assertEq(owner, address(this));
-        // Migrate to the same address (no-op)
-        govALCX.migrateStakingPools(address(govALCX.pools()), govALCX.poolId());
+        // Deploy a new source
+        ALCXSource alcxSource = new ALCXSource();
+        // Migrate to the new source
+        govALCX.migrateSource(address(alcxSource), 1);
+        uint sourceBalance = alcxSource.balances(address(govALCX));
+        assertGt(sourceBalance, 0);
+        assertEq(sourceBalance, depositAmount);
+        return alcxSource;
+    }
+
+    function testMigrateSourceAndUnstake() public {
+        ALCXSource alcxSource = testMigrateSource();
+        hevm.startPrank(holder);
+        uint oldBalance = alcx.balanceOf(holder);
+        uint gBalance = govALCX.balanceOf(holder);
+        govALCX.unstake(gBalance);
+        uint newBalance = alcx.balanceOf(holder);
+        assertGt(newBalance, oldBalance);
+        // assertEq(newBalance-oldBalance, gBalance);
     }
 
 }
