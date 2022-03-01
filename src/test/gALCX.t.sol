@@ -21,7 +21,6 @@ interface Vm {
 contract gALCXTest is DSTestPlus {
     IERC20 public alcx = IERC20(0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF);
     IALCXSource internal constant pool = IALCXSource(0xAB8e74017a8Cc7c15FFcCd726603790d26d7DeCa);
-    address internal constant user = 0x7DcE9D1cFB18a0Db23E7e3037F1e56A3070517E2;
     address holder = 0x000000000000000000000000000000000000dEaD;
     gALCX govALCX;
 
@@ -125,7 +124,6 @@ contract gALCXTest is DSTestPlus {
         // Migrate to the new source
         govALCX.migrateSource(address(alcxSource), 1);
         uint sourceBalance = alcxSource.balances(address(govALCX));
-        assertGt(sourceBalance, 0);
         assertEq(sourceBalance, depositAmount);
         return alcxSource;
     }
@@ -137,8 +135,7 @@ contract gALCXTest is DSTestPlus {
         uint gBalance = govALCX.balanceOf(holder);
         govALCX.unstake(gBalance);
         uint newBalance = alcx.balanceOf(holder);
-        assertGt(newBalance, oldBalance);
-        // assertEq(newBalance-oldBalance, gBalance);
+        assertEq(newBalance-oldBalance, gBalance);
     }
 
 }

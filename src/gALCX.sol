@@ -54,7 +54,7 @@ contract gALCX is ERC20 {
         poolId = _poolId;
         // Deposit ALCX
         uint balance = alcx.balanceOf(address(this));
-        alcx.approve(address(pools), balance);
+        reApprove();
         pools.deposit(poolId, balance);
     }
 
