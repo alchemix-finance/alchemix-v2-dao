@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.11;
+pragma solidity 0.8.13;
 
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
@@ -104,7 +104,7 @@ contract gALCX is ERC20 {
         // Withdraw ALCX and send to user
         pools.withdraw(poolId, amount);
         bool success = alcx.transfer(msg.sender, amount); // Should return true or revert, but doesn't hurt
-        require(success, "Transfer failed"); 
+        require(success, "Transfer failed");
         emit Unstake(msg.sender, gAmount, amount);
     }
 }

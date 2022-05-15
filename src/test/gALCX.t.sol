@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.11;
+pragma solidity 0.8.13;
 
 import {DSTest} from "ds-test/test.sol";
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
@@ -28,6 +28,8 @@ contract gALCXTest is DSTestPlus {
 
     /// @dev Deploy the contract
     function setUp() public {
+        uint foo = 3;
+        assertGt(foo, 2);
         govALCX = new gALCX("governance ALCX", "gALCX");
     }
 
