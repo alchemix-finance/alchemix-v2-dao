@@ -23,6 +23,11 @@ contract RevenueHandler is IRevenueHandler, Ownable {
 
     /// @inheritdoc IRevenueHandler
     function addPoolAdaptor(address revenueToken, address poolAdaptor) external override onlyOwner {
+        for (uint256 i = 0; i < revenueTokens[revenueToken].poolAdaptors.length; i++) {
+            if (revenueTokens[revenueToken].poolAdaptors[i] == poolAdaptor) {
+                revert IllegalArgument("adaptor exists");
+            }
+        }
         revenueTokens[revenueToken].poolAdaptors.push(poolAdaptor);
         emit AddPoolAdaptor(revenueToken, poolAdaptor);
     }
@@ -36,6 +41,7 @@ contract RevenueHandler is IRevenueHandler, Ownable {
                 break;
             }
         }
+        revert IllegalArgument("adaptor does not exist");
     }
 
     /// @inheritdoc IRevenueHandler
