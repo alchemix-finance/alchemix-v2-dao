@@ -6,25 +6,17 @@ interface IRevenueHandler {
     struct RevenueTokenConfig {
         /// The target alchemic-token.
         address debtToken;
-        /// A list of DEXs where revenue token can be traded for `debtToken`.
-        address[] dexes;
-        /// External call definitions to check various DEXs for trading price.
-        mapping(address => bytes) checkCalls;
-        /// External call definitions to execute trades on various DEXs.
-        mapping(address => bytes) executeCalls;
+        /// A list of pool adpators that can be used to trade revenue token for `debtToken`.
+        address[] poolAdaptors;
     }
 
-    /// @notice Emitted when dex parameters are set for a revenue token.
+    /// @notice Emitted when poolAdaptor parameters are set for a revenue token.
     ///
     /// @param revenueToken     The address of the revenue token.
-    /// @param dex              The address of the target DEX contract to call.
-    /// @param checkCallData    The hexified call data to be used in the low-level `staticcall` that checks the price of the trade.
-    /// @param executeCallData  The hexified call data to be used in the low-level `call` that executes the trade.
-    event SetDex(
+    /// @param poolAdaptor      The address of the target pool adaptor contract to call.
+    event AddPoolAdaptor(
         address revenueToken,
-        address dex,
-        bytes checkCallData,
-        bytes executeCallData
+        address poolAdaptor
     );
 
     /// @notice Emitted when a debt token is set for a revenue token.
@@ -42,18 +34,18 @@ interface IRevenueHandler {
     /// @param debtToken    The address of the alchemic-token that will be bought using the revenue token.
     function setDebtToken(address revenueToken, address debtToken) external;
 
-    /// @dev Add call data for interactin with a DEX.
+    /// @dev Add call data for interactin with a pool adaptor.
     ///
     /// @param revenueToken     The address of the revenue token.
-    /// @param dex              The address of the target DEX contract to call.
-    /// @param checkCallData    The hexified call data to be used in the low-level `staticcall` that checks the price of the trade.
-    /// @param executeCallData  The hexified call data to be used in the low-level `call` that executes the trade.
-    function setDex(address revenueToken, address dex, bytes calldata checkCallData, bytes calldata executeCallData) external;
+    /// @param poolAdaptor      The address of the target pool adaptor contract to call.
+    function addPoolAdaptor(address revenueToken, address poolAdaptor) external;
 
-    /// @dev Execute a trade on a DEX to purhcase alchemic-tokens using revenue tokens.
+    function removePoolAdaptor(address revenueToken, address poolAdaptor) external;
+    
+    /// @dev Execute a trade on a pool adaptor to purhcase alchemic-tokens using revenue tokens.
     ///
     /// @param revenueToken The revenue token to melt.
-    function melt(address revenueToken) external;
+    function melt(address revenueToken, address poolAdaptor) external;
 
     /// @dev Claim an alotted amount of alchemic-tokens and burn them to a position in the alchemist.
     ///
