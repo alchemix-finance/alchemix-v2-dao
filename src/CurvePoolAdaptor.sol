@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3
 pragma solidity 0.8.13;
 
 import "./interfaces/IPoolAdaptor.sol";
@@ -19,7 +20,7 @@ contract CurvePoolAdaptor is IPoolAdaptor {
         isMetapool = _isMetapool;
     }
 
-    function getDy(address inputToken, address outputToken, uint256 inputAmount) external returns (uint256) {
+    function getDy(address inputToken, address outputToken, uint256 inputAmount) external override returns (uint256) {
         if (isMetapool) {
             return ICurveMetaSwap(pool).get_dy(tokenIds[inputToken], tokenIds[outputToken], inputAmount);
         } else {

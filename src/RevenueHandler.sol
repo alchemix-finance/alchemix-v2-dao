@@ -52,7 +52,7 @@ contract RevenueHandler is IRevenueHandler, Ownable {
             revert IllegalState("revenue balance 0");
         }
         TokenUtils.safeTransfer(revenueToken, poolAdaptor, revenueTokenBalance);
-        uint256 received = IPoolAdaptor(poolAdaptor).melt(revenueToken, tokenConfig.debtToken, revenueTokenBalance, 0); // TODO: fix minimum amount out
+        IPoolAdaptor(poolAdaptor).melt(revenueToken, tokenConfig.debtToken, revenueTokenBalance, 0); // TODO: fix minimum amount out
     }
 
     /// @inheritdoc IRevenueHandler
