@@ -330,6 +330,9 @@ struct LockedBalance {
     uint end;
 }
 
+// Instead of Curve which gives you 1 veToken for locking up 1 tokens for 4 years that decays linearly to 0,
+// we give you 4 veToken for locking up 1 tokens for 4 years that decays linearly to 1.
+
 contract ve is IERC721, IERC721Metadata {
     enum DepositType {
         DEPOSIT_FOR_TYPE,

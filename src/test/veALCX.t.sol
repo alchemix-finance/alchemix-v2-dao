@@ -62,8 +62,14 @@ contract veALCXTest is DSTestPlus {
 
         // Get voting power
         uint votes = veALCX.balanceOfAtNFT(tokenId, block.number);
+        assertGt(votes, 1 ether, "voting power too low");
+        assertLt(votes, depositAmount, "voting power too high");
 
-        console2.log(votes / 1 ether);
+        // Get total voting power
+        uint totalVotes = veALCX.totalSupply();
+        assertEq(totalVotes, votes, "votes doesn't match total");
+
+        // console2.log(votes / 1 ether);
     }
 
 
