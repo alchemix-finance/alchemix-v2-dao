@@ -70,6 +70,4 @@ contract veALCXTest is DSTestPlus {
         assertEq(totalVotes, votes, "votes doesn't match total");
     }
 
-    /// @dev 
-
 }
