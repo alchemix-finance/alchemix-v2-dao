@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.13;
 
+import {LockedBalance} from "../veALCX.sol";
+
+import "forge-std/console2.sol";
 import {DSTest} from "ds-test/test.sol";
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
@@ -23,14 +26,44 @@ contract veALCXTest is DSTestPlus {
     ve veALCX;
 
     uint depositAmount = 999 ether;
+    uint lockTime = 30 days;
 
     /// @dev Deploy the contract
     function setUp() public {
         veALCX = new ve(address(alcx));
     }
 
+    /// @dev Deposit ALCX into a veALCX NFT and read parameters
     function testVEALCXBasic() public {
+        hevm.startPrank(holder);
+        uint alcxBalance = alcx.balanceOf(holder);
+        assertGt(alcxBalance, depositAmount, "Not enough alcx");
 
+        alcx.approve(address(veALCX), depositAmount);
+        uint tokenId = veALCX.create_lock(depositAmount, lockTime);
+
+        // Check that veNFT was created
+        address owner = veALCX.ownerOf(tokenId);
+        assertEq(owner, holder);
+
+        // Check veNFT parameters
+        // LockedBalance memory bal = veALCX.locked(tokenId);
+        (int128 amount, uint end) = veALCX.locked(tokenId);
+        assertEq(uint(uint128(amount)), depositAmount, "depositAmount doesn't match");
+        assertLe(end, block.timestamp + lockTime, "lockTime doesn't match"); // Rounds to nearest week
+    }
+
+    /// @dev Create veNFT and query voting power
+    function testVEALCXVotingPower() public {
+        hevm.startPrank(holder);
+
+        alcx.approve(address(veALCX), depositAmount);
+        uint tokenId = veALCX.create_lock(depositAmount, lockTime);
+
+        // Get voting power
+        uint votes = veALCX.balanceOfAtNFT(tokenId, block.number);
+
+        console2.log(votes / 1 ether);
     }
 
 

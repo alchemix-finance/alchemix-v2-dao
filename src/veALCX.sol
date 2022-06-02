@@ -351,8 +351,8 @@ contract ve is IERC721, IERC721Metadata {
     event Supply(uint prevSupply, uint supply);
 
     uint internal constant WEEK = 1 weeks;
-    uint internal constant MAXTIME = 4 * 365 * 86400;
-    int128 internal constant iMAXTIME = 4 * 365 * 86400;
+    uint internal constant MAXTIME = 4 * 365 days;
+    int128 internal constant iMAXTIME = 4 * 365 days;
     uint internal constant MULTIPLIER = 1 ether;
 
     address immutable public token;
@@ -568,7 +568,7 @@ contract ve is IERC721, IERC721Metadata {
     ///      Throws if `_tokenId` is owned by someone.
     function _addTokenTo(address _to, uint _tokenId) internal {
         // Throws if `_tokenId` is owned by someone
-        assert(idToOwner[_tokenId] == address(0));
+        require(idToOwner[_tokenId] == address(0));
         // Change the owner
         idToOwner[_tokenId] = _to;
         // Update owner token index tracking
@@ -581,7 +581,7 @@ contract ve is IERC721, IERC721Metadata {
     ///      Throws if `_from` is not the current owner.
     function _removeTokenFrom(address _from, uint _tokenId) internal {
         // Throws if `_from` is not the current owner
-        assert(idToOwner[_tokenId] == _from);
+        require(idToOwner[_tokenId] == _from);
         // Change the owner
         idToOwner[_tokenId] = address(0);
         // Update owner token index tracking
@@ -594,7 +594,7 @@ contract ve is IERC721, IERC721Metadata {
     ///      Throws if `_owner` is not the current owner.
     function _clearApproval(address _owner, uint _tokenId) internal {
         // Throws if `_owner` is not the current owner
-        assert(idToOwner[_tokenId] == _owner);
+        require(idToOwner[_tokenId] == _owner);
         if (idToApprovals[_tokenId] != address(0)) {
             // Reset approvals
             idToApprovals[_tokenId] = address(0);
@@ -741,7 +741,7 @@ contract ve is IERC721, IERC721Metadata {
     /// @param _approved True if the operators is approved, false to revoke approval.
     function setApprovalForAll(address _operator, bool _approved) external {
         // Throws if `_operator` is the `msg.sender`
-        assert(_operator != msg.sender);
+        require(_operator != msg.sender);
         ownerToOperators[msg.sender][_operator] = _approved;
         emit ApprovalForAll(msg.sender, _operator, _approved);
     }
@@ -754,7 +754,7 @@ contract ve is IERC721, IERC721Metadata {
     /// @return A boolean that indicates if the operation was successful.
     function _mint(address _to, uint _tokenId) internal returns (bool) {
         // Throws if `_to` is zero address
-        assert(_to != address(0));
+        require(_to != address(0));
         // Add NFT. Throws if `_tokenId` is owned by someone
         _addTokenTo(_to, _tokenId);
         emit Transfer(address(0), _to, _tokenId);
@@ -936,7 +936,7 @@ contract ve is IERC721, IERC721Metadata {
 
         address from = msg.sender;
         if (_value != 0 && deposit_type != DepositType.MERGE_TYPE) {
-            assert(IERC20(token).transferFrom(from, address(this), _value));
+            require(IERC20(token).transferFrom(from, address(this), _value));
         }
 
         emit Deposit(from, _tokenId, _value, _locked.end, deposit_type, block.timestamp);
@@ -983,10 +983,6 @@ contract ve is IERC721, IERC721Metadata {
         _checkpoint(_from, _locked0, LockedBalance(0, 0));
         _burn(_from);
         _deposit_for(_to, value0, end, _locked1, DepositType.MERGE_TYPE);
-    }
-
-    function block_number() external view returns (uint) {
-        return block.number;
     }
 
     /// @notice Record global data to checkpoint
@@ -1045,11 +1041,11 @@ contract ve is IERC721, IERC721Metadata {
     /// @notice Deposit `_value` additional tokens for `_tokenId` without modifying the unlock time
     /// @param _value Amount of tokens to deposit and add to the lock
     function increase_amount(uint _tokenId, uint _value) external nonreentrant {
-        assert(_isApprovedOrOwner(msg.sender, _tokenId));
+        require(_isApprovedOrOwner(msg.sender, _tokenId));
 
         LockedBalance memory _locked = locked[_tokenId];
 
-        assert(_value > 0); // dev: need non-zero value
+        require(_value > 0); // dev: need non-zero value
         require(_locked.amount > 0, 'No existing lock found');
         require(_locked.end > block.timestamp, 'Cannot add to expired lock. Withdraw');
 
@@ -1059,7 +1055,7 @@ contract ve is IERC721, IERC721Metadata {
     /// @notice Extend the unlock time for `_tokenId`
     /// @param _lock_duration New number of seconds until tokens unlock
     function increase_unlock_time(uint _tokenId, uint _lock_duration) external nonreentrant {
-        assert(_isApprovedOrOwner(msg.sender, _tokenId));
+        require(_isApprovedOrOwner(msg.sender, _tokenId));
 
         LockedBalance memory _locked = locked[_tokenId];
         uint unlock_time = (block.timestamp + _lock_duration) / WEEK * WEEK; // Locktime is rounded down to weeks
@@ -1075,7 +1071,7 @@ contract ve is IERC721, IERC721Metadata {
     /// @notice Withdraw all tokens for `_tokenId`
     /// @dev Only possible if the lock has expired
     function withdraw(uint _tokenId) external nonreentrant {
-        assert(_isApprovedOrOwner(msg.sender, _tokenId));
+        require(_isApprovedOrOwner(msg.sender, _tokenId));
         require(attachments[_tokenId] == 0 && !voted[_tokenId], "attached");
 
         LockedBalance memory _locked = locked[_tokenId];
@@ -1091,7 +1087,7 @@ contract ve is IERC721, IERC721Metadata {
         // Both can have >= 0 amount
         _checkpoint(_tokenId, _locked, LockedBalance(0,0));
 
-        assert(IERC20(token).transfer(msg.sender, value));
+        require(IERC20(token).transfer(msg.sender, value));
 
         // Burn the NFT
         _burn(_tokenId);
@@ -1177,7 +1173,7 @@ contract ve is IERC721, IERC721Metadata {
     function _balanceOfAtNFT(uint _tokenId, uint _block) internal view returns (uint) {
         // Copying and pasting totalSupply code because Vyper cannot pass by
         // reference yet
-        assert(_block <= block.number);
+        require(_block <= block.number);
 
         // Binary search
         uint _min = 0;
@@ -1273,7 +1269,7 @@ contract ve is IERC721, IERC721Metadata {
     /// @param _block Block to calculate the total voting power at
     /// @return Total voting power at `_block`
     function totalSupplyAt(uint _block) external view returns (uint) {
-        assert(_block <= block.number);
+        require(_block <= block.number);
         uint _epoch = epoch;
         uint target_epoch = _find_block_epoch(_block, _epoch);
 
@@ -1300,7 +1296,7 @@ contract ve is IERC721, IERC721Metadata {
         output = string(abi.encodePacked(output, "locked_end ", toString(_locked_end), '</text><text x="10" y="80" class="base">'));
         output = string(abi.encodePacked(output, "value ", toString(_value), '</text></svg>'));
 
-        string memory json = Base64.encode(bytes(string(abi.encodePacked('{"name": "lock #', toString(_tokenId), '", "description": "Solidly locks, can be used to boost gauge yields, vote on token emission, and receive bribes", "image": "data:image/svg+xml;base64,', Base64.encode(bytes(output)), '"}'))));
+        string memory json = Base64.encode(bytes(string(abi.encodePacked('{"name": "lock #', toString(_tokenId), '", "description": "ALCX locks, can be used to boost yields, vote on token emission, and receive bribes", "image": "data:image/svg+xml;base64,', Base64.encode(bytes(output)), '"}'))));
         output = string(abi.encodePacked('data:application/json;base64,', json));
     }
 
