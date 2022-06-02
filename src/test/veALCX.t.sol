@@ -68,9 +68,8 @@ contract veALCXTest is DSTestPlus {
         // Get total voting power
         uint totalVotes = veALCX.totalSupply();
         assertEq(totalVotes, votes, "votes doesn't match total");
-
-        // console2.log(votes / 1 ether);
     }
 
+    /// @dev 
 
 }
