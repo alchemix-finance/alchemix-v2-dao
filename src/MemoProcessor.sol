@@ -51,6 +51,9 @@ contract MemoProcessor is IMemoProcessor, Ownable {
         for (uint256 i = 0; i < listeners[memoSig].length; i++) {
             (bool success, ) = listeners[memoSig][i].call(memoData);
             if (!success) {
+                // If a single memo fails, the whole transaction should fail.
+                // We are assuming that every downstream memo is critical to the whole transaction, so we don't want to
+                //  blindly skip processing any memos.
                 revert MemoFailed(memoData, listeners[memoSig][i]);
             }
         }
