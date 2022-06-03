@@ -38,4 +38,17 @@ contract MemoProcessorTest is DSTestPlus {
         memoProcessor.processMemo(abi.encodeWithSignature("receiveMemo(address)", testAddress));
         assertEq(testAddress, memoData);
     }
+
+    function testAddListener() public {
+        address testAddress = 0x000000000000000000000000000000000000bEEF;
+        memoProcessor.registerListener(testFunctionSig, testAddress);
+        bool test = memoProcessor.isListener(testFunctionSig, testAddress);
+        assert(test);
+    }
+
+    function testRemoveListener() public {
+        memoProcessor.deRegisterListener(testFunctionSig, address(this));
+        bool test = memoProcessor.isListener(testFunctionSig, address(this));
+        assert(!test);
+    }
 }

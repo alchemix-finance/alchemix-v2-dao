@@ -25,6 +25,15 @@ contract MemoProcessor is IMemoProcessor, Ownable {
         _;
     }
 
+    function isListener(bytes4 memoSig, address listener) external view returns (bool) {
+        for (uint256 i = 0; i < listeners[memoSig].length; i++) {
+            if (listeners[memoSig][i] == listener) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /// @inheritdoc IMemoProcessor
     function processMemo(bytes calldata memoData) external onlySource {
         bytes4 memoSig;
