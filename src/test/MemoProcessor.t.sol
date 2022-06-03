@@ -19,6 +19,7 @@ contract MemoProcessorTest is DSTestPlus {
     address listener = 0x000000000000000000000000000000000000dEaD;
     MemoProcessor memoProcessor;
     bytes4 testFunctionSig = 0x92d11b2d; // keccak256(receiveMemo(address))
+    bytes4 failFunctionSig = 0xe49aa824; // keccak256(failMemo(address))
 
     address memoData;
 
@@ -33,10 +34,20 @@ contract MemoProcessorTest is DSTestPlus {
         memoData = _memoData;
     }
 
+    function failMemo(address _memoData) external {
+        assert(false);
+    }
+
     function testMemoReceived() public {
         address testAddress = 0x000000000000000000000000000000000000bEEF;
         memoProcessor.processMemo(abi.encodeWithSignature("receiveMemo(address)", testAddress));
         assertEq(testAddress, memoData);
+    }
+
+    function testFailMemoReceived() public {
+        address testAddress = 0x000000000000000000000000000000000000bEEF;
+        memoProcessor.registerListener(failFunctionSig, address(this));
+        memoProcessor.processMemo(abi.encodeWithSignature("failMemo(address)", testAddress));
     }
 
     function testAddListener() public {
