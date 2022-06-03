@@ -25,6 +25,14 @@ contract MemoProcessor is IMemoProcessor, Ownable {
         _;
     }
 
+    function getListeners(bytes4 memoSig) external view returns (address[] memory _listeners) {
+        uint256 n = listeners[memoSig].length;
+        _listeners = new address[](n);
+        for (uint256 i = 0; i < n; i++) {
+            _listeners[i] = listeners[memoSig][i];
+        }
+    }
+
     function isListener(bytes4 memoSig, address listener) external view returns (bool) {
         for (uint256 i = 0; i < listeners[memoSig].length; i++) {
             if (listeners[memoSig][i] == listener) {
