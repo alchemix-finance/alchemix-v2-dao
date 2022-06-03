@@ -16,6 +16,17 @@ interface IMemoProcessor {
     /// @dev Emitted when a listener is de-registered.
     event ListenerDeRegistered(bytes4 memoSig, address listener);
 
+    /// @dev Get a list of addresses listening to a particular memo signature.
+    ///
+    /// @param memoSig  The signature of the memo to check.
+    function getListeners(bytes4 memoSig) external returns (address[] memory _listeners);
+
+    /// @dev Check if a particular address is listening for a particular memo signature.
+    ///
+    /// @param memoSig  The signature of the memo to check.
+    /// @param listener The address of the listener to check.
+    function isListener(bytes4 memoSig, address listener) external returns (bool);
+
     /// @dev Process a memo and send it to the registered listeners.
     ///
     /// @notice This function reverts if the caller is not a registered source.

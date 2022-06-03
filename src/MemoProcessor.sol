@@ -25,7 +25,8 @@ contract MemoProcessor is IMemoProcessor, Ownable {
         _;
     }
 
-    function getListeners(bytes4 memoSig) external view returns (address[] memory _listeners) {
+    /// @inheritdoc IMemoProcessor
+    function getListeners(bytes4 memoSig) external view override returns (address[] memory _listeners) {
         uint256 n = listeners[memoSig].length;
         _listeners = new address[](n);
         for (uint256 i = 0; i < n; i++) {
@@ -33,7 +34,8 @@ contract MemoProcessor is IMemoProcessor, Ownable {
         }
     }
 
-    function isListener(bytes4 memoSig, address listener) external view returns (bool) {
+    /// @inheritdoc IMemoProcessor
+    function isListener(bytes4 memoSig, address listener) external view override returns (bool) {
         for (uint256 i = 0; i < listeners[memoSig].length; i++) {
             if (listeners[memoSig][i] == listener) {
                 return true;
@@ -43,7 +45,7 @@ contract MemoProcessor is IMemoProcessor, Ownable {
     }
 
     /// @inheritdoc IMemoProcessor
-    function processMemo(bytes calldata memoData) external onlySource {
+    function processMemo(bytes calldata memoData) external override onlySource {
         bytes4 memoSig;
         assembly {
             memoSig := calldataload(memoData.offset)
@@ -61,19 +63,19 @@ contract MemoProcessor is IMemoProcessor, Ownable {
     }
 
     /// @inheritdoc IMemoProcessor
-    function registerSource(address source) external onlyOwner {
+    function registerSource(address source) external override onlyOwner {
         sources[source] = true;
         emit SourceRegistered(source);
     }
 
     /// @inheritdoc IMemoProcessor
-    function deRegisterSource(address source) external onlyOwner {
+    function deRegisterSource(address source) external override onlyOwner {
         sources[source] = false;
         emit SourceDeRegistered(source);
     }
 
     /// @inheritdoc IMemoProcessor
-    function registerListener(bytes4 memoSig, address listener) external onlyOwner {
+    function registerListener(bytes4 memoSig, address listener) external override onlyOwner {
         for (uint256 i = 0; i < listeners[memoSig].length; i++) {
             if (listeners[memoSig][i] == listener) {
                 revert IllegalArgument("MemoProcessor: listener exists");
@@ -84,7 +86,7 @@ contract MemoProcessor is IMemoProcessor, Ownable {
     }
     
     /// @inheritdoc IMemoProcessor
-    function deRegisterListener(bytes4 memoSig, address listener) external onlyOwner {
+    function deRegisterListener(bytes4 memoSig, address listener) external override onlyOwner {
         for (uint256 i = 0; i < listeners[memoSig].length; i++) {
             if (listeners[memoSig][i] == listener) {
                 listeners[memoSig][i] = listeners[memoSig][listeners[memoSig].length - 1];
