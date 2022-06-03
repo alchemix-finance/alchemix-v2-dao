@@ -2,7 +2,7 @@ pragma solidity 0.8.13;
 
 interface IMemoProcessor {
     /// @dev Emitted when a memo is successfully processed.
-    event MemoProcessed(bytes memoData);
+    event MemoProcessed(bytes memoData, address[] listeners);
 
     /// @dev Emitted when a source is registered.
     event SourceRegistered(address source);
@@ -20,8 +20,8 @@ interface IMemoProcessor {
     ///
     /// @notice This function reverts if the caller is not a registered source.
     ///
-    /// @param eventData    The packed bytes to be used to call each listener.
-    function processMemo(bytes calldata eventData) external;
+    /// @param memoData    The packed bytes to be used to call each listener.
+    function processMemo(bytes calldata memoData) external;
 
     /// @dev Register a source so that it can send memos.
     ///

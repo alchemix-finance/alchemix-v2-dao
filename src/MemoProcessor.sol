@@ -5,6 +5,9 @@ import "../lib/openzeppelin-contracts/contracts/access/Ownable.sol";
 import "../lib/v2-foundry/src/base/ErrorMessages.sol";
 
 contract MemoProcessor is IMemoProcessor, Ownable {
+    /// @dev Thrown when a memo fails being sent to a listener.
+    error MemoFailed(bytes memoData, address listener);
+
     /// @dev A mapping of registered sources that can send memos.
     mapping(address => bool) public sources;
 
@@ -23,15 +26,18 @@ contract MemoProcessor is IMemoProcessor, Ownable {
     }
 
     /// @inheritdoc IMemoProcessor
-    function processMemo(bytes calldata eventData) external onlySource {
+    function processMemo(bytes calldata memoData) external onlySource {
         bytes4 memoSig;
         assembly {
-            memoSig := calldataload(eventData.offset)
+            memoSig := calldataload(memoData.offset)
         }
         for (uint256 i = 0; i < listeners[memoSig].length; i++) {
-            listeners[memoSig][i].call(eventData);
+            (bool success, ) = listeners[memoSig][i].call(memoData);
+            if (!success) {
+                revert MemoFailed(memoData, listeners[memoSig][i]);
+            }
         }
-        emit MemoProcessed(eventData);
+        emit MemoProcessed(memoData, listeners[memoSig]);
     }
 
     /// @inheritdoc IMemoProcessor
