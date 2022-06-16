@@ -2,8 +2,8 @@ pragma solidity 0.8.13;
 
 import "./interfaces/IMemoProcessor.sol";
 import "../lib/openzeppelin-contracts/contracts/access/Ownable.sol";
-// import "../lib/v2-foundry/src/base/ErrorMessages.sol";
-import "./base/ErrorMessages.sol";
+import "../lib/v2-foundry/src/base/ErrorMessages.sol";
+// import "./base/ErrorMessages.sol";
 
 contract MemoProcessor is IMemoProcessor, Ownable {
     /// @dev Thrown when a memo fails being sent to a listener.
