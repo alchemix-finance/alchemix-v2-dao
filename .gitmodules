@@ -10,4 +10,4 @@
 [submodule "lib/v2-foundry"]
 	path = lib/v2-foundry
 	; url = git@github.com:alchemix-finance/v2-foundry.git
-	url = https://github.com/alchemix-finance/v2-foundry.git
+	url = https://github.com/alchemix-finance/v2-foundry
