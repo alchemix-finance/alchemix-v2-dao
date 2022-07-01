@@ -54,6 +54,8 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
     // execution of {onlyGovernance} protected calls can only be achieved through successful proposals.
     DoubleEndedQueue.Bytes32Deque private _governanceCall;
 
+    /// TODO
+    /// add a timelock (supported as a separate governer address)
     /**
      * @dev Restricts a function so it can only be executed through governance proposals. For example, governance
      * parameter setters in {GovernorSettings} are protected using this modifier.
@@ -119,6 +121,8 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
         return "1";
     }
 
+    /// TODO
+    /// Add chain ID?
     /**
      * @dev See {IGovernor-hashProposal}.
      *
