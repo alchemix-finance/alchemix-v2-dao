@@ -9,6 +9,12 @@ import './interfaces/IPair.sol';
 import './interfaces/IVoter.sol';
 import './interfaces/IVotingEscrow.sol';
 
+// TODO
+// refactor basic functionality into BaseGauge.
+// StakingGauge inherits BaseGauge and adds stake/withdraw/claim functionality
+// PassThruGauge inherits BaseGauge and passes funds along to curve gauge
+// look at implmeneting PassThruGauge by just adding curve gauge to controller/minter/briber
+//
 // Gauges are used to incentivize pools, they emit reward tokens every 7 days for staked LP tokens
 contract Gauge {
 
@@ -131,7 +137,10 @@ contract Gauge {
     function claimFees() external lock returns (uint claimed0, uint claimed1) {
         return _claimFees();
     }
-
+    // TODO
+    // IPair is leftover from velodrome
+    // we do not need to claim the pair's fees
+    // we can probably remove this whole function
     function _claimFees() internal returns (uint claimed0, uint claimed1) {
         if (!isForPair) {
             return (0, 0);

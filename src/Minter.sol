@@ -93,6 +93,9 @@ contract Minter {
         return _velo.totalSupply() - _ve.totalSupply();
     }
 
+    // TODO
+    // we have a different emissions calc
+    // predefined in the supply spreadsheet
     // emission calculation is 2% of available supply to mint adjusted by circulating / total supply
     function calculate_emission() public view returns (uint) {
         return weekly * EMISSION * circulating_supply() / PRECISION / _velo.totalSupply();

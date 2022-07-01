@@ -15,6 +15,8 @@ contract VeloGovernor is
     L2GovernorVotes,
     L2GovernorVotesQuorumFraction
 {
+    // TODO
+    // admin
     address public team;
     uint256 public constant MAX_PROPOSAL_NUMERATOR = 50; // max 5%
     uint256 public constant PROPOSAL_DENOMINATOR = 1000;
