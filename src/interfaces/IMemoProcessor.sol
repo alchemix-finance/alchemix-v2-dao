@@ -1,4 +1,4 @@
-pragma solidity 0.8.13;
+pragma solidity ^0.8.15;
 
 interface IMemoProcessor {
     /// @dev Emitted when a memo is successfully processed.

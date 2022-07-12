@@ -1,4 +1,4 @@
-pragma solidity 0.8.13;
+pragma solidity ^0.8.15;
 
 import "forge-std/console2.sol";
 import {DSTest} from "ds-test/test.sol";

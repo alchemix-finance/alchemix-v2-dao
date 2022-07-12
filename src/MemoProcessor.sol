@@ -1,4 +1,4 @@
-pragma solidity 0.8.13;
+pragma solidity ^0.8.15;
 
 import "./interfaces/IMemoProcessor.sol";
 import "../lib/openzeppelin-contracts/contracts/access/Ownable.sol";
