@@ -60,7 +60,7 @@ contract gALCX is ERC20 {
 
     /// @notice Approve the staking pool to move funds in this address, can be called by anyone
     function reApprove() public {
-        bool success = alcx.approve(address(pools), type(uint).max);
+        alcx.approve(address(pools), type(uint).max);
     }
 
     // PUBLIC FUNCTIONS

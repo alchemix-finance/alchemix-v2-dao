@@ -35,7 +35,7 @@ contract RewardsDistributorTest is DSTestPlus {
         rewards = new RewardsDistributor(address(veALCX));
     }
 
-    function testRewardsDistributorSetup() public {
+    function testRewardsDistributorSetup() public view {
         console2.log(address(rewards));
     }
 

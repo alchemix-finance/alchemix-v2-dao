@@ -34,7 +34,7 @@ contract MemoProcessorTest is DSTestPlus {
         memoData = _memoData;
     }
 
-    function failMemo(address _memoData) external {
+    function failMemo(/*address _memoData*/) external pure {
         assert(false);
     }
 

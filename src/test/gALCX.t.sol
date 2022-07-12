@@ -89,7 +89,6 @@ contract gALCXTest is DSTestPlus {
         testStake();
         hevm.startPrank(holder);
         uint gBalance = govALCX.balanceOf(holder);
-        uint prevBalance = alcx.balanceOf(holder);
         govALCX.unstake(gBalance+1);
     }
 
@@ -131,7 +130,7 @@ contract gALCXTest is DSTestPlus {
     }
 
     function testMigrateSourceAndUnstake() public {
-        ALCXSource alcxSource = testMigrateSource();
+        testMigrateSource();
         hevm.startPrank(holder);
         uint oldBalance = alcx.balanceOf(holder);
         uint gBalance = govALCX.balanceOf(holder);

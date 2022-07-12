@@ -32,7 +32,7 @@ contract Bribe is IBribe {
     gauge = _gauge;
   }
 
-  function getEpochStart(uint timestamp) public view returns (uint) {
+  function getEpochStart(uint timestamp) public pure returns (uint) {
     uint bribeStart = timestamp - (timestamp % (7 days)) + BRIBE_LAG;
     uint bribeEnd = bribeStart + DURATION - COOLDOWN;
     return timestamp < bribeEnd ? bribeStart : bribeStart + 7 days;
