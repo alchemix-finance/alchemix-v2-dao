@@ -8,13 +8,11 @@ import './interfaces/IGaugeFactory.sol';
 import './interfaces/IERC20.sol';
 import './interfaces/IMinter.sol';
 import './interfaces/IPair.sol';
-import './interfaces/IPairFactory.sol';
 import './interfaces/IVotingEscrow.sol';
 
 contract Voter {
 
     address public immutable _ve; // the ve token that governs these contracts
-    // address public immutable factory; // the PairFactory
     address internal immutable base;
     address public immutable gaugefactory;
     address public immutable bribefactory;
@@ -53,7 +51,6 @@ contract Voter {
 
     constructor(address __ve, address  _gauges, address _bribes) {
         _ve = __ve;
-        // factory = _factory;
         base = IVotingEscrow(__ve).token();
         gaugefactory = _gauges;
         bribefactory = _bribes;

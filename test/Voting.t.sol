@@ -3,6 +3,9 @@ pragma solidity ^0.8.15;
 
 import {ve, LockedBalance} from "../src/veALCX.sol";
 import {Voter} from "../src/Voter.sol";
+import {PairFactory} from "../src/factories/PairFactory.sol";
+import {GaugeFactory} from "../src/factories/GaugeFactory.sol";
+import {BribeFactory} from "../src/factories/BribeFactory.sol";
 
 import "forge-std/console2.sol";
 import {DSTest} from "ds-test/test.sol";
@@ -25,6 +28,9 @@ contract VotingTest is DSTestPlus {
     address holder = 0x000000000000000000000000000000000000dEaD;
     ve veALCX;
     Voter voter;
+    PairFactory pairFactory;
+    GaugeFactory gaugeFactory;
+    BribeFactory bribeFactory;
 
     uint depositAmount = 999 ether;
     uint lockTime = 30 days;
@@ -32,10 +38,13 @@ contract VotingTest is DSTestPlus {
     /// @dev Deploy the contract
     function setUp() public {
         veALCX = new ve(address(alcx));
+        pairFactory = new PairFactory();
+        gaugeFactory = new GaugeFactory(address(pairFactory));
+        bribeFactory = new BribeFactory();
         voter = new Voter(
             address(veALCX),
-            somethingGauge,
-            somethingBribes
+            address(gaugeFactory),
+            address(bribeFactory)
         );
         
         // Create veNFT for `holder`
