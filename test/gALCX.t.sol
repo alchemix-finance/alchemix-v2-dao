@@ -4,8 +4,9 @@ pragma solidity ^0.8.15;
 import {DSTest} from "ds-test/test.sol";
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
-import {gALCX} from "../gALCX.sol";
-import {IALCXSource} from "../interfaces/IALCXSource.sol";
+import {gALCX} from "../src/gALCX.sol";
+import {IALCXSource} from "../src/interfaces/IALCXSource.sol";
+
 import {DSTestPlus} from "./utils/DSTestPlus.sol";
 import {Hevm} from "./utils/Hevm.sol";
 import {ALCXSource} from "./mocks/ALCXSource.sol";

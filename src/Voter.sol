@@ -14,7 +14,7 @@ import './interfaces/IVotingEscrow.sol';
 contract Voter {
 
     address public immutable _ve; // the ve token that governs these contracts
-    address public immutable factory; // the PairFactory
+    // address public immutable factory; // the PairFactory
     address internal immutable base;
     address public immutable gaugefactory;
     address public immutable bribefactory;
@@ -51,9 +51,9 @@ contract Voter {
     event Detach(address indexed owner, address indexed gauge, uint tokenId);
     event Whitelisted(address indexed whitelister, address indexed token);
 
-    constructor(address __ve, address _factory, address  _gauges, address _bribes) {
+    constructor(address __ve, address  _gauges, address _bribes) {
         _ve = __ve;
-        factory = _factory;
+        // factory = _factory;
         base = IVotingEscrow(__ve).token();
         gaugefactory = _gauges;
         bribefactory = _bribes;
@@ -188,11 +188,12 @@ contract Voter {
 
     function createGauge(address _pool) external returns (address) {
         require(gauges[_pool] == address(0x0), "exists");
-        if (msg.sender != governor) { // gov can create for any pool, even non-Velodrome pairs
-            require(IPairFactory(factory).isPair(_pool), "!_pool");
-            (address tokenA, address tokenB) = IPair(_pool).tokens();
-            require(isWhitelisted[tokenA] && isWhitelisted[tokenB], "!whitelisted");
-        }
+        require(msg.sender == governor, "only governor creates gauges");
+        // if (msg.sender != governor) { // gov can create for any pool, even non-Velodrome pairs
+        //     require(IPairFactory(factory).isPair(_pool), "!_pool");
+        //     (address tokenA, address tokenB) = IPair(_pool).tokens();
+        //     require(isWhitelisted[tokenA] && isWhitelisted[tokenB], "!whitelisted");
+        // }
         address _bribe = IBribeFactory(bribefactory).createBribe();
         address _gauge = IGaugeFactory(gaugefactory).createGauge(_pool, _bribe, _ve);
         IERC20(base).approve(_gauge, type(uint).max);

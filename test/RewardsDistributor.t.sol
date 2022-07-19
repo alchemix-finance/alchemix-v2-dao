@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.15;
 
-import {RewardsDistributor} from "../RewardsDistributor.sol";
+import {RewardsDistributor} from "../src/RewardsDistributor.sol";
+import {ve} from "../src/veALCX.sol";
 
 import "forge-std/console2.sol";
 import {DSTest} from "ds-test/test.sol";
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
-import {ve} from "../veALCX.sol";
 import {DSTestPlus} from "./utils/DSTestPlus.sol";
 import {Hevm} from "./utils/Hevm.sol";
 
