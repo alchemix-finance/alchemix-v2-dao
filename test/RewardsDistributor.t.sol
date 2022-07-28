@@ -26,8 +26,8 @@ contract RewardsDistributorTest is DSTestPlus {
     ve veALCX;
     RewardsDistributor rewards;
 
-    uint depositAmount = 999 ether;
-    uint lockTime = 30 days;
+    uint256 depositAmount = 999 ether;
+    uint256 lockTime = 30 days;
 
     /// @dev Deploy the contract
     function setUp() public {
@@ -42,11 +42,11 @@ contract RewardsDistributorTest is DSTestPlus {
     // /// @dev Deposit ALCX into a veALCX NFT and read parameters
     // function testVEALCXBasic() public {
     //     hevm.startPrank(holder);
-    //     uint alcxBalance = alcx.balanceOf(holder);
+    //     uint256 alcxBalance = alcx.balanceOf(holder);
     //     assertGt(alcxBalance, depositAmount, "Not enough alcx");
 
     //     alcx.approve(address(veALCX), depositAmount);
-    //     uint tokenId = veALCX.create_lock(depositAmount, lockTime);
+    //     uint256 tokenId = veALCX.create_lock(depositAmount, lockTime);
 
     //     // Check that veNFT was created
     //     address owner = veALCX.ownerOf(tokenId);
@@ -54,9 +54,8 @@ contract RewardsDistributorTest is DSTestPlus {
 
     //     // Check veNFT parameters
     //     // LockedBalance memory bal = veALCX.locked(tokenId);
-    //     (int128 amount, uint end) = veALCX.locked(tokenId);
-    //     assertEq(uint(uint128(amount)), depositAmount, "depositAmount doesn't match");
+    //     (int128 amount, uint256 end) = veALCX.locked(tokenId);
+    //     assertEq(uint256(uint128(amount)), depositAmount, "depositAmount doesn't match");
     //     assertLe(end, block.timestamp + lockTime, "lockTime doesn't match"); // Rounds to nearest week
     // }
-
 }

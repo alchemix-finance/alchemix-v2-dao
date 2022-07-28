@@ -2,7 +2,6 @@
 pragma solidity ^0.8.15;
 
 contract PairFactory {
-
     bool public isPaused;
     address public pauser;
     address public pendingPauser;
@@ -13,7 +12,8 @@ contract PairFactory {
     address public feeManager;
     address public pendingFeeManager;
 
-    mapping(address => mapping(address => mapping(bool => address))) public getPair;
+    mapping(address => mapping(address => mapping(bool => address)))
+        public getPair;
     address[] public allPairs;
     // mapping(address => bool) public isPair; // simplified check if its a pair, given that `stable` flag might not be available in peripherals
 
@@ -21,7 +21,13 @@ contract PairFactory {
     address internal _temp1;
     bool internal _temp;
 
-    event PairCreated(address indexed token0, address indexed token1, bool stable, address pair, uint);
+    event PairCreated(
+        address indexed token0,
+        address indexed token1,
+        bool stable,
+        address pair,
+        uint256
+    );
 
     constructor() {
         pauser = msg.sender;
@@ -31,7 +37,7 @@ contract PairFactory {
         volatileFee = 2;
     }
 
-    function allPairsLength() external view returns (uint) {
+    function allPairsLength() external view returns (uint256) {
         return allPairs.length;
     }
 
@@ -51,19 +57,19 @@ contract PairFactory {
     }
 
     function setFeeManager(address _feeManager) external {
-        require(msg.sender == feeManager, 'not fee manager');
+        require(msg.sender == feeManager, "not fee manager");
         pendingFeeManager = _feeManager;
     }
 
     function acceptFeeManager() external {
-        require(msg.sender == pendingFeeManager, 'not pending fee manager');
+        require(msg.sender == pendingFeeManager, "not pending fee manager");
         feeManager = pendingFeeManager;
     }
 
     function setFee(bool _stable, uint256 _fee) external {
-        require(msg.sender == feeManager, 'not fee manager');
-        require(_fee <= MAX_FEE, 'fee too high');
-        require(_fee != 0, 'fee must be nonzero');
+        require(msg.sender == feeManager, "not fee manager");
+        require(_fee <= MAX_FEE, "fee too high");
+        require(_fee != 0, "fee must be nonzero");
         if (_stable) {
             stableFee = _fee;
         } else {
@@ -71,7 +77,7 @@ contract PairFactory {
         }
     }
 
-    function getFee(bool _stable) public view returns(uint256) {
+    function getFee(bool _stable) public view returns (uint256) {
         return _stable ? stableFee : volatileFee;
     }
 
@@ -79,7 +85,15 @@ contract PairFactory {
     //     return keccak256(type(Pair).creationCode);
     // }
 
-    function getInitializable() external view returns (address, address, bool) {
+    function getInitializable()
+        external
+        view
+        returns (
+            address,
+            address,
+            bool
+        )
+    {
         return (_temp0, _temp1, _temp);
     }
 
