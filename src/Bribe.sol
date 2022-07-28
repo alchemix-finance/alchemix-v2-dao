@@ -6,20 +6,20 @@ import './interfaces/IBribe.sol';
 import './interfaces/IGauge.sol';
 
 contract Bribe is IBribe {
-  uint internal constant DURATION = 5 days; // rewards are released over the voting period
-  uint internal constant BRIBE_LAG = 1 days;
-  uint internal constant COOLDOWN = 12 hours;
-  uint internal constant MAX_REWARD_TOKENS = 16;
+  uint256 internal constant DURATION = 5 days; // rewards are released over the voting period
+  uint256 internal constant BRIBE_LAG = 1 days;
+  uint256 internal constant COOLDOWN = 12 hours;
+  uint256 internal constant MAX_REWARD_TOKENS = 16;
 
   address public gauge;
-  mapping(address => mapping(uint => uint)) public tokenRewardsPerEpoch;
+  mapping(address => mapping(uint256 => uint256)) public tokenRewardsPerEpoch;
   address[] public rewards;
   mapping(address => bool) public isReward;
 
-  event NotifyReward(address indexed from, address indexed reward, uint epoch, uint amount);
+  event NotifyReward(address indexed from, address indexed reward, uint256 epoch, uint256 amount);
 
   // simple re-entrancy check
-  uint internal _unlocked = 1;
+  uint256 internal _unlocked = 1;
   modifier lock() {
       require(_unlocked == 1);
       _unlocked = 2;
@@ -32,20 +32,20 @@ contract Bribe is IBribe {
     gauge = _gauge;
   }
 
-  function getEpochStart(uint timestamp) public pure returns (uint) {
-    uint bribeStart = timestamp - (timestamp % (7 days)) + BRIBE_LAG;
-    uint bribeEnd = bribeStart + DURATION - COOLDOWN;
+  function getEpochStart(uint256 timestamp) public pure returns (uint256) {
+    uint256 bribeStart = timestamp - (timestamp % (7 days)) + BRIBE_LAG;
+    uint256 bribeEnd = bribeStart + DURATION - COOLDOWN;
     return timestamp < bribeEnd ? bribeStart : bribeStart + 7 days;
   }
 
-  function notifyRewardAmount(address token, uint amount) external lock {
+  function notifyRewardAmount(address token, uint256 amount) external lock {
       require(amount > 0);
       if (!isReward[token]) {
         require(rewards.length < MAX_REWARD_TOKENS, "too many rewards tokens");
       }
       // bribes kick in at the start of next bribe period
-      uint adjustedTstamp = getEpochStart(block.timestamp);
-      uint epochRewards = tokenRewardsPerEpoch[token][adjustedTstamp];
+      uint256 adjustedTstamp = getEpochStart(block.timestamp);
+      uint256 epochRewards = tokenRewardsPerEpoch[token][adjustedTstamp];
 
       _safeTransferFrom(token, msg.sender, address(this), amount);
       tokenRewardsPerEpoch[token][adjustedTstamp] = epochRewards + amount;
@@ -59,7 +59,7 @@ contract Bribe is IBribe {
       emit NotifyReward(msg.sender, token, adjustedTstamp, amount);
   }
 
-  function rewardsListLength() external view returns (uint) {
+  function rewardsListLength() external view returns (uint256) {
       return rewards.length;
   }
 
@@ -72,7 +72,7 @@ contract Bribe is IBribe {
     }
   }
 
-  function swapOutRewardToken(uint i, address oldToken, address newToken) external {
+  function swapOutRewardToken(uint256 i, address oldToken, address newToken) external {
     require(msg.sender == gauge);
     require(rewards[i] == oldToken);
     isReward[oldToken] = false;
@@ -80,9 +80,9 @@ contract Bribe is IBribe {
     rewards[i] = newToken;
   }
 
-  function deliverReward(address token, uint epochStart) external lock returns (uint) {
+  function deliverReward(address token, uint256 epochStart) external lock returns (uint256) {
     require(msg.sender == gauge);
-    uint rewardPerEpoch = tokenRewardsPerEpoch[token][epochStart];
+    uint256 rewardPerEpoch = tokenRewardsPerEpoch[token][epochStart];
     if (rewardPerEpoch > 0) {
       _safeTransfer(token, address(gauge), rewardPerEpoch);
     }

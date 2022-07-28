@@ -21,7 +21,7 @@ contract PairFactory {
     address internal _temp1;
     bool internal _temp;
 
-    event PairCreated(address indexed token0, address indexed token1, bool stable, address pair, uint);
+    event PairCreated(address indexed token0, address indexed token1, bool stable, address pair, uint256);
 
     constructor() {
         pauser = msg.sender;
@@ -31,7 +31,7 @@ contract PairFactory {
         volatileFee = 2;
     }
 
-    function allPairsLength() external view returns (uint) {
+    function allPairsLength() external view returns (uint256) {
         return allPairs.length;
     }
 

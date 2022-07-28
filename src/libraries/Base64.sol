@@ -9,11 +9,11 @@ library Base64 {
 
     /// @notice Encodes some bytes to the base64 representation
     function encode(bytes memory data) internal pure returns (string memory) {
-        uint len = data.length;
+        uint256 len = data.length;
         if (len == 0) return "";
 
         // multiply by 4/3 rounded up
-        uint encodedLen = 4 * ((len + 2) / 3);
+        uint256 encodedLen = 4 * ((len + 2) / 3);
 
         // Add some extra buffer at the end
         bytes memory result = new bytes(encodedLen + 32);

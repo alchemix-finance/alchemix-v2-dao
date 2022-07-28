@@ -16,22 +16,22 @@ contract Voter {
     address internal immutable base;
     address public immutable gaugefactory;
     address public immutable bribefactory;
-    uint internal constant DURATION = 5 days; // rewards are released over 5 days
-    uint internal constant BRIBE_LAG = 1 days;
+    uint256 internal constant DURATION = 5 days; // rewards are released over 5 days
+    uint256 internal constant BRIBE_LAG = 1 days;
     address public minter;
     address public governor; // should be set to an IGovernor
     address public emergencyCouncil; // credibly neutral party similar to Curve's Emergency DAO
 
-    uint public totalWeight; // total voting weight
+    uint256 public totalWeight; // total voting weight
 
     address[] public pools; // all pools viable for incentives
     mapping(address => address) public gauges; // pool => gauge
     mapping(address => address) public poolForGauge; // gauge => pool
     mapping(address => address) public bribes; // gauge => bribe
     mapping(address => uint256) public weights; // pool => weight
-    mapping(uint => mapping(address => uint256)) public votes; // nft => pool => votes
-    mapping(uint => address[]) public poolVote; // nft => pools
-    mapping(uint => uint) public usedWeights;  // nft => total voting weight of user
+    mapping(uint256 => mapping(address => uint256)) public votes; // nft => pool => votes
+    mapping(uint256 => address[]) public poolVote; // nft => pools
+    mapping(uint256 => uint256) public usedWeights;  // nft => total voting weight of user
     mapping(address => bool) public isGauge;
     mapping(address => bool) public isWhitelisted;
     mapping(address => bool) public isAlive;
@@ -39,14 +39,14 @@ contract Voter {
     event GaugeCreated(address indexed gauge, address creator, address indexed bribe, address indexed pool);
     event GaugeKilled(address indexed gauge);
     event GaugeRevived(address indexed gauge);
-    event Voted(address indexed voter, uint tokenId, uint256 weight);
-    event Abstained(uint tokenId, uint256 weight);
-    event Deposit(address indexed lp, address indexed gauge, uint tokenId, uint amount);
-    event Withdraw(address indexed lp, address indexed gauge, uint tokenId, uint amount);
-    event NotifyReward(address indexed sender, address indexed reward, uint amount);
-    event DistributeReward(address indexed sender, address indexed gauge, uint amount);
-    event Attach(address indexed owner, address indexed gauge, uint tokenId);
-    event Detach(address indexed owner, address indexed gauge, uint tokenId);
+    event Voted(address indexed voter, uint256 tokenId, uint256 weight);
+    event Abstained(uint256 tokenId, uint256 weight);
+    event Deposit(address indexed lp, address indexed gauge, uint256 tokenId, uint256 amount);
+    event Withdraw(address indexed lp, address indexed gauge, uint256 tokenId, uint256 amount);
+    event NotifyReward(address indexed sender, address indexed reward, uint256 amount);
+    event DistributeReward(address indexed sender, address indexed gauge, uint256 amount);
+    event Attach(address indexed owner, address indexed gauge, uint256 tokenId);
+    event Detach(address indexed owner, address indexed gauge, uint256 tokenId);
     event Whitelisted(address indexed whitelister, address indexed token);
 
     constructor(address __ve, address  _gauges, address _bribes) {
@@ -60,7 +60,7 @@ contract Voter {
     }
 
     // simple re-entrancy check
-    uint internal _unlocked = 1;
+    uint256 internal _unlocked = 1;
     modifier lock() {
         require(_unlocked == 1);
         _unlocked = 2;
@@ -70,7 +70,7 @@ contract Voter {
 
     function initialize(address[] memory _tokens, address _minter) external {
         require(msg.sender == minter);
-        for (uint i = 0; i < _tokens.length; i++) {
+        for (uint256 i = 0; i < _tokens.length; i++) {
             _whitelist(_tokens[i]);
         }
         minter = _minter;
@@ -86,18 +86,18 @@ contract Voter {
         emergencyCouncil = _council;
     }
 
-    function reset(uint _tokenId) external {
+    function reset(uint256 _tokenId) external {
         require(IVotingEscrow(_ve).isApprovedOrOwner(msg.sender, _tokenId));
         _reset(_tokenId);
         IVotingEscrow(_ve).abstain(_tokenId);
     }
 
-    function _reset(uint _tokenId) internal {
+    function _reset(uint256 _tokenId) internal {
         address[] storage _poolVote = poolVote[_tokenId];
-        uint _poolVoteCnt = _poolVote.length;
+        uint256 _poolVoteCnt = _poolVote.length;
         uint256 _totalWeight = 0;
 
-        for (uint i = 0; i < _poolVoteCnt; i ++) {
+        for (uint256 i = 0; i < _poolVoteCnt; i ++) {
             address _pool = _poolVote[i];
             uint256 _votes = votes[_tokenId][_pool];
 
@@ -117,31 +117,31 @@ contract Voter {
         delete poolVote[_tokenId];
     }
 
-    function poke(uint _tokenId) external {
+    function poke(uint256 _tokenId) external {
         address[] memory _poolVote = poolVote[_tokenId];
-        uint _poolCnt = _poolVote.length;
+        uint256 _poolCnt = _poolVote.length;
         uint256[] memory _weights = new uint256[](_poolCnt);
 
-        for (uint i = 0; i < _poolCnt; i ++) {
+        for (uint256 i = 0; i < _poolCnt; i ++) {
             _weights[i] = votes[_tokenId][_poolVote[i]];
         }
 
         _vote(_tokenId, _poolVote, _weights);
     }
 
-    function _vote(uint _tokenId, address[] memory _poolVote, uint256[] memory _weights) internal {
+    function _vote(uint256 _tokenId, address[] memory _poolVote, uint256[] memory _weights) internal {
         _reset(_tokenId);
-        uint _poolCnt = _poolVote.length;
+        uint256 _poolCnt = _poolVote.length;
         uint256 _weight = IVotingEscrow(_ve).balanceOfNFT(_tokenId);
         uint256 _totalVoteWeight = 0;
         uint256 _totalWeight = 0;
         uint256 _usedWeight = 0;
 
-        for (uint i = 0; i < _poolCnt; i++) {
+        for (uint256 i = 0; i < _poolCnt; i++) {
             _totalVoteWeight += _weights[i];
         }
 
-        for (uint i = 0; i < _poolCnt; i++) {
+        for (uint256 i = 0; i < _poolCnt; i++) {
             address _pool = _poolVote[i];
             address _gauge = gauges[_pool];
 
@@ -166,7 +166,7 @@ contract Voter {
         usedWeights[_tokenId] = uint256(_usedWeight);
     }
 
-    function vote(uint tokenId, address[] calldata _poolVote, uint256[] calldata _weights) external {
+    function vote(uint256 tokenId, address[] calldata _poolVote, uint256[] calldata _weights) external {
         require(IVotingEscrow(_ve).isApprovedOrOwner(msg.sender, tokenId));
         require(_poolVote.length == _weights.length);
         _vote(tokenId, _poolVote, _weights);
@@ -193,7 +193,7 @@ contract Voter {
         // }
         address _bribe = IBribeFactory(bribefactory).createBribe();
         address _gauge = IGaugeFactory(gaugefactory).createGauge(_pool, _bribe, _ve);
-        IERC20(base).approve(_gauge, type(uint).max);
+        IERC20(base).approve(_gauge, type(uint256).max);
         bribes[_gauge] = _bribe;
         gauges[_pool] = _gauge;
         poolForGauge[_gauge] = _pool;
@@ -219,39 +219,39 @@ contract Voter {
         emit GaugeRevived(_gauge);
     }
 
-    function attachTokenToGauge(uint tokenId, address account) external {
+    function attachTokenToGauge(uint256 tokenId, address account) external {
         require(isGauge[msg.sender]);
         require(isAlive[msg.sender]); // killed gauges cannot attach tokens to themselves
         if (tokenId > 0) IVotingEscrow(_ve).attach(tokenId);
         emit Attach(account, msg.sender, tokenId);
     }
 
-    function emitDeposit(uint tokenId, address account, uint amount) external {
+    function emitDeposit(uint256 tokenId, address account, uint256 amount) external {
         require(isGauge[msg.sender]);
         require(isAlive[msg.sender]);
         emit Deposit(account, msg.sender, tokenId, amount);
     }
 
-    function detachTokenFromGauge(uint tokenId, address account) external {
+    function detachTokenFromGauge(uint256 tokenId, address account) external {
         require(isGauge[msg.sender]);
         if (tokenId > 0) IVotingEscrow(_ve).detach(tokenId);
         emit Detach(account, msg.sender, tokenId);
     }
 
-    function emitWithdraw(uint tokenId, address account, uint amount) external {
+    function emitWithdraw(uint256 tokenId, address account, uint256 amount) external {
         require(isGauge[msg.sender]);
         emit Withdraw(account, msg.sender, tokenId, amount);
     }
 
-    function length() external view returns (uint) {
+    function length() external view returns (uint256) {
         return pools.length;
     }
 
-    uint internal index;
-    mapping(address => uint) internal supplyIndex;
-    mapping(address => uint) public claimable;
+    uint256 internal index;
+    mapping(address => uint256) internal supplyIndex;
+    mapping(address => uint256) public claimable;
 
-    function notifyRewardAmount(uint amount) external {
+    function notifyRewardAmount(uint256 amount) external {
         _safeTransferFrom(base, msg.sender, address(this), amount); // transfer the distro in
         uint256 _ratio = amount * 1e18 / totalWeight; // 1e18 adjustment is removed during claim
         if (_ratio > 0) {
@@ -261,13 +261,13 @@ contract Voter {
     }
 
     function updateFor(address[] memory _gauges) external {
-        for (uint i = 0; i < _gauges.length; i++) {
+        for (uint256 i = 0; i < _gauges.length; i++) {
             _updateFor(_gauges[i]);
         }
     }
 
-    function updateForRange(uint start, uint end) public {
-        for (uint i = start; i < end; i++) {
+    function updateForRange(uint256 start, uint256 end) public {
+        for (uint256 i = start; i < end; i++) {
             _updateFor(gauges[pools[i]]);
         }
     }
@@ -285,12 +285,12 @@ contract Voter {
         address _pool = poolForGauge[_gauge];
         uint256 _supplied = weights[_pool];
         if (_supplied > 0) {
-            uint _supplyIndex = supplyIndex[_gauge];
-            uint _index = index; // get global index0 for accumulated distro
+            uint256 _supplyIndex = supplyIndex[_gauge];
+            uint256 _index = index; // get global index0 for accumulated distro
             supplyIndex[_gauge] = _index; // update _gauge current position to global position
-            uint _delta = _index - _supplyIndex; // see if there is any difference that need to be accrued
+            uint256 _delta = _index - _supplyIndex; // see if there is any difference that need to be accrued
             if (_delta > 0) {
-                uint _share = uint(_supplied) * _delta / 1e18; // add accrued difference for each supplied token
+                uint256 _share = uint256(_supplied) * _delta / 1e18; // add accrued difference for each supplied token
                 claimable[_gauge] += _share;
             }
         } else {
@@ -299,24 +299,24 @@ contract Voter {
     }
 
     function claimRewards(address[] memory _gauges, address[][] memory _tokens) external {
-        for (uint i = 0; i < _gauges.length; i++) {
+        for (uint256 i = 0; i < _gauges.length; i++) {
             IGauge(_gauges[i]).getReward(msg.sender, _tokens[i]);
         }
     }
 
     function distributeFees(address[] memory _gauges) external {
-        for (uint i = 0; i < _gauges.length; i++) {
+        for (uint256 i = 0; i < _gauges.length; i++) {
             IGauge(_gauges[i]).claimFees();
         }
     }
 
     function distribute(address _gauge) public lock {
         require(isAlive[_gauge]); // killed gauges cannot distribute
-        uint dayCalc = block.timestamp % (7 days);
+        uint256 dayCalc = block.timestamp % (7 days);
         require((dayCalc < BRIBE_LAG) || (dayCalc > (DURATION + BRIBE_LAG)), "cannot claim during votes period");
         IMinter(minter).update_period();
         _updateFor(_gauge);
-        uint _claimable = claimable[_gauge];
+        uint256 _claimable = claimable[_gauge];
         if (_claimable > IGauge(_gauge).left(base) && _claimable / DURATION > 0) {
             claimable[_gauge] = 0;
             IGauge(_gauge).notifyRewardAmount(base, _claimable);
@@ -334,14 +334,14 @@ contract Voter {
         distribute(0, pools.length);
     }
 
-    function distribute(uint start, uint finish) public {
-        for (uint x = start; x < finish; x++) {
+    function distribute(uint256 start, uint256 finish) public {
+        for (uint256 x = start; x < finish; x++) {
             distribute(gauges[pools[x]]);
         }
     }
 
     function distribute(address[] memory _gauges) external {
-        for (uint x = 0; x < _gauges.length; x++) {
+        for (uint256 x = 0; x < _gauges.length; x++) {
             distribute(_gauges[x]);
         }
     }

@@ -15,27 +15,32 @@ contract Minter {
     // update these vars and logic to match ALCX emissinos curve
     // need to add logic that brings current emission down every period
     // levels out at tail emission rate
-    uint internal constant WEEK = 86400 * 7; // allows minting once per week (reset every Thursday 00:00 UTC)
-    uint internal constant EMISSION = 990;
-    uint internal constant TAIL_EMISSION = 2;
-    uint internal constant PRECISION = 1000;
+    uint256 internal constant WEEK = 86400 * 7; // allows minting once per week (reset every Thursday 00:00 UTC)
+    uint256 internal constant EMISSION = 990;
+    uint256 internal constant TAIL_EMISSION = 2;
+    uint256 internal constant PRECISION = 1000;
     // TODO
     // IgALCX
     IVelo public immutable _velo;
     IVoter public immutable _voter;
     IVotingEscrow public immutable _ve;
     IRewardsDistributor public immutable _rewards_distributor;
-    uint public weekly = 15000000e18;
-    uint public active_period;
-    uint internal constant LOCK = 86400 * 7 * 52 * 4;
+    uint256 public weekly = 15000000e18;
+    uint256 public active_period;
+    uint256 internal constant LOCK = 86400 * 7 * 52 * 4;
 
     address internal initializer;
     address public admin;
     address public pendingAdmin;
-    uint public adminRate;
-    uint public constant MAX_ADMIN_RATE = 50; // 50 bps = 0.05%
+    uint256 public adminRate;
+    uint256 public constant MAX_ADMIN_RATE = 50; // 50 bps = 0.05%
 
-    event Mint(address indexed sender, uint weekly, uint circulating_supply, uint circulating_emission);
+    event Mint(
+        address indexed sender,
+        uint256 weekly,
+        uint256 circulating_supply,
+        uint256 circulating_emission
+    );
 
     constructor(
         address __voter, // the voting & distribution system
@@ -54,16 +59,16 @@ contract Minter {
 
     function initialize(
         address[] memory claimants,
-        uint[] memory amounts,
-        uint max // sum amounts / max = % ownership of top protocols, so if initial 20m is distributed, and target is 25% protocol ownership, then max - 4 x 20m = 80m
+        uint256[] memory amounts,
+        uint256 max // sum amounts / max = % ownership of top protocols, so if initial 20m is distributed, and target is 25% protocol ownership, then max - 4 x 20m = 80m
     ) external {
         require(initializer == msg.sender);
         // TODO
         // this looks velo-specific
         // i don't think we want to mint a bunch of ALCX out of the gate.
         _velo.mint(address(this), max);
-        _velo.approve(address(_ve), type(uint).max);
-        for (uint i = 0; i < claimants.length; i++) {
+        _velo.approve(address(_ve), type(uint256).max);
+        for (uint256 i = 0; i < claimants.length; i++) {
             _ve.create_lock_for(amounts[i], LOCK, claimants[i]);
         }
         initializer = address(0);
@@ -80,36 +85,39 @@ contract Minter {
         admin = pendingAdmin;
     }
 
-    function setAdminRate(uint _adminRate) external {
+    function setAdminRate(uint256 _adminRate) external {
         require(msg.sender == admin, "not admin");
         require(_adminRate <= MAX_ADMIN_RATE, "rate too high");
         adminRate = _adminRate;
     }
 
     // calculate circulating supply as total token supply - locked supply
-    function circulating_supply() public view returns (uint) {
+    function circulating_supply() public view returns (uint256) {
         return _velo.totalSupply() - _ve.totalSupply();
     }
 
     // emission calculation is 2% of available supply to mint adjusted by circulating / total supply
-    function calculate_emission() public view returns (uint) {
-        return weekly * EMISSION * circulating_supply() / PRECISION / _velo.totalSupply();
+    function calculate_emission() public view returns (uint256) {
+        return
+            (weekly * EMISSION * circulating_supply()) /
+            PRECISION /
+            _velo.totalSupply();
     }
 
     // weekly emission takes the max of calculated (aka target) emission versus circulating tail end emission
-    function weekly_emission() public view returns (uint) {
+    function weekly_emission() public view returns (uint256) {
         return Math.max(calculate_emission(), circulating_emission());
     }
 
     // calculates tail end (infinity) emissions as 0.2% of total supply
-    function circulating_emission() public view returns (uint) {
+    function circulating_emission() public view returns (uint256) {
         return (circulating_supply() * TAIL_EMISSION) / PRECISION;
     }
 
     // calculate inflation and adjust ve balances accordingly
-    function calculate_growth(uint _minted) public view returns (uint) {
-        uint _veTotal = _ve.totalSupply();
-        uint _veloTotal = _velo.totalSupply();
+    function calculate_growth(uint256 _minted) public view returns (uint256) {
+        uint256 _veTotal = _ve.totalSupply();
+        uint256 _veloTotal = _velo.totalSupply();
         return
             (((((_minted * _veTotal) / _veloTotal) * _veTotal) / _veloTotal) *
                 _veTotal) /
@@ -118,18 +126,19 @@ contract Minter {
     }
 
     // update period can only be called once per cycle (1 week)
-    function update_period() external returns (uint) {
-        uint _period = active_period;
-        if (block.timestamp >= _period + WEEK && initializer == address(0)) { // only trigger if new week
+    function update_period() external returns (uint256) {
+        uint256 _period = active_period;
+        if (block.timestamp >= _period + WEEK && initializer == address(0)) {
+            // only trigger if new week
             _period = (block.timestamp / WEEK) * WEEK;
             active_period = _period;
             weekly = weekly_emission();
 
-            uint _growth = calculate_growth(weekly);
-            uint _adminEmissions = (adminRate * (_growth + weekly)) /
+            uint256 _growth = calculate_growth(weekly);
+            uint256 _adminEmissions = (adminRate * (_growth + weekly)) /
                 (PRECISION - adminRate);
-            uint _required = _growth + weekly + _adminEmissions;
-            uint _balanceOf = _velo.balanceOf(address(this));
+            uint256 _required = _growth + weekly + _adminEmissions;
+            uint256 _balanceOf = _velo.balanceOf(address(this));
             if (_balanceOf < _required) {
                 _velo.mint(address(this), _required - _balanceOf);
             }
@@ -142,7 +151,12 @@ contract Minter {
             _velo.approve(address(_voter), weekly);
             _voter.notifyRewardAmount(weekly);
 
-            emit Mint(msg.sender, weekly, circulating_supply(), circulating_emission());
+            emit Mint(
+                msg.sender,
+                weekly,
+                circulating_supply(),
+                circulating_emission()
+            );
         }
         return _period;
     }
