@@ -6,17 +6,17 @@ import '../interfaces/IPairFactory.sol';
 
 contract GaugeFactory {
     address public last_gauge;
-    address public team;
+    address public admin;
     address immutable pairFactory;
 
     constructor(address _pairFactory) {
-        team = msg.sender;
+        admin = msg.sender;
         pairFactory = _pairFactory;
     }
 
-    function setTeam(address _team) external {
-        require(msg.sender == team);
-        team = _team;
+    function setAdmin(address _admin) external {
+        require(msg.sender == admin);
+        admin = _admin;
     }
 
     function createGauge(address _pool, address _bribe, address _ve) external returns (address) {

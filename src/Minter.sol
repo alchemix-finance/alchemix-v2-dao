@@ -30,14 +30,17 @@ contract Minter {
     uint256 internal constant LOCK = 86400 * 7 * 52 * 4;
 
     address internal initializer;
-    // TODO
-    // admin
-    address public team;
-    address public pendingTeam;
-    uint256 public teamRate;
-    uint256 public constant MAX_TEAM_RATE = 50; // 50 bps = 0.05%
+    address public admin;
+    address public pendingAdmin;
+    uint256 public adminRate;
+    uint256 public constant MAX_ADMIN_RATE = 50; // 50 bps = 0.05%
 
-    event Mint(address indexed sender, uint256 weekly, uint256 circulating_supply, uint256 circulating_emission);
+    event Mint(
+        address indexed sender,
+        uint256 weekly,
+        uint256 circulating_supply,
+        uint256 circulating_emission
+    );
 
     constructor(
         address __voter, // the voting & distribution system
@@ -45,8 +48,8 @@ contract Minter {
         address __rewards_distributor // the distribution system that ensures users aren't diluted
     ) {
         initializer = msg.sender;
-        team = msg.sender;
-        teamRate = 30; // 30 bps = 0.03%
+        admin = msg.sender;
+        adminRate = 30; // 30 bps = 0.03%
         _velo = IVelo(IVotingEscrow(__ve).token());
         _voter = IVoter(__voter);
         _ve = IVotingEscrow(__ve);
@@ -72,20 +75,20 @@ contract Minter {
         active_period = ((block.timestamp + WEEK) / WEEK) * WEEK;
     }
 
-    function setTeam(address _team) external {
-        require(msg.sender == team, "not team");
-        pendingTeam = _team;
+    function setAdmin(address _admin) external {
+        require(msg.sender == admin, "not admin");
+        pendingAdmin = _admin;
     }
 
-    function acceptTeam() external {
-        require(msg.sender == pendingTeam, "not pending team");
-        team = pendingTeam;
+    function acceptAdmin() external {
+        require(msg.sender == pendingAdmin, "not pending admin");
+        admin = pendingAdmin;
     }
 
-    function setTeamRate(uint256 _teamRate) external {
-        require(msg.sender == team, "not team");
-        require(_teamRate <= MAX_TEAM_RATE, "rate too high");
-        teamRate = _teamRate;
+    function setAdminRate(uint256 _adminRate) external {
+        require(msg.sender == admin, "not admin");
+        require(_adminRate <= MAX_ADMIN_RATE, "rate too high");
+        adminRate = _adminRate;
     }
 
     // calculate circulating supply as total token supply - locked supply
@@ -95,7 +98,10 @@ contract Minter {
 
     // emission calculation is 2% of available supply to mint adjusted by circulating / total supply
     function calculate_emission() public view returns (uint256) {
-        return weekly * EMISSION * circulating_supply() / PRECISION / _velo.totalSupply();
+        return
+            (weekly * EMISSION * circulating_supply()) /
+            PRECISION /
+            _velo.totalSupply();
     }
 
     // weekly emission takes the max of calculated (aka target) emission versus circulating tail end emission
@@ -122,21 +128,22 @@ contract Minter {
     // update period can only be called once per cycle (1 week)
     function update_period() external returns (uint256) {
         uint256 _period = active_period;
-        if (block.timestamp >= _period + WEEK && initializer == address(0)) { // only trigger if new week
+        if (block.timestamp >= _period + WEEK && initializer == address(0)) {
+            // only trigger if new week
             _period = (block.timestamp / WEEK) * WEEK;
             active_period = _period;
             weekly = weekly_emission();
 
             uint256 _growth = calculate_growth(weekly);
-            uint256 _teamEmissions = (teamRate * (_growth + weekly)) /
-                (PRECISION - teamRate);
-            uint256 _required = _growth + weekly + _teamEmissions;
+            uint256 _adminEmissions = (adminRate * (_growth + weekly)) /
+                (PRECISION - adminRate);
+            uint256 _required = _growth + weekly + _adminEmissions;
             uint256 _balanceOf = _velo.balanceOf(address(this));
             if (_balanceOf < _required) {
                 _velo.mint(address(this), _required - _balanceOf);
             }
 
-            require(_velo.transfer(team, _teamEmissions));
+            require(_velo.transfer(admin, _adminEmissions));
             require(_velo.transfer(address(_rewards_distributor), _growth));
             _rewards_distributor.checkpoint_token(); // checkpoint token balance that was just minted in rewards distributor
             _rewards_distributor.checkpoint_total_supply(); // checkpoint supply
@@ -144,7 +151,12 @@ contract Minter {
             _velo.approve(address(_voter), weekly);
             _voter.notifyRewardAmount(weekly);
 
-            emit Mint(msg.sender, weekly, circulating_supply(), circulating_emission());
+            emit Mint(
+                msg.sender,
+                weekly,
+                circulating_supply(),
+                circulating_emission()
+            );
         }
         return _period;
     }
