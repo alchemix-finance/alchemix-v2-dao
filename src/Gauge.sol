@@ -624,7 +624,7 @@ contract Gauge {
     }
 
     function swapOutRewardToken(uint i, address oldToken, address newToken) external {
-        require(msg.sender == IGaugeFactory(factory).admin(), 'only admin');
+        require(msg.sender == IGaugeFactory(factory).team(), 'only team');
         require(rewards[i] == oldToken);
         isReward[oldToken] = false;
         isReward[newToken] = true;
@@ -632,7 +632,7 @@ contract Gauge {
     }
 
     function swapOutBribeRewardToken(uint i, address oldToken, address newToken) external {
-        require(msg.sender == IGaugeFactory(factory).admin(), 'only admin');
+        require(msg.sender == IGaugeFactory(factory).team(), 'only team');
         IBribe(bribe).swapOutRewardToken(i, oldToken, newToken);
     }
 

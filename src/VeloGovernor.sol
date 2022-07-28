@@ -15,7 +15,7 @@ contract VeloGovernor is
     L2GovernorVotes,
     L2GovernorVotesQuorumFraction
 {
-    address public admin;
+    address public team;
     uint256 public constant MAX_PROPOSAL_NUMERATOR = 50; // max 5%
     uint256 public constant PROPOSAL_DENOMINATOR = 1000;
     uint256 public proposalNumerator = 2; // start at 0.02%
@@ -25,7 +25,7 @@ contract VeloGovernor is
         L2GovernorVotes(_ve)
         L2GovernorVotesQuorumFraction(4) // 4%
     {
-        admin = msg.sender;
+        team = msg.sender;
     }
 
     function votingDelay() public pure override(IGovernor) returns (uint256) {
@@ -36,13 +36,13 @@ contract VeloGovernor is
         return 1 weeks;
     }
 
-    function setAdmin(address newAdmin) external {
-        require(msg.sender == admin, "not admin");
-        admin = newAdmin;
+    function setTeam(address newTeam) external {
+        require(msg.sender == team, "not team");
+        team = newTeam;
     }
 
     function setProposalNumerator(uint256 numerator) external {
-        require(msg.sender == admin, "not admin");
+        require(msg.sender == team, "not team");
         require(numerator <= MAX_PROPOSAL_NUMERATOR, "numerator too high");
         proposalNumerator = numerator;
     }
