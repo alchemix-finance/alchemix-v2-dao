@@ -21,16 +21,15 @@ interface Vm {
 /// @dev asserts are (actual, expected)
 contract gALCXTest is DSTestPlus {
     IERC20 public alcx = IERC20(0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF);
-    IALCXSource internal constant pool =
-        IALCXSource(0xAB8e74017a8Cc7c15FFcCd726603790d26d7DeCa);
+    IALCXSource internal constant pool = IALCXSource(0xAB8e74017a8Cc7c15FFcCd726603790d26d7DeCa);
     address holder = 0x000000000000000000000000000000000000dEaD;
     gALCX govALCX;
 
-    uint256 depositAmount = 999 ether;
+    uint depositAmount = 999 ether;
 
     /// @dev Deploy the contract
     function setUp() public {
-        uint256 foo = 3;
+        uint foo = 3;
         assertGt(foo, 2);
         govALCX = new gALCX("governance ALCX", "gALCX");
     }
@@ -38,20 +37,20 @@ contract gALCXTest is DSTestPlus {
     /// @dev Deposit ALCX into gALCX
     function testStake() public {
         hevm.startPrank(holder);
-        uint256 oldBalance = alcx.balanceOf(holder);
-        uint256 amount = depositAmount;
+        uint oldBalance = alcx.balanceOf(holder);
+        uint amount = depositAmount;
         bool success = alcx.approve(address(govALCX), amount);
         assertTrue(success);
         govALCX.stake(amount);
-        uint256 gBalance = govALCX.balanceOf(holder);
-        uint256 newBalance = alcx.balanceOf(holder);
+        uint gBalance = govALCX.balanceOf(holder);
+        uint newBalance = alcx.balanceOf(holder);
         assertEq(gBalance, amount);
-        assertEq(oldBalance - newBalance, amount);
+        assertEq(oldBalance-newBalance, amount);
         hevm.stopPrank();
     }
 
     /// @dev Fuzz staking with a variety of staking amounts
-    function testStakeFuzz(uint256 amount) public {
+    function testStakeFuzz(uint amount) public {
         // Constrain the param to lie within user balance
         amount = bound(amount, 0, alcx.balanceOf(holder));
 
@@ -59,7 +58,7 @@ contract gALCXTest is DSTestPlus {
         bool success = alcx.approve(address(govALCX), amount);
         assertTrue(success);
         govALCX.stake(amount);
-        uint256 gBalance = govALCX.balanceOf(holder);
+        uint gBalance = govALCX.balanceOf(holder);
         assertEq(gBalance, amount);
         hevm.stopPrank();
     }
@@ -67,22 +66,22 @@ contract gALCXTest is DSTestPlus {
     /// @dev Check if reverts when you try to stake more than approved
     function testFailStake() public {
         hevm.startPrank(holder);
-        uint256 amount = depositAmount;
+        uint amount = depositAmount;
         bool success = alcx.approve(address(govALCX), amount);
         assertTrue(success);
-        govALCX.stake(amount + 1);
+        govALCX.stake(amount+1);
     }
 
     /// @dev Deposit ALCX into gALCX, then withdraw
     function testStakeAndUnstake() public {
         testStake();
         hevm.startPrank(holder);
-        uint256 gBalance = govALCX.balanceOf(holder);
-        uint256 prevBalance = alcx.balanceOf(holder);
+        uint gBalance = govALCX.balanceOf(holder);
+        uint prevBalance = alcx.balanceOf(holder);
         govALCX.unstake(gBalance);
-        uint256 balance = alcx.balanceOf(holder);
+        uint balance = alcx.balanceOf(holder);
         // Check that ALCX diff equals the old gALCX balance
-        assertEq(gBalance, balance - prevBalance);
+        assertEq(gBalance, balance-prevBalance);
         hevm.stopPrank();
     }
 
@@ -90,17 +89,17 @@ contract gALCXTest is DSTestPlus {
     function testFailStakeAndUnstake() public {
         testStake();
         hevm.startPrank(holder);
-        uint256 gBalance = govALCX.balanceOf(holder);
-        govALCX.unstake(gBalance + 1);
+        uint gBalance = govALCX.balanceOf(holder);
+        govALCX.unstake(gBalance+1);
     }
 
     /// @dev Deposit, then rebase upwards, then withdraw
     function testStakeAndRebaseAndUnstake() public {
         testStake();
-        uint256 oldExchangeRate = govALCX.exchangeRate();
+        uint oldExchangeRate = govALCX.exchangeRate();
         hevm.startPrank(holder);
         // Send ALCX to the StakingPool, mocking reward distribution
-        uint256 rewardAmount = 100000 ether;
+        uint rewardAmount = 100000 ether;
         alcx.approve(address(pool), rewardAmount);
         pool.deposit(1, rewardAmount);
         // Time travel one block, IALCXSource has some equality defaults
@@ -108,14 +107,14 @@ contract gALCXTest is DSTestPlus {
         hevm.roll(block.number + 1);
         // Now check the new exchange rate
         govALCX.bumpExchangeRate();
-        uint256 newExchangeRate = govALCX.exchangeRate();
+        uint newExchangeRate = govALCX.exchangeRate();
         assertGt(newExchangeRate, oldExchangeRate);
         // Unstake
-        uint256 oldBalance = alcx.balanceOf(holder);
-        uint256 gBalance = govALCX.balanceOf(holder);
+        uint oldBalance = alcx.balanceOf(holder);
+        uint gBalance = govALCX.balanceOf(holder);
         govALCX.unstake(gBalance);
-        uint256 newBalance = alcx.balanceOf(holder);
-        assertGt(newBalance - oldBalance, depositAmount);
+        uint newBalance = alcx.balanceOf(holder);
+        assertGt(newBalance-oldBalance, depositAmount);
     }
 
     function testMigrateSource() public returns (ALCXSource) {
@@ -126,7 +125,7 @@ contract gALCXTest is DSTestPlus {
         ALCXSource alcxSource = new ALCXSource();
         // Migrate to the new source
         govALCX.migrateSource(address(alcxSource), 1);
-        uint256 sourceBalance = alcxSource.balances(address(govALCX));
+        uint sourceBalance = alcxSource.balances(address(govALCX));
         assertEq(sourceBalance, depositAmount);
         return alcxSource;
     }
@@ -134,10 +133,11 @@ contract gALCXTest is DSTestPlus {
     function testMigrateSourceAndUnstake() public {
         testMigrateSource();
         hevm.startPrank(holder);
-        uint256 oldBalance = alcx.balanceOf(holder);
-        uint256 gBalance = govALCX.balanceOf(holder);
+        uint oldBalance = alcx.balanceOf(holder);
+        uint gBalance = govALCX.balanceOf(holder);
         govALCX.unstake(gBalance);
-        uint256 newBalance = alcx.balanceOf(holder);
-        assertEq(newBalance - oldBalance, gBalance);
+        uint newBalance = alcx.balanceOf(holder);
+        assertEq(newBalance-oldBalance, gBalance);
     }
+
 }

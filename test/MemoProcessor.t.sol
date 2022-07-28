@@ -34,25 +34,20 @@ contract MemoProcessorTest is DSTestPlus {
         memoData = _memoData;
     }
 
-    function failMemo() external pure /*address _memoData*/
-    {
+    function failMemo(/*address _memoData*/) external pure {
         assert(false);
     }
 
     function testMemoReceived() public {
         address testAddress = 0x000000000000000000000000000000000000bEEF;
-        memoProcessor.processMemo(
-            abi.encodeWithSignature("receiveMemo(address)", testAddress)
-        );
+        memoProcessor.processMemo(abi.encodeWithSignature("receiveMemo(address)", testAddress));
         assertEq(testAddress, memoData);
     }
 
     function testFailMemoReceived() public {
         address testAddress = 0x000000000000000000000000000000000000bEEF;
         memoProcessor.registerListener(failFunctionSig, address(this));
-        memoProcessor.processMemo(
-            abi.encodeWithSignature("failMemo(address)", testAddress)
-        );
+        memoProcessor.processMemo(abi.encodeWithSignature("failMemo(address)", testAddress));
     }
 
     function testAddListener() public {
@@ -71,18 +66,14 @@ contract MemoProcessorTest is DSTestPlus {
     function testGetListeners() public {
         address testAddress = 0x000000000000000000000000000000000000bEEF;
         memoProcessor.registerListener(testFunctionSig, testAddress);
-        address[] memory listeners = memoProcessor.getListeners(
-            testFunctionSig
-        );
-        uint256[] memory _listeners = new uint256[](listeners.length);
+        address[] memory listeners = memoProcessor.getListeners(testFunctionSig);
+        uint[] memory _listeners = new uint[](listeners.length);
         for (uint256 i = 0; i < listeners.length; i++) {
-            _listeners[i] = uint256(uint160(listeners[i]));
+            _listeners[i] = uint(uint160(listeners[i]));
         }
-        uint256[] memory testListeners = new uint256[](2);
-        testListeners[0] = uint256(uint160(address(this)));
-        testListeners[1] = uint256(
-            uint160(0x000000000000000000000000000000000000bEEF)
-        );
+        uint[] memory testListeners = new uint[](2);
+        testListeners[0] = uint(uint160(address(this)));
+        testListeners[1] = uint(uint160(0x000000000000000000000000000000000000bEEF));
         assertUintArrayEq(_listeners, testListeners);
     }
 }

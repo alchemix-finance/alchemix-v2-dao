@@ -32,8 +32,8 @@ contract VotingTest is DSTestPlus {
     GaugeFactory gaugeFactory;
     BribeFactory bribeFactory;
 
-    uint256 depositAmount = 999 ether;
-    uint256 lockTime = 30 days;
+    uint depositAmount = 999 ether;
+    uint lockTime = 30 days;
 
     /// @dev Deploy the contract
     function setUp() public {
@@ -46,23 +46,28 @@ contract VotingTest is DSTestPlus {
             address(gaugeFactory),
             address(bribeFactory)
         );
-
+        
         // Create veNFT for `holder`
         hevm.startPrank(holder);
         assertGt(alcx.balanceOf(holder), depositAmount, "Not enough alcx");
 
         alcx.approve(address(veALCX), depositAmount);
-        uint256 tokenId = veALCX.create_lock(depositAmount, lockTime);
+        uint tokenId = veALCX.create_lock(depositAmount, lockTime);
 
         // Check that veNFT was created
         address owner = veALCX.ownerOf(tokenId);
         assertEq(owner, holder);
 
         // Check veNFT parameters
-        (int128 amount, uint256 end) = veALCX.locked(tokenId);
+        (int128 amount, uint end) = veALCX.locked(tokenId);
         hevm.stopPrank();
+
+
     }
 
     /// @dev Vote on a gauge using the veNFT
-    function testVote() public {}
+    function testVote() public {
+
+    }
+
 }

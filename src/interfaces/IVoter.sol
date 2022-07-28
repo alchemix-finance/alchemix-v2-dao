@@ -2,28 +2,12 @@ pragma solidity ^0.8.15;
 
 interface IVoter {
     function _ve() external view returns (address);
-
     function governor() external view returns (address);
-
     function emergencyCouncil() external view returns (address);
-
-    function attachTokenToGauge(uint256 _tokenId, address account) external;
-
-    function detachTokenFromGauge(uint256 _tokenId, address account) external;
-
-    function emitDeposit(
-        uint256 _tokenId,
-        address account,
-        uint256 amount
-    ) external;
-
-    function emitWithdraw(
-        uint256 _tokenId,
-        address account,
-        uint256 amount
-    ) external;
-
-    function notifyRewardAmount(uint256 amount) external;
-
+    function attachTokenToGauge(uint _tokenId, address account) external;
+    function detachTokenFromGauge(uint _tokenId, address account) external;
+    function emitDeposit(uint _tokenId, address account, uint amount) external;
+    function emitWithdraw(uint _tokenId, address account, uint amount) external;
+    function notifyRewardAmount(uint amount) external;
     function distribute(address _gauge) external;
 }

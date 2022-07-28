@@ -24,8 +24,8 @@ contract veALCXTest is DSTestPlus {
     address holder = 0x000000000000000000000000000000000000dEaD;
     ve veALCX;
 
-    uint256 depositAmount = 999 ether;
-    uint256 lockTime = 30 days;
+    uint depositAmount = 999 ether;
+    uint lockTime = 30 days;
 
     /// @dev Deploy the contract
     function setUp() public {
@@ -35,11 +35,11 @@ contract veALCXTest is DSTestPlus {
     /// @dev Deposit ALCX into a veALCX NFT and read parameters
     function testVEALCXBasic() public {
         hevm.startPrank(holder);
-        uint256 alcxBalance = alcx.balanceOf(holder);
+        uint alcxBalance = alcx.balanceOf(holder);
         assertGt(alcxBalance, depositAmount, "Not enough alcx");
 
         alcx.approve(address(veALCX), depositAmount);
-        uint256 tokenId = veALCX.create_lock(depositAmount, lockTime);
+        uint tokenId = veALCX.create_lock(depositAmount, lockTime);
 
         // Check that veNFT was created
         address owner = veALCX.ownerOf(tokenId);
@@ -47,12 +47,8 @@ contract veALCXTest is DSTestPlus {
 
         // Check veNFT parameters
         // LockedBalance memory bal = veALCX.locked(tokenId);
-        (int128 amount, uint256 end) = veALCX.locked(tokenId);
-        assertEq(
-            uint256(uint128(amount)),
-            depositAmount,
-            "depositAmount doesn't match"
-        );
+        (int128 amount, uint end) = veALCX.locked(tokenId);
+        assertEq(uint(uint128(amount)), depositAmount, "depositAmount doesn't match");
         assertLe(end, block.timestamp + lockTime, "lockTime doesn't match"); // Rounds to nearest week
     }
 
@@ -61,15 +57,16 @@ contract veALCXTest is DSTestPlus {
         hevm.startPrank(holder);
 
         alcx.approve(address(veALCX), depositAmount);
-        uint256 tokenId = veALCX.create_lock(depositAmount, lockTime);
+        uint tokenId = veALCX.create_lock(depositAmount, lockTime);
 
         // Get voting power
-        uint256 votes = veALCX.balanceOfAtNFT(tokenId, block.number);
+        uint votes = veALCX.balanceOfAtNFT(tokenId, block.number);
         assertGt(votes, 1 ether, "voting power too low");
         assertLt(votes, depositAmount, "voting power too high");
 
         // Get total voting power
-        uint256 totalVotes = veALCX.totalSupply();
+        uint totalVotes = veALCX.totalSupply();
         assertEq(totalVotes, votes, "votes doesn't match total");
     }
+
 }
