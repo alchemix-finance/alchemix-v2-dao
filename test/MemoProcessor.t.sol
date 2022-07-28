@@ -67,13 +67,13 @@ contract MemoProcessorTest is DSTestPlus {
         address testAddress = 0x000000000000000000000000000000000000bEEF;
         memoProcessor.registerListener(testFunctionSig, testAddress);
         address[] memory listeners = memoProcessor.getListeners(testFunctionSig);
-        uint[] memory _listeners = new uint[](listeners.length);
+        uint256[] memory _listeners = new uint256[](listeners.length);
         for (uint256 i = 0; i < listeners.length; i++) {
-            _listeners[i] = uint(uint160(listeners[i]));
+            _listeners[i] = uint256(uint160(listeners[i]));
         }
-        uint[] memory testListeners = new uint[](2);
-        testListeners[0] = uint(uint160(address(this)));
-        testListeners[1] = uint(uint160(0x000000000000000000000000000000000000bEEF));
+        uint256[] memory testListeners = new uint256[](2);
+        testListeners[0] = uint256(uint160(address(this)));
+        testListeners[1] = uint256(uint160(0x000000000000000000000000000000000000bEEF));
         assertUintArrayEq(_listeners, testListeners);
     }
 }

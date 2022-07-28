@@ -1,16 +1,16 @@
 pragma solidity ^0.8.15;
 
 library Math {
-    function max(uint a, uint b) internal pure returns (uint) {
+    function max(uint256 a, uint256 b) internal pure returns (uint256) {
         return a >= b ? a : b;
     }
-    function min(uint a, uint b) internal pure returns (uint) {
+    function min(uint256 a, uint256 b) internal pure returns (uint256) {
         return a < b ? a : b;
     }
-    function sqrt(uint y) internal pure returns (uint z) {
+    function sqrt(uint256 y) internal pure returns (uint256 z) {
         if (y > 3) {
             z = y;
-            uint x = y / 2 + 1;
+            uint256 x = y / 2 + 1;
             while (x < z) {
                 z = x;
                 x = (y / x + x) / 2;

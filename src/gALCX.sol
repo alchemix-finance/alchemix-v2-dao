@@ -11,14 +11,14 @@ contract gALCX is ERC20 {
 
     IERC20 public alcx = IERC20(0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF);
     IALCXSource public pools = IALCXSource(0xAB8e74017a8Cc7c15FFcCd726603790d26d7DeCa);
-    uint public poolId = 1;
-    uint public constant exchangeRatePrecision = 1e18;
-    uint public exchangeRate = exchangeRatePrecision;
+    uint256 public poolId = 1;
+    uint256 public constant exchangeRatePrecision = 1e18;
+    uint256 public exchangeRate = exchangeRatePrecision;
     address public owner;
 
-    event ExchangeRateChange(uint _exchangeRate);
-    event Stake(address _from, uint _gAmount, uint _amount);
-    event Unstake(address _from, uint _gAmount, uint _amount);
+    event ExchangeRateChange(uint256 _exchangeRate);
+    event Stake(address _from, uint256 _gAmount, uint256 _amount);
+    event Unstake(address _from, uint256 _gAmount, uint256 _amount);
 
     /// @param _name The token name
     /// @param _symbol The token symbol
@@ -43,24 +43,24 @@ contract gALCX is ERC20 {
     /// @notice Set a new staking pool address and migrate funds there
     /// @param _pools The new pool address
     /// @param _poolId The new pool id
-    function migrateSource(address _pools, uint _poolId) external onlyOwner {
+    function migrateSource(address _pools, uint256 _poolId) external onlyOwner {
         // Withdraw ALCX
         bumpExchangeRate();
 
-        uint poolBalance = pools.getStakeTotalDeposited(address(this), poolId);
+        uint256 poolBalance = pools.getStakeTotalDeposited(address(this), poolId);
         pools.withdraw(poolId, poolBalance);
         // Update staking pool address and id
         pools = IALCXSource(_pools);
         poolId = _poolId;
         // Deposit ALCX
-        uint balance = alcx.balanceOf(address(this));
+        uint256 balance = alcx.balanceOf(address(this));
         reApprove();
         pools.deposit(poolId, balance);
     }
 
     /// @notice Approve the staking pool to move funds in this address, can be called by anyone
     function reApprove() public {
-        alcx.approve(address(pools), type(uint).max);
+        alcx.approve(address(pools), type(uint256).max);
     }
 
     // PUBLIC FUNCTIONS
@@ -70,7 +70,7 @@ contract gALCX is ERC20 {
         // Claim from pool
         pools.claim(poolId);
         // Bump exchange rate
-        uint balance = alcx.balanceOf(address(this));
+        uint256 balance = alcx.balanceOf(address(this));
 
         if (balance > 0) {
             exchangeRate += (balance * exchangeRatePrecision) / totalSupply;
@@ -82,7 +82,7 @@ contract gALCX is ERC20 {
 
     /// @notice Deposit new funds into the staking pool
     /// @param amount The amount of ALCX to deposit
-    function stake(uint amount) external {
+    function stake(uint256 amount) external {
         // Get current exchange rate between ALCX and gALCX
         bumpExchangeRate();
         // Then receive new deposits
@@ -90,16 +90,16 @@ contract gALCX is ERC20 {
         require(success, "Transfer failed");
         pools.deposit(poolId, amount);
         // gAmount always <= amount
-        uint gAmount = amount * exchangeRatePrecision / exchangeRate;
+        uint256 gAmount = amount * exchangeRatePrecision / exchangeRate;
         _mint(msg.sender, gAmount);
         emit Stake(msg.sender, gAmount, amount);
     }
 
     /// @notice Withdraw funds from the staking pool
     /// @param gAmount the amount of gALCX to withdraw
-    function unstake(uint gAmount) external {
+    function unstake(uint256 gAmount) external {
         bumpExchangeRate();
-        uint amount = gAmount * exchangeRate / exchangeRatePrecision;
+        uint256 amount = gAmount * exchangeRate / exchangeRatePrecision;
         _burn(msg.sender, gAmount);
         // Withdraw ALCX and send to user
         pools.withdraw(poolId, amount);
