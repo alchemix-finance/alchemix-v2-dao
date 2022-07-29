@@ -13,7 +13,8 @@ import "openzeppelin-contracts/contracts/utils/structs/DoubleEndedQueue.sol";
 import "openzeppelin-contracts/contracts/utils/Address.sol";
 import "openzeppelin-contracts/contracts/utils/Context.sol";
 import "openzeppelin-contracts/contracts/utils/Timers.sol";
-import "openzeppelin-contracts/contracts/governance/IGovernor.sol";
+
+import { IL2Governor } from "../interfaces/IL2Governor.sol";
 
 /**
  * @author Modified from RollCall (https://github.com/withtally/rollcall/blob/main/src/standards/L2Governor.sol)
@@ -28,7 +29,7 @@ import "openzeppelin-contracts/contracts/governance/IGovernor.sol";
  *
  * _Available since v4.3._
  */
-abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Receiver, IERC1155Receiver {
+abstract contract L2Governor is Context, ERC165, EIP712, IL2Governor, IERC721Receiver, IERC1155Receiver {
 	using DoubleEndedQueue for DoubleEndedQueue.Bytes32Deque;
 	using SafeCast for uint256;
 	using Timers for Timers.Timestamp;
@@ -96,11 +97,11 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
 		// include the castVoteWithReasonAndParams() function as standard
 		return
 			interfaceId ==
-			(type(IGovernor).interfaceId ^
+			(type(IL2Governor).interfaceId ^
 				this.castVoteWithReasonAndParams.selector ^
 				this.castVoteWithReasonAndParamsBySig.selector ^
 				this.getVotesWithParams.selector) ||
-			interfaceId == type(IGovernor).interfaceId ||
+			interfaceId == type(IL2Governor).interfaceId ||
 			interfaceId == type(IERC1155Receiver).interfaceId ||
 			super.supportsInterface(interfaceId);
 	}
@@ -127,10 +128,10 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
 	 * can be produced from the proposal data which is part of the {ProposalCreated} event. It can even be computed in
 	 * advance, before the proposal is submitted.
 	 *
-	 * Note that the chainId and the governor address are not part of the proposal id computation. Consequently, the
-	 * same proposal (with same operation and same description) will have the same id if submitted on multiple governors
-	 * across multiple networks. This also means that in order to execute the same operation twice (on the same
-	 * governor) the proposer will have to change the description in order to avoid proposal id conflicts.
+	 * Note that the governor address is not part of the proposal id computation. Consequently, the
+	 * same proposal (with same operation and same description) will have the same id if submitted on multiple
+	 * governors in the same network. This also means that in order to execute the same operation twice (on the same
+	 * governor and network) the proposer will have to change the description in order to avoid proposal id conflicts.
 	 */
 	function hashProposal(
 		address[] memory targets,
@@ -138,7 +139,7 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
 		bytes[] memory calldatas,
 		bytes32 descriptionHash,
 		uint256 chainId
-	) public pure virtual returns (uint256) {
+	) public pure virtual override returns (uint256) {
 		return uint256(keccak256(abi.encode(targets, values, calldatas, descriptionHash, chainId)));
 	}
 
@@ -251,7 +252,7 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
 		bytes[] memory calldatas,
 		string memory description,
 		uint256 chainId
-	) public virtual returns (uint256) {
+	) public virtual override returns (uint256) {
 		require(
 			getVotes(_msgSender(), block.number - 1) >= proposalThreshold(),
 			"Governor: proposer votes below proposal threshold"
@@ -297,7 +298,7 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
 		bytes[] memory calldatas,
 		bytes32 descriptionHash,
 		uint256 chainId
-	) public payable virtual returns (uint256) {
+	) public payable virtual override returns (uint256) {
 		uint256 proposalId = hashProposal(targets, values, calldatas, descriptionHash, chainId);
 
 		ProposalState status = state(proposalId);
