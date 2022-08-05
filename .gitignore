@@ -3,3 +3,4 @@ Makefile
 cache/
 out/
 notes.md
+.env

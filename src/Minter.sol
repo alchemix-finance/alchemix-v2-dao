@@ -8,9 +8,7 @@ import "./interfaces/IRewardsDistributor.sol";
 import "./interfaces/IVelo.sol";
 import "./interfaces/IVoter.sol";
 import "./interfaces/IVotingEscrow.sol";
-import "./interfaces/IAlchemicToken.sol";
-
-import { IAlchemixToken } from "./interfaces/IAlchemixToken.sol";
+import "./interfaces/IAlchemixToken.sol";
 
 struct InitializationParams {
 	address voter; // the voting & distribution system
