@@ -1,6 +1,5 @@
+.env
 .DS_Store
-Makefile
 cache/
 out/
 notes.md
-.env
