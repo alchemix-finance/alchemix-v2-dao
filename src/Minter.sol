@@ -27,7 +27,7 @@ contract Minter {
 	uint256 internal constant EPOCH = 86400 * 7;
 
 	// Tail emissions rate
-	uint256 public constant tailEmissionsRate = 2194 * 10e18;
+	uint256 public constant tailEmissionsRate = 2194e18;
 
 	IAlchemixToken public alcx = IAlchemixToken(0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF);
 	IVoter public immutable voter;

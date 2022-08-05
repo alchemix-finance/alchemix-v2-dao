@@ -22,12 +22,12 @@ contract MinterTest is DSTestPlus {
 	Minter minter;
 
 	// Current emission values
-	uint256 supply = 1793678 * 10e18;
-	uint256 rewards = 12724 * 10e18;
-	uint256 stepdown = 130 * 10e18;
+	uint256 supply = 1793678e18;
+	uint256 rewards = 12724e18;
+	uint256 stepdown = 130e18;
 	uint256 nextEpoch = 86400 * 14;
 	uint256 epochsUntilTail = 80;
-	uint256 supplyAtTail = 2392609 * 10e18;
+	uint256 supplyAtTail = 2392609e18;
 
 	function setUp() public {
 		InitializationParams memory params = InitializationParams(
@@ -63,7 +63,7 @@ contract MinterTest is DSTestPlus {
 		minter.updatePeriod();
 
 		uint256 totalAfterEpoch = minter.circulatingEmissionsSupply();
-		emit log_named_uint("emissions after one epoch (ether)", totalAfterEpoch / 10e18);
+		emit log_named_uint("emissions after one epoch (ether)", totalAfterEpoch / 1e18);
 
 		assertEq(totalAfterEpoch, currentTotalEmissions + epochEmissions);
 	}
@@ -79,7 +79,7 @@ contract MinterTest is DSTestPlus {
 		uint256 tailRewards = minter.rewards();
 		uint256 tailStepdown = minter.stepdown();
 		uint256 tailEmissionSupply = minter.circulatingEmissionsSupply();
-		emit log_named_uint("tail emissions supply (ether)", tailEmissionSupply / 10e18);
+		emit log_named_uint("tail emissions supply (ether)", tailEmissionSupply / 1e18);
 
 		// Assert rewards are the constant tail emissions value
 		assertEq(tailRewards, minter.tailEmissionsRate());
@@ -88,6 +88,6 @@ contract MinterTest is DSTestPlus {
 		assertEq(tailStepdown, 0);
 
 		// Assert total emissions are the approximate target at the tail
-		assertApproxEq(tailEmissionSupply, supplyAtTail, 17 * 10e18);
+		assertApproxEq(tailEmissionSupply, supplyAtTail, 17e18);
 	}
 }
