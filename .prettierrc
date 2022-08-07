@@ -1,20 +1,9 @@
 {
-  "trailingComma": "es5",
-  "tabWidth": 4,
-  "semi": false,
-  "singleQuote": false,
-  "printWidth": 120,
-    "overrides": [
-    {
-      "files": "*.sol",
-      "options": {
-        "printWidth": 120,
-        "tabWidth": 4,
-        "useTabs": true,
-        "singleQuote": false,
-        "bracketSpacing": true,
-        "explicitTypes": "always"
-      }
-    }
-  ]
+    "trailingComma": "es5",
+    "tabWidth": 4,
+    "semi": false,
+    "singleQuote": false,
+    "printWidth": 120,
+    "bracketSpacing": true,
+    "explicitTypes": "always"
 }
