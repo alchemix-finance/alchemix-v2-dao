@@ -14,18 +14,17 @@ struct InitializationParams {
     address voter; // the voting & distribution system
     address ve; // the ve(3,3) system that will be locked into
     address rewardsDistributor; // the distribution system that ensures users aren't diluted
-    address alcx;
-    uint256 supply;
-    uint256 rewards;
-    uint256 stepdown;
+    uint256 supply; // current emissions supply
+    uint256 rewards; // current amount of emissions
+    uint256 stepdown; // rate rewards decreases by
 }
 
 contract Minter {
     // Allows minting once per epoch (epoch = 1 week, reset every Thursday 00:00 UTC)
-    uint256 internal constant EPOCH = 86400 * 7;
+    uint256 internal constant WEEK = 86400 * 7;
 
     // Tail emissions rate
-    uint256 public constant tailEmissionsRate = 2194e18;
+    uint256 public constant TAIL_EMISSIONS_RATE = 2194e18;
 
     IAlchemixToken public alcx = IAlchemixToken(0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF);
     IVoter public immutable voter;
@@ -54,11 +53,11 @@ contract Minter {
         admin = msg.sender;
         voter = IVoter(params.voter);
         ve = IVotingEscrow(params.ve);
-        alcx = IAlchemixToken(params.alcx);
         rewardsDistributor = IRewardsDistributor(params.rewardsDistributor);
-        activePeriod = ((block.timestamp + EPOCH) / EPOCH) * EPOCH;
+        activePeriod = ((block.timestamp + WEEK) / WEEK) * WEEK;
     }
 
+    // Remove if contract is not upgradeable
     function initialize() external {
         require(initializer == msg.sender);
         initializer = address(0);
@@ -84,11 +83,6 @@ contract Minter {
         return rewards - stepdown;
     }
 
-    // TBD if necessary
-    function epochEmissionRate() public view returns (uint256) {
-        return (rewards / (rewards + stepdown)) * 1e18 * 52e18;
-    }
-
     function circulatingEmissionsSupply() public view returns (uint256) {
         return supply;
     }
@@ -105,17 +99,13 @@ contract Minter {
     function updatePeriod() external returns (uint256) {
         uint256 _period = activePeriod;
 
-        if (block.timestamp >= _period + EPOCH && initializer == address(0)) {
+        if (block.timestamp >= _period + WEEK && initializer == address(0)) {
             // only trigger if new epoch
-            _period = (block.timestamp / EPOCH) * EPOCH;
+            _period = (block.timestamp / WEEK) * WEEK;
             activePeriod = _period;
             epochEmissions = epochEmission();
 
-            uint256 _balanceOf = alcx.balanceOf(address(this));
-
-            if (_balanceOf < epochEmissions) {
-                alcx.mint(address(this), epochEmissions - _balanceOf);
-            }
+            alcx.mint(address(this), epochEmissions);
 
             // Set rewards for next epoch
             rewards -= stepdown;
@@ -124,7 +114,7 @@ contract Minter {
             supply += rewards;
 
             // Once we reach the emissions tail stepdown is 0
-            if (rewards <= tailEmissionsRate) {
+            if (rewards <= TAIL_EMISSIONS_RATE) {
                 stepdown = 0;
             }
 
