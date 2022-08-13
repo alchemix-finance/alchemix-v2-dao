@@ -9,7 +9,7 @@ import {L2GovernorCountingSimple} from "./governance/L2GovernorCountingSimple.so
 import {L2GovernorVotes} from "./governance/L2GovernorVotes.sol";
 import {L2GovernorVotesQuorumFraction} from "./governance/L2GovernorVotesQuorumFraction.sol";
 
-contract VeloGovernor is
+abstract contract AlchemixGovernor is
     L2Governor,
     L2GovernorCountingSimple,
     L2GovernorVotes,
@@ -21,7 +21,7 @@ contract VeloGovernor is
     uint256 public proposalNumerator = 2; // start at 0.02%
 
     constructor(IVotes _ve)
-        L2Governor("Velodrome Governor")
+        L2Governor("Alchemix Governor")
         L2GovernorVotes(_ve)
         L2GovernorVotesQuorumFraction(4) // 4%
     {
