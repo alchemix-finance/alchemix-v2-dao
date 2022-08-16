@@ -85,73 +85,73 @@ library Base64 {
 }
 
 /**
-* @dev Interface of the ERC165 standard, as defined in the
-* https://eips.ethereum.org/EIPS/eip-165[EIP].
-*
-* Implementers can declare support of contract interfaces, which can then be
-* queried by others ({ERC165Checker}).
-*
-* For an implementation, see {ERC165}.
-*/
+ * @dev Interface of the ERC165 standard, as defined in the
+ * https://eips.ethereum.org/EIPS/eip-165[EIP].
+ *
+ * Implementers can declare support of contract interfaces, which can then be
+ * queried by others ({ERC165Checker}).
+ *
+ * For an implementation, see {ERC165}.
+ */
 interface IERC165 {
     /**
-    * @dev Returns true if this contract implements the interface defined by
-    * `interfaceId`. See the corresponding
-    * https://eips.ethereum.org/EIPS/eip-165#how-interfaces-are-identified[EIP section]
-    * to learn more about how these ids are created.
-    *
-    * This function call must use less than 30 000 gas.
-    */
+     * @dev Returns true if this contract implements the interface defined by
+     * `interfaceId`. See the corresponding
+     * https://eips.ethereum.org/EIPS/eip-165#how-interfaces-are-identified[EIP section]
+     * to learn more about how these ids are created.
+     *
+     * This function call must use less than 30 000 gas.
+     */
     function supportsInterface(bytes4 interfaceId) external view returns (bool);
 }
 
 /**
-* @dev Required interface of an ERC721 compliant contract.
-*/
+ * @dev Required interface of an ERC721 compliant contract.
+ */
 interface IERC721 is IERC165 {
     /**
-    * @dev Emitted when `tokenId` token is transferred from `from` to `to`.
-    */
+     * @dev Emitted when `tokenId` token is transferred from `from` to `to`.
+     */
     event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
 
     /**
-    * @dev Emitted when `owner` enables `approved` to manage the `tokenId` token.
-    */
+     * @dev Emitted when `owner` enables `approved` to manage the `tokenId` token.
+     */
     event Approval(address indexed owner, address indexed approved, uint256 indexed tokenId);
 
     /**
-    * @dev Emitted when `owner` enables or disables (`approved`) `operator` to manage all of its assets.
-    */
+     * @dev Emitted when `owner` enables or disables (`approved`) `operator` to manage all of its assets.
+     */
     event ApprovalForAll(address indexed owner, address indexed operator, bool approved);
 
     /**
-    * @dev Returns the number of tokens in ``owner``'s account.
-    */
+     * @dev Returns the number of tokens in ``owner``'s account.
+     */
     function balanceOf(address owner) external view returns (uint256 balance);
 
     /**
-    * @dev Returns the owner of the `tokenId` token.
-    *
-    * Requirements:
-    *
-    * - `tokenId` must exist.
-    */
+     * @dev Returns the owner of the `tokenId` token.
+     *
+     * Requirements:
+     *
+     * - `tokenId` must exist.
+     */
     function ownerOf(uint256 tokenId) external view returns (address owner);
 
     /**
-    * @dev Safely transfers `tokenId` token from `from` to `to`, checking first that contract recipients
-    * are aware of the ERC721 protocol to prevent tokens from being forever locked.
-    *
-    * Requirements:
-    *
-    * - `from` cannot be the zero address.
-    * - `to` cannot be the zero address.
-    * - `tokenId` token must exist and be owned by `from`.
-    * - If the caller is not `from`, it must be have been allowed to move this token by either {approve} or {setApprovalForAll}.
-    * - If `to` refers to a smart contract, it must implement {IERC721Receiver-onERC721Received}, which is called upon a safe transfer.
-    *
-    * Emits a {Transfer} event.
-    */
+     * @dev Safely transfers `tokenId` token from `from` to `to`, checking first that contract recipients
+     * are aware of the ERC721 protocol to prevent tokens from being forever locked.
+     *
+     * Requirements:
+     *
+     * - `from` cannot be the zero address.
+     * - `to` cannot be the zero address.
+     * - `tokenId` token must exist and be owned by `from`.
+     * - If the caller is not `from`, it must be have been allowed to move this token by either {approve} or {setApprovalForAll}.
+     * - If `to` refers to a smart contract, it must implement {IERC721Receiver-onERC721Received}, which is called upon a safe transfer.
+     *
+     * Emits a {Transfer} event.
+     */
     function safeTransferFrom(
         address from,
         address to,
@@ -159,19 +159,19 @@ interface IERC721 is IERC165 {
     ) external;
 
     /**
-    * @dev Transfers `tokenId` token from `from` to `to`.
-    *
-    * WARNING: Usage of this method is discouraged, use {safeTransferFrom} whenever possible.
-    *
-    * Requirements:
-    *
-    * - `from` cannot be the zero address.
-    * - `to` cannot be the zero address.
-    * - `tokenId` token must be owned by `from`.
-    * - If the caller is not `from`, it must be approved to move this token by either {approve} or {setApprovalForAll}.
-    *
-    * Emits a {Transfer} event.
-    */
+     * @dev Transfers `tokenId` token from `from` to `to`.
+     *
+     * WARNING: Usage of this method is discouraged, use {safeTransferFrom} whenever possible.
+     *
+     * Requirements:
+     *
+     * - `from` cannot be the zero address.
+     * - `to` cannot be the zero address.
+     * - `tokenId` token must be owned by `from`.
+     * - If the caller is not `from`, it must be approved to move this token by either {approve} or {setApprovalForAll}.
+     *
+     * Emits a {Transfer} event.
+     */
     function transferFrom(
         address from,
         address to,
@@ -179,61 +179,61 @@ interface IERC721 is IERC165 {
     ) external;
 
     /**
-    * @dev Gives permission to `to` to transfer `tokenId` token to another account.
-    * The approval is cleared when the token is transferred.
-    *
-    * Only a single account can be approved at a time, so approving the zero address clears previous approvals.
-    *
-    * Requirements:
-    *
-    * - The caller must own the token or be an approved operator.
-    * - `tokenId` must exist.
-    *
-    * Emits an {Approval} event.
-    */
+     * @dev Gives permission to `to` to transfer `tokenId` token to another account.
+     * The approval is cleared when the token is transferred.
+     *
+     * Only a single account can be approved at a time, so approving the zero address clears previous approvals.
+     *
+     * Requirements:
+     *
+     * - The caller must own the token or be an approved operator.
+     * - `tokenId` must exist.
+     *
+     * Emits an {Approval} event.
+     */
     function approve(address to, uint256 tokenId) external;
 
     /**
-    * @dev Returns the account approved for `tokenId` token.
-    *
-    * Requirements:
-    *
-    * - `tokenId` must exist.
-    */
+     * @dev Returns the account approved for `tokenId` token.
+     *
+     * Requirements:
+     *
+     * - `tokenId` must exist.
+     */
     function getApproved(uint256 tokenId) external view returns (address operator);
 
     /**
-    * @dev Approve or remove `operator` as an operator for the caller.
-    * Operators can call {transferFrom} or {safeTransferFrom} for any token owned by the caller.
-    *
-    * Requirements:
-    *
-    * - The `operator` cannot be the caller.
-    *
-    * Emits an {ApprovalForAll} event.
-    */
+     * @dev Approve or remove `operator` as an operator for the caller.
+     * Operators can call {transferFrom} or {safeTransferFrom} for any token owned by the caller.
+     *
+     * Requirements:
+     *
+     * - The `operator` cannot be the caller.
+     *
+     * Emits an {ApprovalForAll} event.
+     */
     function setApprovalForAll(address operator, bool _approved) external;
 
     /**
-    * @dev Returns if the `operator` is allowed to manage all of the assets of `owner`.
-    *
-    * See {setApprovalForAll}
-    */
+     * @dev Returns if the `operator` is allowed to manage all of the assets of `owner`.
+     *
+     * See {setApprovalForAll}
+     */
     function isApprovedForAll(address owner, address operator) external view returns (bool);
 
     /**
-    * @dev Safely transfers `tokenId` token from `from` to `to`.
-    *
-    * Requirements:
-    *
-    * - `from` cannot be the zero address.
-    * - `to` cannot be the zero address.
-    * - `tokenId` token must exist and be owned by `from`.
-    * - If the caller is not `from`, it must be approved to move this token by either {approve} or {setApprovalForAll}.
-    * - If `to` refers to a smart contract, it must implement {IERC721Receiver-onERC721Received}, which is called upon a safe transfer.
-    *
-    * Emits a {Transfer} event.
-    */
+     * @dev Safely transfers `tokenId` token from `from` to `to`.
+     *
+     * Requirements:
+     *
+     * - `from` cannot be the zero address.
+     * - `to` cannot be the zero address.
+     * - `tokenId` token must exist and be owned by `from`.
+     * - If the caller is not `from`, it must be approved to move this token by either {approve} or {setApprovalForAll}.
+     * - If `to` refers to a smart contract, it must implement {IERC721Receiver-onERC721Received}, which is called upon a safe transfer.
+     *
+     * Emits a {Transfer} event.
+     */
     function safeTransferFrom(
         address from,
         address to,
@@ -243,20 +243,20 @@ interface IERC721 is IERC165 {
 }
 
 /**
-* @title ERC721 token receiver interface
-* @dev Interface for any contract that wants to support safeTransfers
-* from ERC721 asset contracts.
-*/
+ * @title ERC721 token receiver interface
+ * @dev Interface for any contract that wants to support safeTransfers
+ * from ERC721 asset contracts.
+ */
 interface IERC721Receiver {
     /**
-    * @dev Whenever an {IERC721} `tokenId` token is transferred to this contract via {IERC721-safeTransferFrom}
-    * by `operator` from `from`, this function is called.
-    *
-    * It must return its Solidity selector to confirm the token transfer.
-    * If any other value is returned or the interface is not implemented by the recipient, the transfer will be reverted.
-    *
-    * The selector can be obtained in Solidity with `IERC721.onERC721Received.selector`.
-    */
+     * @dev Whenever an {IERC721} `tokenId` token is transferred to this contract via {IERC721-safeTransferFrom}
+     * by `operator` from `from`, this function is called.
+     *
+     * It must return its Solidity selector to confirm the token transfer.
+     * If any other value is returned or the interface is not implemented by the recipient, the transfer will be reverted.
+     *
+     * The selector can be obtained in Solidity with `IERC721.onERC721Received.selector`.
+     */
     function onERC721Received(
         address operator,
         address from,
@@ -266,48 +266,48 @@ interface IERC721Receiver {
 }
 
 /**
-* @title ERC-721 Non-Fungible Token Standard, optional metadata extension
-* @dev See https://eips.ethereum.org/EIPS/eip-721
-*/
+ * @title ERC-721 Non-Fungible Token Standard, optional metadata extension
+ * @dev See https://eips.ethereum.org/EIPS/eip-721
+ */
 interface IERC721Metadata is IERC721 {
     /**
-    * @dev Returns the token collection name.
-    */
+     * @dev Returns the token collection name.
+     */
     function name() external view returns (string memory);
 
     /**
-    * @dev Returns the token collection symbol.
-    */
+     * @dev Returns the token collection symbol.
+     */
     function symbol() external view returns (string memory);
 
     /**
-    * @dev Returns the Uniform Resource Identifier (URI) for `tokenId` token.
-    */
+     * @dev Returns the Uniform Resource Identifier (URI) for `tokenId` token.
+     */
     function tokenURI(uint256 tokenId) external view returns (string memory);
 }
 
 /**
-* @dev Interface of the ERC20 standard as defined in the EIP.
-*/
+ * @dev Interface of the ERC20 standard as defined in the EIP.
+ */
 interface IERC20 {
     /**
-    * @dev Moves `amount` tokens from the caller's account to `recipient`.
-    *
-    * Returns a boolean value indicating whether the operation succeeded.
-    *
-    * Emits a {Transfer} event.
-    */
+     * @dev Moves `amount` tokens from the caller's account to `recipient`.
+     *
+     * Returns a boolean value indicating whether the operation succeeded.
+     *
+     * Emits a {Transfer} event.
+     */
     function transfer(address recipient, uint256 amount) external returns (bool);
 
     /**
-    * @dev Moves `amount` tokens from `sender` to `recipient` using the
-    * allowance mechanism. `amount` is then deducted from the caller's
-    * allowance.
-    *
-    * Returns a boolean value indicating whether the operation succeeded.
-    *
-    * Emits a {Transfer} event.
-    */
+     * @dev Moves `amount` tokens from `sender` to `recipient` using the
+     * allowance mechanism. `amount` is then deducted from the caller's
+     * allowance.
+     *
+     * Returns a boolean value indicating whether the operation succeeded.
+     *
+     * Emits a {Transfer} event.
+     */
     function transferFrom(
         address sender,
         address recipient,
@@ -322,8 +322,8 @@ struct Point {
     uint256 blk; // block
 }
 /* We cannot really do block numbers per se b/c slope is per time, not per block
-* and per block could be fairly bad b/c Ethereum changes blocktimes.
-* What we can do is to extrapolate ***At functions */
+ * and per block could be fairly bad b/c Ethereum changes blocktimes.
+ * What we can do is to extrapolate ***At functions */
 
 struct LockedBalance {
     int128 amount;
@@ -347,7 +347,7 @@ contract ve is IERC721, IERC721Metadata {
         uint256 tokenId,
         uint256 value,
         uint256 indexed locktime,
-        DepositType deposit_type,
+        DepositType depositType,
         uint256 ts
     );
     event Withdraw(address indexed provider, uint256 tokenId, uint256 value, uint256 ts);
@@ -358,27 +358,27 @@ contract ve is IERC721, IERC721Metadata {
     int128 internal constant iMAXTIME = 4 * 365 days;
     uint256 internal constant MULTIPLIER = 1 ether;
 
-    address immutable public token;
+    address public immutable token;
     uint256 public supply;
     mapping(uint256 => LockedBalance) public locked;
 
-    mapping(uint256 => uint256) public ownership_change;
+    mapping(uint256 => uint256) public ownershipChange;
 
     uint256 public epoch;
-    mapping(uint256 => Point) public point_history; // epoch -> unsigned point
-    mapping(uint256 => Point[1000000000]) public user_point_history; // user -> Point[user_epoch]
+    mapping(uint256 => Point) public pointHistory; // epoch -> unsigned point
+    mapping(uint256 => Point[1000000000]) public userPointHistory; // user -> Point[userEpoch]
 
-    mapping(uint256 => uint256) public user_point_epoch;
-    mapping(uint256 => int128) public slope_changes; // time -> signed slope change
+    mapping(uint256 => uint256) public userPointEpoch;
+    mapping(uint256 => int128) public slopeChanges; // time -> signed slope change
 
     mapping(uint256 => uint256) public attachments;
     mapping(uint256 => bool) public voted;
     address public voter;
 
-    string constant public name = "veALCX";
-    string constant public symbol = "veALCX";
-    string constant public version = "1.0.0";
-    uint8 constant public decimals = 18;
+    string public constant name = "veALCX";
+    string public constant symbol = "veALCX";
+    string public constant version = "1.0.0";
+    uint8 public constant decimals = 18;
 
     /// @dev Current count of token
     uint256 internal tokenId;
@@ -390,10 +390,10 @@ contract ve is IERC721, IERC721Metadata {
     mapping(uint256 => address) internal idToApprovals;
 
     /// @dev Mapping from owner address to count of his tokens.
-    mapping(address => uint256) internal ownerToNFTokenCount;
+    mapping(address => uint256) internal ownerToTokenCount;
 
     /// @dev Mapping from owner address to mapping of index to tokenIds
-    mapping(address => mapping(uint256 => uint256)) internal ownerToNFTokenIdList;
+    mapping(address => mapping(uint256 => uint256)) internal ownerToTokenIdList;
 
     /// @dev Mapping from NFT ID to index of owner
     mapping(uint256 => uint256) internal tokenToOwnerIndex;
@@ -414,25 +414,23 @@ contract ve is IERC721, IERC721Metadata {
     bytes4 internal constant ERC721_METADATA_INTERFACE_ID = 0x5b5e139f;
 
     /// @dev reentrancy guard
-    uint8 internal constant _not_entered = 1;
-    uint8 internal constant _entered = 2;
-    uint8 internal _entered_state = 1;
+    uint8 internal constant NOT_ENTERED = 1;
+    uint8 internal constant ENTERED = 2;
+    uint8 internal ENTERED_STATE = 1;
     modifier nonreentrant() {
-        require(_entered_state == _not_entered);
-        _entered_state = _entered;
+        require(ENTERED_STATE == NOT_ENTERED);
+        ENTERED_STATE = ENTERED;
         _;
-        _entered_state = _not_entered;
+        ENTERED_STATE = NOT_ENTERED;
     }
 
     /// @notice Contract constructor
-    /// @param token_addr `ERC20CRV` token address
-    constructor(
-        address token_addr
-    ) {
-        token = token_addr;
+    /// @param _token `ERC20ALCX` token address
+    constructor(address _token) {
+        token = _token;
         voter = msg.sender;
-        point_history[0].blk = block.number;
-        point_history[0].ts = block.timestamp;
+        pointHistory[0].blk = block.number;
+        pointHistory[0].ts = block.timestamp;
 
         supportedInterfaces[ERC165_INTERFACE_ID] = true;
         supportedInterfaces[ERC721_INTERFACE_ID] = true;
@@ -453,23 +451,23 @@ contract ve is IERC721, IERC721Metadata {
     /// @notice Get the most recently recorded rate of voting power decrease for `_tokenId`
     /// @param _tokenId token of the NFT
     /// @return Value of the slope
-    function get_last_user_slope(uint256 _tokenId) external view returns (int128) {
-        uint256 uepoch = user_point_epoch[_tokenId];
-        return user_point_history[_tokenId][uepoch].slope;
+    function getLastUserSlope(uint256 _tokenId) external view returns (int128) {
+        uint256 userEpoch = userPointEpoch[_tokenId];
+        return userPointHistory[_tokenId][userEpoch].slope;
     }
 
     /// @notice Get the timestamp for checkpoint `_idx` for `_tokenId`
     /// @param _tokenId token of the NFT
     /// @param _idx User epoch number
     /// @return Epoch time of the checkpoint
-    function user_point_history__ts(uint256 _tokenId, uint256 _idx) external view returns (uint256) {
-        return user_point_history[_tokenId][_idx].ts;
+    function userPointHistoryTimestamp(uint256 _tokenId, uint256 _idx) external view returns (uint256) {
+        return userPointHistory[_tokenId][_idx].ts;
     }
 
     /// @notice Get timestamp when `_tokenId`'s lock finishes
     /// @param _tokenId User NFT
     /// @return Epoch time of the lock end
-    function locked__end(uint256 _tokenId) external view returns (uint256) {
+    function lockEnd(uint256 _tokenId) external view returns (uint256) {
         return locked[_tokenId].end;
     }
 
@@ -477,7 +475,7 @@ contract ve is IERC721, IERC721Metadata {
     ///      Throws if `_owner` is the zero address. NFTs assigned to the zero address are considered invalid.
     /// @param _owner Address for whom to query the balance.
     function _balance(address _owner) internal view returns (uint256) {
-        return ownerToNFTokenCount[_owner];
+        return ownerToTokenCount[_owner];
     }
 
     /// @dev Returns the number of NFTs owned by `_owner`.
@@ -508,7 +506,7 @@ contract ve is IERC721, IERC721Metadata {
 
     /// @dev  Get token by index
     function tokenOfOwnerByIndex(address _owner, uint256 _tokenIndex) external view returns (uint256) {
-        return ownerToNFTokenIdList[_owner][_tokenIndex];
+        return ownerToTokenIdList[_owner][_tokenIndex];
     }
 
     /// @dev Returns whether the given spender can transfer a given token ID
@@ -529,39 +527,39 @@ contract ve is IERC721, IERC721Metadata {
 
     /// @dev Add a NFT to an index mapping to a given address
     /// @param _to address of the receiver
-    /// @param _tokenId uint256 ID Of the token to be added
+    /// @param _tokenId uint256 ID of the token to be added
     function _addTokenToOwnerList(address _to, uint256 _tokenId) internal {
-        uint256 current_count = _balance(_to);
+        uint256 currentCount = _balance(_to);
 
-        ownerToNFTokenIdList[_to][current_count] = _tokenId;
-        tokenToOwnerIndex[_tokenId] = current_count;
+        ownerToTokenIdList[_to][currentCount] = _tokenId;
+        tokenToOwnerIndex[_tokenId] = currentCount;
     }
 
     /// @dev Remove a NFT from an index mapping to a given address
     /// @param _from address of the sender
-    /// @param _tokenId uint256 ID Of the token to be removed
+    /// @param _tokenId uint256 ID of the token to be removed
     function _removeTokenFromOwnerList(address _from, uint256 _tokenId) internal {
         // Delete
-        uint256 current_count = _balance(_from)-1;
-        uint256 current_index = tokenToOwnerIndex[_tokenId];
+        uint256 currentCount = _balance(_from) - 1;
+        uint256 currentIndex = tokenToOwnerIndex[_tokenId];
 
-        if (current_count == current_index) {
-            // update ownerToNFTokenIdList
-            ownerToNFTokenIdList[_from][current_count] = 0;
+        if (currentCount == currentIndex) {
+            // update ownerToTokenIdList
+            ownerToTokenIdList[_from][currentCount] = 0;
             // update tokenToOwnerIndex
             tokenToOwnerIndex[_tokenId] = 0;
         } else {
-            uint256 lastTokenId = ownerToNFTokenIdList[_from][current_count];
+            uint256 lastTokenId = ownerToTokenIdList[_from][currentCount];
 
             // Add
-            // update ownerToNFTokenIdList
-            ownerToNFTokenIdList[_from][current_index] = lastTokenId;
+            // update ownerToTokenIdList
+            ownerToTokenIdList[_from][currentIndex] = lastTokenId;
             // update tokenToOwnerIndex
-            tokenToOwnerIndex[lastTokenId] = current_index;
+            tokenToOwnerIndex[lastTokenId] = currentIndex;
 
             // Delete
-            // update ownerToNFTokenIdList
-            ownerToNFTokenIdList[_from][current_count] = 0;
+            // update ownerToTokenIdList
+            ownerToTokenIdList[_from][currentCount] = 0;
             // update tokenToOwnerIndex
             tokenToOwnerIndex[_tokenId] = 0;
         }
@@ -577,7 +575,7 @@ contract ve is IERC721, IERC721Metadata {
         // Update owner token index tracking
         _addTokenToOwnerList(_to, _tokenId);
         // Change count tracking
-        ownerToNFTokenCount[_to] += 1;
+        ownerToTokenCount[_to] += 1;
     }
 
     /// @dev Remove a NFT from a given address
@@ -590,7 +588,7 @@ contract ve is IERC721, IERC721Metadata {
         // Update owner token index tracking
         _removeTokenFromOwnerList(_from, _tokenId);
         // Change count tracking
-        ownerToNFTokenCount[_from] -= 1;
+        ownerToTokenCount[_from] -= 1;
     }
 
     /// @dev Clear an approval of a given address
@@ -626,7 +624,7 @@ contract ve is IERC721, IERC721Metadata {
         // Add NFT
         _addTokenTo(_to, _tokenId);
         // Set the block of ownership transfer (for Flash NFT protection)
-        ownership_change[_tokenId] = block.number;
+        ownershipChange[_tokenId] = block.number;
         // Log the transfer
         emit Transfer(_from, _to, _tokenId);
     }
@@ -686,7 +684,7 @@ contract ve is IERC721, IERC721Metadata {
                 bytes memory reason
             ) {
                 if (reason.length == 0) {
-                    revert('ERC721: transfer to non ERC721Receiver implementer');
+                    revert("ERC721: transfer to non ERC721Receiver implementer");
                 } else {
                     assembly {
                         revert(add(32, reason), mload(reason))
@@ -712,7 +710,7 @@ contract ve is IERC721, IERC721Metadata {
         address _to,
         uint256 _tokenId
     ) external {
-        safeTransferFrom(_from, _to, _tokenId, '');
+        safeTransferFrom(_from, _to, _tokenId, "");
     }
 
     /// @dev Set or reaffirm the approved address for an NFT. The zero address indicates there is no approved address.
@@ -754,7 +752,7 @@ contract ve is IERC721, IERC721Metadata {
     ///      Throws if `_tokenId` is owned by someone.
     /// @param _to The address that will receive the minted tokens.
     /// @param _tokenId The token id to mint.
-    /// @return A boolean that indicates if the operation was successful.
+    /// @return bool indication if the operation was successful.
     function _mint(address _to, uint256 _tokenId) internal returns (bool) {
         // Throws if `_to` is zero address
         require(_to != address(0));
@@ -766,184 +764,184 @@ contract ve is IERC721, IERC721Metadata {
 
     /// @notice Record global and per-user data to checkpoint
     /// @param _tokenId NFT token ID. No user checkpoint if 0
-    /// @param old_locked Pevious locked amount / end lock time for the user
-    /// @param new_locked New locked amount / end lock time for the user
+    /// @param oldLocked Pevious locked amount / end lock time for the user
+    /// @param newLocked New locked amount / end lock time for the user
     function _checkpoint(
         uint256 _tokenId,
-        LockedBalance memory old_locked,
-        LockedBalance memory new_locked
+        LockedBalance memory oldLocked,
+        LockedBalance memory newLocked
     ) internal {
-        Point memory u_old;
-        Point memory u_new;
-        int128 old_dslope = 0;
-        int128 new_dslope = 0;
+        Point memory oldPoint;
+        Point memory newPoint;
+        int128 oldDslope = 0;
+        int128 newDslope = 0;
         uint256 _epoch = epoch;
 
         if (_tokenId != 0) {
             // Calculate slopes and biases
             // Kept at zero when they have to
-            if (old_locked.end > block.timestamp && old_locked.amount > 0) {
-                u_old.slope = old_locked.amount / iMAXTIME;
-                u_old.bias = u_old.slope * int128(int256(old_locked.end - block.timestamp));
+            if (oldLocked.end > block.timestamp && oldLocked.amount > 0) {
+                oldPoint.slope = oldLocked.amount / iMAXTIME;
+                oldPoint.bias = oldPoint.slope * int128(int256(oldLocked.end - block.timestamp));
             }
-            if (new_locked.end > block.timestamp && new_locked.amount > 0) {
-                u_new.slope = new_locked.amount / iMAXTIME;
-                u_new.bias = u_new.slope * int128(int256(new_locked.end - block.timestamp));
+            if (newLocked.end > block.timestamp && newLocked.amount > 0) {
+                newPoint.slope = newLocked.amount / iMAXTIME;
+                newPoint.bias = newPoint.slope * int128(int256(newLocked.end - block.timestamp));
             }
 
             // Read values of scheduled changes in the slope
-            // old_locked.end can be in the past and in the future
-            // new_locked.end can ONLY by in the FUTURE unless everything expired: than zeros
-            old_dslope = slope_changes[old_locked.end];
-            if (new_locked.end != 0) {
-                if (new_locked.end == old_locked.end) {
-                    new_dslope = old_dslope;
+            // oldLocked.end can be in the past and in the future
+            // newLocked.end can ONLY by in the FUTURE unless everything expired: than zeros
+            oldDslope = slopeChanges[oldLocked.end];
+            if (newLocked.end != 0) {
+                if (newLocked.end == oldLocked.end) {
+                    newDslope = oldDslope;
                 } else {
-                    new_dslope = slope_changes[new_locked.end];
+                    newDslope = slopeChanges[newLocked.end];
                 }
             }
         }
 
-        Point memory last_point = Point({bias: 0, slope: 0, ts: block.timestamp, blk: block.number});
+        Point memory lastPoint = Point({ bias: 0, slope: 0, ts: block.timestamp, blk: block.number });
         if (_epoch > 0) {
-            last_point = point_history[_epoch];
+            lastPoint = pointHistory[_epoch];
         }
-        uint256 last_checkpoint = last_point.ts;
-        // initial_last_point is used for extrapolation to calculate block number
+        uint256 lastCheckpoint = lastPoint.ts;
+        // initialLastPoint is used for extrapolation to calculate block number
         // (approximately, for *At methods) and save them
         // as we cannot figure that out exactly from inside the contract
-        Point memory initial_last_point = last_point;
-        uint256 block_slope = 0; // dblock/dt
-        if (block.timestamp > last_point.ts) {
-            block_slope = (MULTIPLIER * (block.number - last_point.blk)) / (block.timestamp - last_point.ts);
+        Point memory initialLastPoint = lastPoint;
+        uint256 blockSlope = 0; // dblock/dt
+        if (block.timestamp > lastPoint.ts) {
+            blockSlope = (MULTIPLIER * (block.number - lastPoint.blk)) / (block.timestamp - lastPoint.ts);
         }
         // If last point is already recorded in this block, slope=0
         // But that's ok b/c we know the block in such case
 
         // Go over weeks to fill history and calculate what the current point is
         {
-            uint256 t_i = (last_checkpoint / WEEK) * WEEK;
+            uint256 _time = (lastCheckpoint / WEEK) * WEEK;
             for (uint256 i = 0; i < 255; ++i) {
                 // Hopefully it won't happen that this won't get used in 5 years!
                 // If it does, users will be able to withdraw but vote weight will be broken
-                t_i += WEEK;
-                int128 d_slope = 0;
-                if (t_i > block.timestamp) {
-                    t_i = block.timestamp;
+                _time += WEEK;
+                int128 dSlope = 0;
+                if (_time > block.timestamp) {
+                    _time = block.timestamp;
                 } else {
-                    d_slope = slope_changes[t_i];
+                    dSlope = slopeChanges[_time];
                 }
-                last_point.bias -= last_point.slope * int128(int256(t_i - last_checkpoint));
-                last_point.slope += d_slope;
-                if (last_point.bias < 0) {
+                lastPoint.bias -= lastPoint.slope * int128(int256(_time - lastCheckpoint));
+                lastPoint.slope += dSlope;
+                if (lastPoint.bias < 0) {
                     // This can happen
-                    last_point.bias = 0;
+                    lastPoint.bias = 0;
                 }
-                if (last_point.slope < 0) {
+                if (lastPoint.slope < 0) {
                     // This cannot happen - just in case
-                    last_point.slope = 0;
+                    lastPoint.slope = 0;
                 }
-                last_checkpoint = t_i;
-                last_point.ts = t_i;
-                last_point.blk = initial_last_point.blk + (block_slope * (t_i - initial_last_point.ts)) / MULTIPLIER;
+                lastCheckpoint = _time;
+                lastPoint.ts = _time;
+                lastPoint.blk = initialLastPoint.blk + (blockSlope * (_time - initialLastPoint.ts)) / MULTIPLIER;
                 _epoch += 1;
-                if (t_i == block.timestamp) {
-                    last_point.blk = block.number;
+                if (_time == block.timestamp) {
+                    lastPoint.blk = block.number;
                     break;
                 } else {
-                    point_history[_epoch] = last_point;
+                    pointHistory[_epoch] = lastPoint;
                 }
             }
         }
 
         epoch = _epoch;
-        // Now point_history is filled until t=now
+        // Now pointHistory is filled until t=now
 
         if (_tokenId != 0) {
             // If last point was in this block, the slope change has been applied already
             // But in such case we have 0 slope(s)
-            last_point.slope += (u_new.slope - u_old.slope);
-            last_point.bias += (u_new.bias - u_old.bias);
-            if (last_point.slope < 0) {
-                last_point.slope = 0;
+            lastPoint.slope += (newPoint.slope - oldPoint.slope);
+            lastPoint.bias += (newPoint.bias - oldPoint.bias);
+            if (lastPoint.slope < 0) {
+                lastPoint.slope = 0;
             }
-            if (last_point.bias < 0) {
-                last_point.bias = 0;
+            if (lastPoint.bias < 0) {
+                lastPoint.bias = 0;
             }
         }
 
         // Record the changed point into history
-        point_history[_epoch] = last_point;
+        pointHistory[_epoch] = lastPoint;
 
         if (_tokenId != 0) {
             // Schedule the slope changes (slope is going down)
-            // We subtract new_user_slope from [new_locked.end]
-            // and add old_user_slope to [old_locked.end]
-            if (old_locked.end > block.timestamp) {
-                // old_dslope was <something> - u_old.slope, so we cancel that
-                old_dslope += u_old.slope;
-                if (new_locked.end == old_locked.end) {
-                    old_dslope -= u_new.slope; // It was a new deposit, not extension
+            // We subtract new_user_slope from [newLocked.end]
+            // and add old_user_slope to [oldLocked.end]
+            if (oldLocked.end > block.timestamp) {
+                // oldDslope was <something> - oldPoint.slope, so we cancel that
+                oldDslope += oldPoint.slope;
+                if (newLocked.end == oldLocked.end) {
+                    oldDslope -= newPoint.slope; // It was a new deposit, not extension
                 }
-                slope_changes[old_locked.end] = old_dslope;
+                slopeChanges[oldLocked.end] = oldDslope;
             }
 
-            if (new_locked.end > block.timestamp) {
-                if (new_locked.end > old_locked.end) {
-                    new_dslope -= u_new.slope; // old slope disappeared at this point
-                    slope_changes[new_locked.end] = new_dslope;
+            if (newLocked.end > block.timestamp) {
+                if (newLocked.end > oldLocked.end) {
+                    newDslope -= newPoint.slope; // oldPoint slope disappeared at this point
+                    slopeChanges[newLocked.end] = newDslope;
                 }
-                // else: we recorded it already in old_dslope
+                // else: we recorded it already in oldDslope
             }
             // Now handle user history
-            uint256 user_epoch = user_point_epoch[_tokenId] + 1;
+            uint256 userEpoch = userPointEpoch[_tokenId] + 1;
 
-            user_point_epoch[_tokenId] = user_epoch;
-            u_new.ts = block.timestamp;
-            u_new.blk = block.number;
-            user_point_history[_tokenId][user_epoch] = u_new;
+            userPointEpoch[_tokenId] = userEpoch;
+            newPoint.ts = block.timestamp;
+            newPoint.blk = block.number;
+            userPointHistory[_tokenId][userEpoch] = newPoint;
         }
     }
 
     /// @notice Deposit and lock tokens for a user
     /// @param _tokenId NFT that holds lock
     /// @param _value Amount to deposit
-    /// @param unlock_time New time when to unlock the tokens, or 0 if unchanged
-    /// @param locked_balance Previous locked amount / timestamp
-    /// @param deposit_type The type of deposit
-    function _deposit_for(
+    /// @param unlockTime New time when to unlock the tokens, or 0 if unchanged
+    /// @param lockedBalance Previous locked amount / timestamp
+    /// @param depositType The type of deposit
+    function _depositFor(
         uint256 _tokenId,
         uint256 _value,
-        uint256 unlock_time,
-        LockedBalance memory locked_balance,
-        DepositType deposit_type
+        uint256 unlockTime,
+        LockedBalance memory lockedBalance,
+        DepositType depositType
     ) internal {
-        LockedBalance memory _locked = locked_balance;
-        uint256 supply_before = supply;
+        LockedBalance memory _locked = lockedBalance;
+        uint256 supplyBefore = supply;
 
-        supply = supply_before + _value;
-        LockedBalance memory old_locked;
-        (old_locked.amount, old_locked.end) = (_locked.amount, _locked.end);
+        supply = supplyBefore + _value;
+        LockedBalance memory oldLocked;
+        (oldLocked.amount, oldLocked.end) = (_locked.amount, _locked.end);
         // Adding to existing lock, or if a lock is expired - creating a new one
         _locked.amount += int128(int256(_value));
-        if (unlock_time != 0) {
-            _locked.end = unlock_time;
+        if (unlockTime != 0) {
+            _locked.end = unlockTime;
         }
         locked[_tokenId] = _locked;
 
         // Possibilities:
-        // Both old_locked.end could be current or expired (>/< block.timestamp)
+        // Both oldLocked.end could be current or expired (>/< block.timestamp)
         // value == 0 (extend lock) or value > 0 (add to lock or extend lock)
         // _locked.end > block.timestamp (always)
-        _checkpoint(_tokenId, old_locked, _locked);
+        _checkpoint(_tokenId, oldLocked, _locked);
 
         address from = msg.sender;
-        if (_value != 0 && deposit_type != DepositType.MERGE_TYPE) {
+        if (_value != 0 && depositType != DepositType.MERGE_TYPE) {
             require(IERC20(token).transferFrom(from, address(this), _value));
         }
 
-        emit Deposit(from, _tokenId, _value, _locked.end, deposit_type, block.timestamp);
-        emit Supply(supply_before, supply_before + _value);
+        emit Deposit(from, _tokenId, _value, _locked.end, depositType, block.timestamp);
+        emit Supply(supplyBefore, supplyBefore + _value);
     }
 
     function setVoter(address _voter) external {
@@ -963,12 +961,12 @@ contract ve is IERC721, IERC721Metadata {
 
     function attach(uint256 _tokenId) external {
         require(msg.sender == voter);
-        attachments[_tokenId] = attachments[_tokenId]+1;
+        attachments[_tokenId] = attachments[_tokenId] + 1;
     }
 
     function detach(uint256 _tokenId) external {
         require(msg.sender == voter);
-        attachments[_tokenId] = attachments[_tokenId]-1;
+        attachments[_tokenId] = attachments[_tokenId] - 1;
     }
 
     function merge(uint256 _from, uint256 _to) external {
@@ -985,7 +983,7 @@ contract ve is IERC721, IERC721Metadata {
         locked[_from] = LockedBalance(0, 0);
         _checkpoint(_from, _locked0, LockedBalance(0, 0));
         _burn(_from);
-        _deposit_for(_to, value0, end, _locked1, DepositType.MERGE_TYPE);
+        _depositFor(_to, value0, end, _locked1, DepositType.MERGE_TYPE);
     }
 
     /// @notice Record global data to checkpoint
@@ -998,77 +996,85 @@ contract ve is IERC721, IERC721Metadata {
     ///      cannot extend their locktime and deposit for a brand new user
     /// @param _tokenId lock NFT
     /// @param _value Amount to add to user's lock
-    function deposit_for(uint256 _tokenId, uint256 _value) external nonreentrant {
+    function depositFor(uint256 _tokenId, uint256 _value) external nonreentrant {
         LockedBalance memory _locked = locked[_tokenId];
 
         require(_value > 0); // dev: need non-zero value
-        require(_locked.amount > 0, 'No existing lock found');
-        require(_locked.end > block.timestamp, 'Cannot add to expired lock. Withdraw');
-        _deposit_for(_tokenId, _value, 0, _locked, DepositType.DEPOSIT_FOR_TYPE);
+        require(_locked.amount > 0, "No existing lock found");
+        require(_locked.end > block.timestamp, "Cannot add to expired lock. Withdraw");
+        _depositFor(_tokenId, _value, 0, _locked, DepositType.DEPOSIT_FOR_TYPE);
     }
 
-    /// @notice Deposit `_value` tokens for `_to` and lock for `_lock_duration`
+    /// @notice Deposit `_value` tokens for `_to` and lock for `_lockDuration`
     /// @param _value Amount to deposit
-    /// @param _lock_duration Number of seconds to lock tokens for (rounded down to nearest week)
+    /// @param _lockDuration Number of seconds to lock tokens for (rounded down to nearest week)
     /// @param _to Address to deposit
-    function _create_lock(uint256 _value, uint256 _lock_duration, address _to) internal returns (uint256) {
-        uint256 unlock_time = (block.timestamp + _lock_duration) / WEEK * WEEK; // Locktime is rounded down to weeks
+    function _createLock(
+        uint256 _value,
+        uint256 _lockDuration,
+        address _to
+    ) internal returns (uint256) {
+        uint256 unlockTime = ((block.timestamp + _lockDuration) / WEEK) * WEEK; // Locktime is rounded down to weeks
 
         require(_value > 0); // dev: need non-zero value
-        require(unlock_time > block.timestamp, 'Can only lock until time in the future');
-        require(unlock_time <= block.timestamp + MAXTIME, 'Voting lock can be 4 years max');
+        require(unlockTime > block.timestamp, "Can only lock until time in the future");
+        require(unlockTime <= block.timestamp + MAXTIME, "Voting lock can be 4 years max");
 
         ++tokenId;
         uint256 _tokenId = tokenId;
         _mint(_to, _tokenId);
 
-        _deposit_for(_tokenId, _value, unlock_time, locked[_tokenId], DepositType.CREATE_LOCK_TYPE);
+        _depositFor(_tokenId, _value, unlockTime, locked[_tokenId], DepositType.CREATE_LOCK_TYPE);
         return _tokenId;
     }
 
-    /// @notice Deposit `_value` tokens for `_to` and lock for `_lock_duration`
+    /// @notice Deposit `_value` tokens for `_to` and lock for `_lockDuration`
     /// @param _value Amount to deposit
-    /// @param _lock_duration Number of seconds to lock tokens for (rounded down to nearest week)
+    /// @param _lockDuration Number of seconds to lock tokens for (rounded down to nearest week)
     /// @param _to Address to deposit
-    function create_lock_for(uint256 _value, uint256 _lock_duration, address _to) external nonreentrant returns (uint256) {
-        return _create_lock(_value, _lock_duration, _to);
+    function createLockFor(
+        uint256 _value,
+        uint256 _lockDuration,
+        address _to
+    ) external nonreentrant returns (uint256) {
+        return _createLock(_value, _lockDuration, _to);
     }
 
-    /// @notice Deposit `_value` tokens for `msg.sender` and lock for `_lock_duration`
+    /// @notice Deposit `_value` tokens for `msg.sender` and lock for `_lockDuration`
     /// @param _value Amount to deposit
-    /// @param _lock_duration Number of seconds to lock tokens for (rounded down to nearest week)
-    function create_lock(uint256 _value, uint256 _lock_duration) external nonreentrant returns (uint256) {
-        return _create_lock(_value, _lock_duration, msg.sender);
+    /// @param _lockDuration Number of seconds to lock tokens for (rounded down to nearest week)
+    function createLock(uint256 _value, uint256 _lockDuration) external nonreentrant returns (uint256) {
+        return _createLock(_value, _lockDuration, msg.sender);
     }
 
     /// @notice Deposit `_value` additional tokens for `_tokenId` without modifying the unlock time
     /// @param _value Amount of tokens to deposit and add to the lock
-    function increase_amount(uint256 _tokenId, uint256 _value) external nonreentrant {
+    function increaseAmount(uint256 _tokenId, uint256 _value) external nonreentrant {
         require(_isApprovedOrOwner(msg.sender, _tokenId));
 
         LockedBalance memory _locked = locked[_tokenId];
 
         require(_value > 0); // dev: need non-zero value
-        require(_locked.amount > 0, 'No existing lock found');
-        require(_locked.end > block.timestamp, 'Cannot add to expired lock. Withdraw');
+        require(_locked.amount > 0, "No existing lock found");
+        require(_locked.end > block.timestamp, "Cannot add to expired lock. Withdraw");
 
-        _deposit_for(_tokenId, _value, 0, _locked, DepositType.INCREASE_LOCK_AMOUNT);
+        _depositFor(_tokenId, _value, 0, _locked, DepositType.INCREASE_LOCK_AMOUNT);
     }
 
     /// @notice Extend the unlock time for `_tokenId`
-    /// @param _lock_duration New number of seconds until tokens unlock
-    function increase_unlock_time(uint256 _tokenId, uint256 _lock_duration) external nonreentrant {
+    /// @param _lockDuration New number of seconds until tokens unlock
+    function increaseUnlockTime(uint256 _tokenId, uint256 _lockDuration) external nonreentrant {
         require(_isApprovedOrOwner(msg.sender, _tokenId));
 
         LockedBalance memory _locked = locked[_tokenId];
-        uint256 unlock_time = (block.timestamp + _lock_duration) / WEEK * WEEK; // Locktime is rounded down to weeks
+        uint256 unlockTime = ((block.timestamp + _lockDuration) / WEEK) * WEEK; // Locktime is rounded down to weeks
 
-        require(_locked.end > block.timestamp, 'Lock expired');
-        require(_locked.amount > 0, 'Nothing is locked');
-        require(unlock_time > _locked.end, 'Can only increase lock duration');
-        require(unlock_time <= block.timestamp + MAXTIME, 'Voting lock can be 4 years max');
+        require(_locked.end > block.timestamp, "Lock expired");
+        require(_locked.amount > 0, "Nothing is locked");
+        require(unlockTime > _locked.end, "Can only increase lock duration");
+        require(unlockTime <= block.timestamp + MAXTIME, "Voting lock can be 4 years max");
 
-        _deposit_for(_tokenId, 0, unlock_time, _locked, DepositType.INCREASE_UNLOCK_TIME);
+        _depositFor(_tokenId, 0, unlockTime, _locked, DepositType.INCREASE_UNLOCK_TIME);
     }
 
     /// @notice Withdraw all tokens for `_tokenId`
@@ -1081,14 +1087,14 @@ contract ve is IERC721, IERC721Metadata {
         require(block.timestamp >= _locked.end, "The lock didn't expire");
         uint256 value = uint256(int256(_locked.amount));
 
-        locked[_tokenId] = LockedBalance(0,0);
-        uint256 supply_before = supply;
-        supply = supply_before - value;
+        locked[_tokenId] = LockedBalance(0, 0);
+        uint256 supplyBefore = supply;
+        supply = supplyBefore - value;
 
-        // old_locked can have either expired <= timestamp or zero end
+        // oldLocked can have either expired <= timestamp or zero end
         // _locked has only 0 end
         // Both can have >= 0 amount
-        _checkpoint(_tokenId, _locked, LockedBalance(0,0));
+        _checkpoint(_tokenId, _locked, LockedBalance(0, 0));
 
         require(IERC20(token).transfer(msg.sender, value));
 
@@ -1096,7 +1102,7 @@ contract ve is IERC721, IERC721Metadata {
         _burn(_tokenId);
 
         emit Withdraw(msg.sender, _tokenId, value, block.timestamp);
-        emit Supply(supply_before, supply_before - value);
+        emit Supply(supplyBefore, supplyBefore - value);
     }
 
     // The following ERC20/minime-compatible methods are not real balanceOf and supply!
@@ -1105,19 +1111,19 @@ contract ve is IERC721, IERC721Metadata {
 
     /// @notice Binary search to estimate timestamp for block number
     /// @param _block Block to find
-    /// @param max_epoch Don't go beyond this epoch
+    /// @param maxEpoch Don't go beyond this epoch
     /// @return Approximate timestamp for block
-    function _find_block_epoch(uint256 _block, uint256 max_epoch) internal view returns (uint256) {
+    function _findBlockEpoch(uint256 _block, uint256 maxEpoch) internal view returns (uint256) {
         // Binary search
         uint256 _min = 0;
-        uint256 _max = max_epoch;
+        uint256 _max = maxEpoch;
         for (uint256 i = 0; i < 128; ++i) {
             // Will be always enough for 128-bit numbers
             if (_min >= _max) {
                 break;
             }
             uint256 _mid = (_min + _max + 1) / 2;
-            if (point_history[_mid].blk <= _block) {
+            if (pointHistory[_mid].blk <= _block) {
                 _min = _mid;
             } else {
                 _max = _mid - 1;
@@ -1129,19 +1135,19 @@ contract ve is IERC721, IERC721Metadata {
     /// @notice Get the current voting power for `_tokenId`
     /// @dev Adheres to the ERC20 `balanceOf` interface for Aragon compatibility
     /// @param _tokenId NFT for lock
-    /// @param _t Epoch time to return voting power at
+    /// @param _time Epoch time to return voting power at
     /// @return User voting power
-    function _balanceOfNFT(uint256 _tokenId, uint256 _t) internal view returns (uint256) {
-        uint256 _epoch = user_point_epoch[_tokenId];
+    function _balanceOfNFT(uint256 _tokenId, uint256 _time) internal view returns (uint256) {
+        uint256 _epoch = userPointEpoch[_tokenId];
         if (_epoch == 0) {
             return 0;
         } else {
-            Point memory last_point = user_point_history[_tokenId][_epoch];
-            last_point.bias -= last_point.slope * int128(int256(_t) - int256(last_point.ts));
-            if (last_point.bias < 0) {
-                last_point.bias = 0;
+            Point memory lastPoint = userPointHistory[_tokenId][_epoch];
+            lastPoint.bias -= lastPoint.slope * int128(int256(_time) - int256(lastPoint.ts));
+            if (lastPoint.bias < 0) {
+                lastPoint.bias = 0;
             }
-            return uint256(int256(last_point.bias));
+            return uint256(int256(lastPoint.bias));
         }
     }
 
@@ -1151,21 +1157,16 @@ contract ve is IERC721, IERC721Metadata {
         require(idToOwner[_tokenId] != address(0), "Query for nonexistent token");
         LockedBalance memory _locked = locked[_tokenId];
         return
-        _tokenURI(
-            _tokenId,
-            _balanceOfNFT(_tokenId, block.timestamp),
-            _locked.end,
-            uint256(int256(_locked.amount))
-        );
+            _tokenURI(_tokenId, _balanceOfNFT(_tokenId, block.timestamp), _locked.end, uint256(int256(_locked.amount)));
     }
 
     function balanceOfNFT(uint256 _tokenId) external view returns (uint256) {
-        if (ownership_change[_tokenId] == block.number) return 0;
+        if (ownershipChange[_tokenId] == block.number) return 0;
         return _balanceOfNFT(_tokenId, block.timestamp);
     }
 
-    function balanceOfNFTAt(uint256 _tokenId, uint256 _t) external view returns (uint256) {
-        return _balanceOfNFT(_tokenId, _t);
+    function balanceOfNFTAt(uint256 _tokenId, uint256 _time) external view returns (uint256) {
+        return _balanceOfNFT(_tokenId, _time);
     }
 
     /// @notice Measure voting power of `_tokenId` at block height `_block`
@@ -1174,47 +1175,46 @@ contract ve is IERC721, IERC721Metadata {
     /// @param _block Block to calculate the voting power at
     /// @return Voting power
     function _balanceOfAtNFT(uint256 _tokenId, uint256 _block) internal view returns (uint256) {
-        // Copying and pasting totalSupply code because Vyper cannot pass by
-        // reference yet
+        // totalSupply code because Vyper cannot pass by reference yet
         require(_block <= block.number);
 
         // Binary search
         uint256 _min = 0;
-        uint256 _max = user_point_epoch[_tokenId];
+        uint256 _max = userPointEpoch[_tokenId];
         for (uint256 i = 0; i < 128; ++i) {
             // Will be always enough for 128-bit numbers
             if (_min >= _max) {
                 break;
             }
             uint256 _mid = (_min + _max + 1) / 2;
-            if (user_point_history[_tokenId][_mid].blk <= _block) {
+            if (userPointHistory[_tokenId][_mid].blk <= _block) {
                 _min = _mid;
             } else {
                 _max = _mid - 1;
             }
         }
 
-        Point memory upoint = user_point_history[_tokenId][_min];
+        Point memory upoint = userPointHistory[_tokenId][_min];
 
-        uint256 max_epoch = epoch;
-        uint256 _epoch = _find_block_epoch(_block, max_epoch);
-        Point memory point_0 = point_history[_epoch];
-        uint256 d_block = 0;
-        uint256 d_t = 0;
-        if (_epoch < max_epoch) {
-            Point memory point_1 = point_history[_epoch + 1];
-            d_block = point_1.blk - point_0.blk;
-            d_t = point_1.ts - point_0.ts;
+        uint256 maxEpoch = epoch;
+        uint256 _epoch = _findBlockEpoch(_block, maxEpoch);
+        Point memory point0 = pointHistory[_epoch];
+        uint256 dBlock = 0;
+        uint256 dT = 0;
+        if (_epoch < maxEpoch) {
+            Point memory point1 = pointHistory[_epoch + 1];
+            dBlock = point1.blk - point0.blk;
+            dT = point1.ts - point0.ts;
         } else {
-            d_block = block.number - point_0.blk;
-            d_t = block.timestamp - point_0.ts;
+            dBlock = block.number - point0.blk;
+            dT = block.timestamp - point0.ts;
         }
-        uint256 block_time = point_0.ts;
-        if (d_block != 0) {
-            block_time += (d_t * (_block - point_0.blk)) / d_block;
+        uint256 blockTime = point0.ts;
+        if (dBlock != 0) {
+            blockTime += (dT * (_block - point0.blk)) / dBlock;
         }
 
-        upoint.bias -= upoint.slope * int128(int256(block_time - upoint.ts));
+        upoint.bias -= upoint.slope * int128(int256(blockTime - upoint.ts));
         if (upoint.bias >= 0) {
             return uint256(uint128(upoint.bias));
         } else {
@@ -1230,29 +1230,29 @@ contract ve is IERC721, IERC721Metadata {
     /// @param point The point (bias/slope) to start search from
     /// @param t Time to calculate the total voting power at
     /// @return Total voting power at that time
-    function _supply_at(Point memory point, uint256 t) internal view returns (uint256) {
-        Point memory last_point = point;
-        uint256 t_i = (last_point.ts / WEEK) * WEEK;
+    function _supplyAt(Point memory point, uint256 t) internal view returns (uint256) {
+        Point memory lastPoint = point;
+        uint256 _time = (lastPoint.ts / WEEK) * WEEK;
         for (uint256 i = 0; i < 255; ++i) {
-            t_i += WEEK;
-            int128 d_slope = 0;
-            if (t_i > t) {
-                t_i = t;
+            _time += WEEK;
+            int128 dSlope = 0;
+            if (_time > t) {
+                _time = t;
             } else {
-                d_slope = slope_changes[t_i];
+                dSlope = slopeChanges[_time];
             }
-            last_point.bias -= last_point.slope * int128(int256(t_i - last_point.ts));
-            if (t_i == t) {
+            lastPoint.bias -= lastPoint.slope * int128(int256(_time - lastPoint.ts));
+            if (_time == t) {
                 break;
             }
-            last_point.slope += d_slope;
-            last_point.ts = t_i;
+            lastPoint.slope += dSlope;
+            lastPoint.ts = _time;
         }
 
-        if (last_point.bias < 0) {
-            last_point.bias = 0;
+        if (lastPoint.bias < 0) {
+            lastPoint.bias = 0;
         }
-        return uint256(uint128(last_point.bias));
+        return uint256(uint128(lastPoint.bias));
     }
 
     /// @notice Calculate total voting power
@@ -1260,8 +1260,8 @@ contract ve is IERC721, IERC721Metadata {
     /// @return Total voting power
     function totalSupplyAtT(uint256 t) public view returns (uint256) {
         uint256 _epoch = epoch;
-        Point memory last_point = point_history[_epoch];
-        return _supply_at(last_point, t);
+        Point memory lastPoint = pointHistory[_epoch];
+        return _supplyAt(lastPoint, t);
     }
 
     function totalSupply() external view returns (uint256) {
@@ -1274,14 +1274,14 @@ contract ve is IERC721, IERC721Metadata {
     function totalSupplyAt(uint256 _block) external view returns (uint256) {
         require(_block <= block.number);
         uint256 _epoch = epoch;
-        uint256 target_epoch = _find_block_epoch(_block, _epoch);
+        uint256 targetEpoch = _findBlockEpoch(_block, _epoch);
 
-        Point memory point = point_history[target_epoch];
+        Point memory point = pointHistory[targetEpoch];
         uint256 dt = 0;
-        if (target_epoch < _epoch) {
-            Point memory point_next = point_history[target_epoch + 1];
-            if (point.blk != point_next.blk) {
-                dt = ((_block - point.blk) * (point_next.ts - point.ts)) / (point_next.blk - point.blk);
+        if (targetEpoch < _epoch) {
+            Point memory pointNext = pointHistory[targetEpoch + 1];
+            if (point.blk != pointNext.blk) {
+                dt = ((_block - point.blk) * (pointNext.ts - point.ts)) / (pointNext.blk - point.blk);
             }
         } else {
             if (point.blk != block.number) {
@@ -1289,18 +1289,42 @@ contract ve is IERC721, IERC721Metadata {
             }
         }
         // Now dt contains info on how far are we beyond point
-        return _supply_at(point, point.ts + dt);
+        return _supplyAt(point, point.ts + dt);
     }
 
-    function _tokenURI(uint256 _tokenId, uint256 _balanceOf, uint256 _locked_end, uint256 _value) internal pure returns (string memory output) {
+    function _tokenURI(
+        uint256 _tokenId,
+        uint256 _balanceOf,
+        uint256 _lockedEnd,
+        uint256 _value
+    ) internal pure returns (string memory output) {
         output = '<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMinYMin meet" viewBox="0 0 350 350"><style>.base { fill: white; font-family: serif; font-size: 14px; }</style><rect width="100%" height="100%" fill="black" /><text x="10" y="20" class="base">';
-        output = string(abi.encodePacked(output, "token ", toString(_tokenId), '</text><text x="10" y="40" class="base">'));
-        output = string(abi.encodePacked(output, "balanceOf ", toString(_balanceOf), '</text><text x="10" y="60" class="base">'));
-        output = string(abi.encodePacked(output, "locked_end ", toString(_locked_end), '</text><text x="10" y="80" class="base">'));
-        output = string(abi.encodePacked(output, "value ", toString(_value), '</text></svg>'));
+        output = string(
+            abi.encodePacked(output, "token ", toString(_tokenId), '</text><text x="10" y="40" class="base">')
+        );
+        output = string(
+            abi.encodePacked(output, "balanceOf ", toString(_balanceOf), '</text><text x="10" y="60" class="base">')
+        );
+        output = string(
+            abi.encodePacked(output, "locked_end ", toString(_lockedEnd), '</text><text x="10" y="80" class="base">')
+        );
+        output = string(abi.encodePacked(output, "value ", toString(_value), "</text></svg>"));
 
-        string memory json = Base64.encode(bytes(string(abi.encodePacked('{"name": "lock #', toString(_tokenId), '", "description": "ALCX locks, can be used to boost yields, vote on token emission, and receive bribes", "image": "data:image/svg+xml;base64,', Base64.encode(bytes(output)), '"}'))));
-        output = string(abi.encodePacked('data:application/json;base64,', json));
+        string memory json = Base64.encode(
+            bytes(
+                string(
+                    abi.encodePacked(
+                        '{"name": "lock #',
+                        toString(_tokenId),
+                        // TODO update description when utility is finalized
+                        '", "description": "ALCX locks, can be used to boost yields, vote on token emission", "image": "data:image/svg+xml;base64,',
+                        Base64.encode(bytes(output)),
+                        '"}'
+                    )
+                )
+            )
+        );
+        output = string(abi.encodePacked("data:application/json;base64,", json));
     }
 
     function toString(uint256 value) internal pure returns (string memory) {

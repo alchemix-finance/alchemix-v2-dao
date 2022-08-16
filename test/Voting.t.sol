@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.15;
 
-import {ve, LockedBalance} from "../src/veALCX.sol";
-import {Voter} from "../src/Voter.sol";
-import {PairFactory} from "../src/factories/PairFactory.sol";
-import {GaugeFactory} from "../src/factories/GaugeFactory.sol";
-import {BribeFactory} from "../src/factories/BribeFactory.sol";
+import { ve, LockedBalance } from "../src/veALCX.sol";
+import { Voter } from "../src/Voter.sol";
+import { PairFactory } from "../src/factories/PairFactory.sol";
+import { GaugeFactory } from "../src/factories/GaugeFactory.sol";
+import { BribeFactory } from "../src/factories/BribeFactory.sol";
 
 import "forge-std/console2.sol";
-import {DSTest} from "ds-test/test.sol";
-import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import { DSTest } from "ds-test/test.sol";
+import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
-import {DSTestPlus} from "./utils/DSTestPlus.sol";
-import {Hevm} from "./utils/Hevm.sol";
+import { DSTestPlus } from "./utils/DSTestPlus.sol";
+import { Hevm } from "./utils/Hevm.sol";
 
 interface Vm {
     function prank(address) external;
@@ -41,18 +41,14 @@ contract VotingTest is DSTestPlus {
         pairFactory = new PairFactory();
         gaugeFactory = new GaugeFactory(address(pairFactory));
         bribeFactory = new BribeFactory();
-        voter = new Voter(
-            address(veALCX),
-            address(gaugeFactory),
-            address(bribeFactory)
-        );
-        
+        voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory));
+
         // Create veNFT for `holder`
         hevm.startPrank(holder);
         assertGt(alcx.balanceOf(holder), depositAmount, "Not enough alcx");
 
         alcx.approve(address(veALCX), depositAmount);
-        uint256 tokenId = veALCX.create_lock(depositAmount, lockTime);
+        uint256 tokenId = veALCX.createLock(depositAmount, lockTime);
 
         // Check that veNFT was created
         address owner = veALCX.ownerOf(tokenId);
@@ -61,13 +57,8 @@ contract VotingTest is DSTestPlus {
         // Check veNFT parameters
         (int128 amount, uint256 end) = veALCX.locked(tokenId);
         hevm.stopPrank();
-
-
     }
 
     /// @dev Vote on a gauge using the veNFT
-    function testVote() public {
-
-    }
-
+    function testVote() public {}
 }
