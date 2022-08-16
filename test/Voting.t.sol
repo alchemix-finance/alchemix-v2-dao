@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.15;
 
-import { ve, LockedBalance } from "../src/veALCX.sol";
-import { Voter } from "../src/Voter.sol";
-import { PairFactory } from "../src/factories/PairFactory.sol";
-import { GaugeFactory } from "../src/factories/GaugeFactory.sol";
-import { BribeFactory } from "../src/factories/BribeFactory.sol";
+import { VotingEscrow } from "src/VotingEscrow.sol";
+import { Voter } from "src/Voter.sol";
+import { PairFactory } from "src/factories/PairFactory.sol";
+import { GaugeFactory } from "src/factories/GaugeFactory.sol";
+import { BribeFactory } from "src/factories/BribeFactory.sol";
 
 import "forge-std/console2.sol";
 import { DSTest } from "ds-test/test.sol";
@@ -26,7 +26,7 @@ contract VotingTest is DSTestPlus {
     IERC20 public alcx = IERC20(0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF);
     IERC20 public galcx = IERC20(0x93Dede06AE3B5590aF1d4c111BC54C3f717E4b35);
     address holder = 0x000000000000000000000000000000000000dEaD;
-    ve veALCX;
+    VotingEscrow veALCX;
     Voter voter;
     PairFactory pairFactory;
     GaugeFactory gaugeFactory;
@@ -37,7 +37,7 @@ contract VotingTest is DSTestPlus {
 
     /// @dev Deploy the contract
     function setUp() public {
-        veALCX = new ve(address(alcx));
+        veALCX = new VotingEscrow(address(alcx));
         pairFactory = new PairFactory();
         gaugeFactory = new GaugeFactory(address(pairFactory));
         bribeFactory = new BribeFactory();

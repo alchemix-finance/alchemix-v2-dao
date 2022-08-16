@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.15;
 
-import {MemoProcessor} from "../src/MemoProcessor.sol";
-import {ve} from "../src/veALCX.sol";
+import { MemoProcessor } from "src/MemoProcessor.sol";
+import { VotingEscrow } from "src/VotingEscrow.sol";
 
 import "forge-std/console2.sol";
-import {DSTest} from "ds-test/test.sol";
-import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import { DSTest } from "ds-test/test.sol";
+import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
-import {DSTestPlus} from "./utils/DSTestPlus.sol";
-import {Hevm} from "./utils/Hevm.sol";
+import { DSTestPlus } from "./utils/DSTestPlus.sol";
+import { Hevm } from "./utils/Hevm.sol";
 
 interface Vm {
     function prank(address) external;
@@ -34,7 +34,8 @@ contract MemoProcessorTest is DSTestPlus {
         memoData = _memoData;
     }
 
-    function failMemo(/*address _memoData*/) external pure {
+    function failMemo() external pure /*address _memoData*/
+    {
         assert(false);
     }
 
