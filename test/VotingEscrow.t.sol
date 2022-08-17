@@ -1,24 +1,23 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.15;
 
-import "forge-std/console2.sol";
 import "./BaseTest.sol";
 
 contract VotingEscrowTest is BaseTest {
     VotingEscrow veALCX;
+    uint256 lockDuration = 1 weeks;
+    uint256 depositAmount = 1e21;
 
     function setUp() public {
-        mintAlcx(1e21);
         veALCX = new VotingEscrow(address(alcx));
+
+        mintAlcx(depositAmount);
+        approveAmount(address(veALCX), depositAmount);
     }
 
+    // Create veALCX
     function testCreateLock() public {
-        uint256 lockDuration = 7 days;
-        uint256 depositAmount = 1e21;
-
         hevm.startPrank(account);
-
-        alcx.approve(address(veALCX), depositAmount);
 
         assertEq(veALCX.balanceOf(account), 0);
 
@@ -30,33 +29,24 @@ contract VotingEscrowTest is BaseTest {
         hevm.stopPrank();
     }
 
-    function testCreateLockOutsideZones() public {
-        uint256 lockDuration = 1467 days;
-        uint256 depositAmount = 1e21;
-
+    // Locking outside the allowed zones should revert
+    function testInvalidLock() public {
         hevm.startPrank(account);
-
-        alcx.approve(address(veALCX), depositAmount);
 
         hevm.expectRevert(abi.encodePacked("Voting lock can be 4 years max"));
 
-        veALCX.createLock(depositAmount, lockDuration);
+        veALCX.createLock(depositAmount, lockDuration + 209 weeks);
 
         hevm.stopPrank();
     }
 
-    function testVEALCXVotingPower() public {
-        uint256 lockDuration = 30 days;
-        uint256 depositAmount = 1e21;
-
+    // Votes should increase as veALCX is created
+    function testVotes() public {
         hevm.startPrank(account);
 
-        alcx.approve(address(veALCX), depositAmount);
         uint256 tokenId = veALCX.createLock(depositAmount, lockDuration);
 
-        // Get voting power
         uint256 votes = veALCX.balanceOfAtNFT(tokenId, block.number);
-        // Get total voting power
         uint256 totalVotes = veALCX.totalSupply();
 
         assertEq(totalVotes, votes, "votes doesn't match total");
@@ -64,13 +54,10 @@ contract VotingEscrowTest is BaseTest {
         hevm.stopPrank();
     }
 
+    // Withdraw enabled after lock expires
     function testWithdraw() public {
-        uint256 lockDuration = 1 weeks;
-        uint256 depositAmount = 1e21;
-
         hevm.startPrank(account);
 
-        alcx.approve(address(veALCX), depositAmount);
         uint256 tokenId = veALCX.createLock(depositAmount, lockDuration);
 
         hevm.expectRevert(abi.encodePacked("The lock didn't expire"));
@@ -90,18 +77,14 @@ contract VotingEscrowTest is BaseTest {
         hevm.stopPrank();
     }
 
-    function testCheckTokenURICalls() public {
-        uint256 lockDuration = 1 weeks;
-        uint256 depositAmount = 1e21;
-
-        // tokenURI should not work for non-existent token ids
+    // Calling tokenURI should not work for non-existent token ids
+    function testTokenURICalls() public {
         hevm.startPrank(account);
+
+        veALCX.createLock(depositAmount, lockDuration);
 
         hevm.expectRevert(abi.encodePacked("Query for nonexistent token"));
         veALCX.tokenURI(999);
-
-        alcx.approve(address(veALCX), depositAmount);
-        veALCX.createLock(depositAmount, lockDuration);
 
         uint256 tokenId = 1;
         hevm.warp(block.timestamp + lockDuration);
@@ -120,8 +103,8 @@ contract VotingEscrowTest is BaseTest {
         hevm.stopPrank();
     }
 
+    // Check support of supported interfaces
     function testSupportedInterfaces() public {
-        // Check that it supports all the asserted interfaces.
         bytes4 ERC165_INTERFACE_ID = 0x01ffc9a7;
         bytes4 ERC721_INTERFACE_ID = 0x80ac58cd;
         bytes4 ERC721_METADATA_INTERFACE_ID = 0x5b5e139f;
@@ -131,6 +114,7 @@ contract VotingEscrowTest is BaseTest {
         assertTrue(veALCX.supportsInterface(ERC721_METADATA_INTERFACE_ID));
     }
 
+    // Check support of unsupported interfaces
     function testUnsupportedInterfaces() public {
         bytes4 ERC721_FAKE = 0x780e9d61;
         assertFalse(veALCX.supportsInterface(ERC721_FAKE));
