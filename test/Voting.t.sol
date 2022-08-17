@@ -1,41 +1,21 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.15;
 
-import { VotingEscrow } from "src/VotingEscrow.sol";
-import { Voter } from "src/Voter.sol";
-import { PairFactory } from "src/factories/PairFactory.sol";
-import { GaugeFactory } from "src/factories/GaugeFactory.sol";
-import { BribeFactory } from "src/factories/BribeFactory.sol";
-
+import "./BaseTest.sol";
 import "forge-std/console2.sol";
-import { DSTest } from "ds-test/test.sol";
-import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
-import { DSTestPlus } from "./utils/DSTestPlus.sol";
-import { Hevm } from "./utils/Hevm.sol";
-
-interface Vm {
-    function prank(address) external;
-}
-
-/// @dev See https://onbjerg.github.io/foundry-book/forge/writing-tests.html for details on how this is run
-/// @dev See https://onbjerg.github.io/foundry-book/reference/ds-test.html for assertions list
-/// @dev See https://onbjerg.github.io/foundry-book/reference/cheatcodes.html for cheatcodes like prank()
-/// @dev asserts are (actual, expected)
-contract VotingTest is DSTestPlus {
-    IERC20 public alcx = IERC20(0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF);
-    IERC20 public galcx = IERC20(0x93Dede06AE3B5590aF1d4c111BC54C3f717E4b35);
-    address holder = 0x000000000000000000000000000000000000dEaD;
+contract VotingTest is BaseTest {
     VotingEscrow veALCX;
     Voter voter;
     PairFactory pairFactory;
     GaugeFactory gaugeFactory;
     BribeFactory bribeFactory;
+    RewardsDistributor distributor;
+    Minter minter;
 
     uint256 depositAmount = 999 ether;
     uint256 lockTime = 30 days;
 
-    /// @dev Deploy the contract
     function setUp() public {
         veALCX = new VotingEscrow(address(alcx));
         pairFactory = new PairFactory();
@@ -43,22 +23,44 @@ contract VotingTest is DSTestPlus {
         bribeFactory = new BribeFactory();
         voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory));
 
-        // Create veNFT for `holder`
-        hevm.startPrank(holder);
-        assertGt(alcx.balanceOf(holder), depositAmount, "Not enough alcx");
+        address[] memory tokens = new address[](1);
+        tokens[0] = address(alcx);
+        voter.initialize(tokens, address(admin));
 
-        alcx.approve(address(veALCX), depositAmount);
-        uint256 tokenId = veALCX.createLock(depositAmount, lockTime);
+        alcx.approve(address(veALCX), 1e18);
+        veALCX.createLock(1e18, 4 * 365 * 86400);
+        distributor = new RewardsDistributor(address(veALCX));
+        veALCX.setVoter(address(voter));
 
-        // Check that veNFT was created
-        address owner = veALCX.ownerOf(tokenId);
-        assertEq(owner, holder);
+        InitializationParams memory params = InitializationParams(
+            address(voter),
+            address(veALCX),
+            address(distributor),
+            1793678e18,
+            12724e18,
+            130e18
+        );
 
-        // Check veNFT parameters
-        (int128 amount, uint256 end) = veALCX.locked(tokenId);
-        hevm.stopPrank();
+        minter = new Minter(params);
+
+        distributor.setDepositor(address(minter));
+
+        // // Create veNFT for `account`
+        // hevm.startPrank(account);
+        // assertGt(alcx.balanceOf(account), depositAmount, "Not enough alcx");
+
+        // alcx.approve(address(veALCX), depositAmount);
+        // uint256 tokenId = veALCX.createLock(depositAmount, lockTime);
+
+        // // Check that veNFT was created
+        // address owner = veALCX.ownerOf(tokenId);
+        // assertEq(owner, account);
+
+        // // Check veNFT parameters
+        // (int128 amount, uint256 end) = veALCX.locked(tokenId);
+        // hevm.stopPrank();
     }
 
-    /// @dev Vote on a gauge using the veNFT
-    function testVote() public {}
+    // /// @dev Vote on a gauge using the veNFT
+    // function testVote() public {}
 }

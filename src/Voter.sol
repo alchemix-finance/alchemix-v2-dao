@@ -12,7 +12,7 @@ import './interfaces/IVotingEscrow.sol';
 
 contract Voter {
 
-    address public immutable _ve; // the ve token that governs these contracts
+    address public immutable veALCX; // veALCX that governs these contracts
     address internal immutable base;
     address public immutable gaugefactory;
     address public immutable bribefactory;
@@ -49,9 +49,9 @@ contract Voter {
     event Detach(address indexed owner, address indexed gauge, uint256 tokenId);
     event Whitelisted(address indexed whitelister, address indexed token);
 
-    constructor(address __ve, address  _gauges, address _bribes) {
-        _ve = __ve;
-        base = IVotingEscrow(__ve).token();
+    constructor(address _ve, address  _gauges, address _bribes) {
+        veALCX = _ve;
+        base = IVotingEscrow(_ve).token();
         gaugefactory = _gauges;
         bribefactory = _bribes;
         minter = msg.sender;
@@ -59,7 +59,7 @@ contract Voter {
         emergencyCouncil = msg.sender;
     }
 
-    // simple re-entrancy check
+    // re-entrancy check
     uint256 internal _unlocked = 1;
     modifier lock() {
         require(_unlocked == 1);
@@ -87,9 +87,9 @@ contract Voter {
     }
 
     function reset(uint256 _tokenId) external {
-        require(IVotingEscrow(_ve).isApprovedOrOwner(msg.sender, _tokenId));
+        require(IVotingEscrow(veALCX).isApprovedOrOwner(msg.sender, _tokenId));
         _reset(_tokenId);
-        IVotingEscrow(_ve).abstain(_tokenId);
+        IVotingEscrow(veALCX).abstain(_tokenId);
     }
 
     function _reset(uint256 _tokenId) internal {
@@ -108,7 +108,7 @@ contract Voter {
                 if (_votes > 0) {
                     _totalWeight += _votes;
                 }
-                IGauge(gauges[_pool]).setVoteStatus(IVotingEscrow(_ve).ownerOf(_tokenId), false);
+                IGauge(gauges[_pool]).setVoteStatus(IVotingEscrow(veALCX).ownerOf(_tokenId), false);
                 emit Abstained(_tokenId, _votes);
             }
         }
@@ -132,7 +132,7 @@ contract Voter {
     function _vote(uint256 _tokenId, address[] memory _poolVote, uint256[] memory _weights) internal {
         _reset(_tokenId);
         uint256 _poolCnt = _poolVote.length;
-        uint256 _weight = IVotingEscrow(_ve).balanceOfNFT(_tokenId);
+        uint256 _weight = IVotingEscrow(veALCX).balanceOfNFT(_tokenId);
         uint256 _totalVoteWeight = 0;
         uint256 _totalWeight = 0;
         uint256 _usedWeight = 0;
@@ -157,17 +157,17 @@ contract Voter {
                 votes[_tokenId][_pool] += _poolWeight;
                 _usedWeight += _poolWeight;
                 _totalWeight += _poolWeight;
-                IGauge(gauges[_pool]).setVoteStatus(IVotingEscrow(_ve).ownerOf(_tokenId), true);
+                IGauge(gauges[_pool]).setVoteStatus(IVotingEscrow(veALCX).ownerOf(_tokenId), true);
                 emit Voted(msg.sender, _tokenId, _poolWeight);
             }
         }
-        if (_usedWeight > 0) IVotingEscrow(_ve).voting(_tokenId);
+        if (_usedWeight > 0) IVotingEscrow(veALCX).voting(_tokenId);
         totalWeight += uint256(_totalWeight);
         usedWeights[_tokenId] = uint256(_usedWeight);
     }
 
     function vote(uint256 tokenId, address[] calldata _poolVote, uint256[] calldata _weights) external {
-        require(IVotingEscrow(_ve).isApprovedOrOwner(msg.sender, tokenId));
+        require(IVotingEscrow(veALCX).isApprovedOrOwner(msg.sender, tokenId));
         require(_poolVote.length == _weights.length);
         _vote(tokenId, _poolVote, _weights);
     }
@@ -192,7 +192,7 @@ contract Voter {
         //     require(isWhitelisted[tokenA] && isWhitelisted[tokenB], "!whitelisted");
         // }
         address _bribe = IBribeFactory(bribefactory).createBribe();
-        address _gauge = IGaugeFactory(gaugefactory).createGauge(_pool, _bribe, _ve);
+        address _gauge = IGaugeFactory(gaugefactory).createGauge(_pool, _bribe, veALCX);
         IERC20(base).approve(_gauge, type(uint256).max);
         bribes[_gauge] = _bribe;
         gauges[_pool] = _gauge;
@@ -222,7 +222,7 @@ contract Voter {
     function attachTokenToGauge(uint256 tokenId, address account) external {
         require(isGauge[msg.sender]);
         require(isAlive[msg.sender]); // killed gauges cannot attach tokens to themselves
-        if (tokenId > 0) IVotingEscrow(_ve).attach(tokenId);
+        if (tokenId > 0) IVotingEscrow(veALCX).attach(tokenId);
         emit Attach(account, msg.sender, tokenId);
     }
 
@@ -234,7 +234,7 @@ contract Voter {
 
     function detachTokenFromGauge(uint256 tokenId, address account) external {
         require(isGauge[msg.sender]);
-        if (tokenId > 0) IVotingEscrow(_ve).detach(tokenId);
+        if (tokenId > 0) IVotingEscrow(veALCX).detach(tokenId);
         emit Detach(account, msg.sender, tokenId);
     }
 
