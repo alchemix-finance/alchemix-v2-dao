@@ -11,8 +11,8 @@ contract VotingEscrowTest is BaseTest {
     function setUp() public {
         veALCX = new VotingEscrow(address(alcx));
 
-        mintAlcx(depositAmount);
-        approveAmount(address(veALCX), depositAmount);
+        mintAlcx(account, depositAmount);
+        approveAmount(account, address(veALCX), depositAmount);
     }
 
     // Create veALCX

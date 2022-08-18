@@ -1,7 +1,7 @@
 pragma solidity ^0.8.15;
 
 interface IVoter {
-    function _ve() external view returns (address);
+    function veALCX() external view returns (address);
     function governor() external view returns (address);
     function emergencyCouncil() external view returns (address);
     function attachTokenToGauge(uint256 _tokenId, address account) external;

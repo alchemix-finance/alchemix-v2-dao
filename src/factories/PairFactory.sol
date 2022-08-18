@@ -83,7 +83,9 @@ contract PairFactory {
         return (_temp0, _temp1, _temp);
     }
 
-    function isPair(address pair) external view returns (bool) {
-        return true; // TODO: Check for conformity to UniswapV2 style
-    }
+    // TODO: Check for conformity to UniswapV2 style
+    // determine if we need this logic with our system
+    // function isPair(address pair) external view returns (bool) {
+    //     return true; 
+    // }
 }
