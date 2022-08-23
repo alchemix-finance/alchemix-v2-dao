@@ -118,8 +118,8 @@ contract Minter {
 
             // TODO logic to distrubte minted tokens to veALCX holders
             // require(alcx.transfer(address(rewardsDistributor), _growth));
-            // rewardsDistributor.checkpoint_token(); // checkpoint token balance that was just minted in rewards distributor
-            // rewardsDistributor.checkpoint_total_supply(); // checkpoint supply
+            // rewardsDistributor.checkpointToken(); // checkpoint token balance that was just minted in rewards distributor
+            // rewardsDistributor.checkpointTotalSupply(); // checkpoint supply
 
             // alcx.approve(address(voter), epoch);
             // voter.notifyRewardAmount(epoch);
