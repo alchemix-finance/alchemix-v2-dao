@@ -191,7 +191,7 @@ contract Voter {
         uint256[] calldata _weights
     ) external onlyNewEpoch(_tokenId) {
         require(IVotingEscrow(veALCX).isApprovedOrOwner(msg.sender, _tokenId));
-        require(_poolVote.length == _weights.length, "NOPE");
+        require(_poolVote.length == _weights.length);
         lastVoted[_tokenId] = block.timestamp;
         _vote(_tokenId, _poolVote, _weights);
     }
@@ -368,6 +368,8 @@ contract Voter {
             claimable[_gauge] = 0;
             IGauge(_gauge).notifyRewardAmount(base, _claimable);
             emit DistributeReward(msg.sender, _gauge, _claimable);
+            // distribute bribes & fees too
+            IGauge(_gauge).deliverBribes();
         }
     }
 

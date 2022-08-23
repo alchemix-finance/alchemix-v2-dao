@@ -82,8 +82,6 @@ contract VotingTest is BaseTest {
         hevm.stopPrank();
     }
 
-    function testVote() public {}
-
     function testSameEpochVoteOrReset() public {
         hevm.startPrank(admin);
 
@@ -96,7 +94,7 @@ contract VotingTest is BaseTest {
         voter.vote(1, pools, weights);
 
         // Forward half epoch
-        hevm.warp(block.timestamp + 1 weeks / 2);
+        hevm.warp(block.timestamp + 1 weeks / 4);
 
         // Voting again fails
         pools[0] = alUSDPool;
