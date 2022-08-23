@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.15;
 
-import {RewardsDistributor} from "../src/RewardsDistributor.sol";
-import {ve} from "../src/veALCX.sol";
+import { RewardsDistributor } from "src/RewardsDistributor.sol";
+import { VotingEscrow } from "src/VotingEscrow.sol";
 
 import "forge-std/console2.sol";
-import {DSTest} from "ds-test/test.sol";
-import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import { DSTest } from "ds-test/test.sol";
+import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
-import {DSTestPlus} from "./utils/DSTestPlus.sol";
-import {Hevm} from "./utils/Hevm.sol";
+import { DSTestPlus } from "./utils/DSTestPlus.sol";
+import { Hevm } from "./utils/Hevm.sol";
 
 interface Vm {
     function prank(address) external;
@@ -23,7 +23,7 @@ contract RewardsDistributorTest is DSTestPlus {
     IERC20 public alcx = IERC20(0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF);
     IERC20 public galcx = IERC20(0x93Dede06AE3B5590aF1d4c111BC54C3f717E4b35);
     address holder = 0x000000000000000000000000000000000000dEaD;
-    ve veALCX;
+    VotingEscrow veALCX;
     RewardsDistributor rewards;
 
     uint256 depositAmount = 999 ether;
@@ -31,7 +31,7 @@ contract RewardsDistributorTest is DSTestPlus {
 
     /// @dev Deploy the contract
     function setUp() public {
-        veALCX = new ve(address(alcx));
+        veALCX = new VotingEscrow(address(alcx));
         rewards = new RewardsDistributor(address(veALCX));
     }
 
@@ -46,7 +46,7 @@ contract RewardsDistributorTest is DSTestPlus {
     //     assertGt(alcxBalance, depositAmount, "Not enough alcx");
 
     //     alcx.approve(address(veALCX), depositAmount);
-    //     uint256 tokenId = veALCX.create_lock(depositAmount, lockTime);
+    //     uint256 tokenId = veALCX.createLock(depositAmount, lockTime);
 
     //     // Check that veNFT was created
     //     address owner = veALCX.ownerOf(tokenId);
@@ -58,5 +58,4 @@ contract RewardsDistributorTest is DSTestPlus {
     //     assertEq(uint256(uint128(amount)), depositAmount, "depositAmount doesn't match");
     //     assertLe(end, block.timestamp + lockTime, "lockTime doesn't match"); // Rounds to nearest week
     // }
-
 }
