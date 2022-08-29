@@ -56,6 +56,8 @@ contract Minter {
     }
 
     // Remove if contract is not upgradeable
+    // claimants and amounts can be added as params if
+    // the minter is initialized with address that should have veALCX
     function initialize() external {
         require(initializer == msg.sender);
         initializer = address(0);

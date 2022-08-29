@@ -14,6 +14,7 @@ contract MinterTest is BaseTest {
 
     uint256 nextEpoch = 86400 * 14;
     uint256 epochsUntilTail = 80;
+    uint256 internal constant LOCK = 86400 * 7 * 52 * 4;
 
     function setUp() public {
         hevm.startPrank(admin);
@@ -28,8 +29,8 @@ contract MinterTest is BaseTest {
         tokens[0] = address(alcx);
         voter.initialize(tokens, admin);
 
-        alcx.approve(address(veALCX), 1e18);
-        veALCX.createLock(1e18, 4 * 365 * 86400);
+        alcx.approve(address(veALCX), 2e25);
+        veALCX.createLock(TOKEN_1, 4 * 365 * 86400);
 
         distributor = new RewardsDistributor(address(veALCX));
         veALCX.setVoter(address(voter));
@@ -53,7 +54,7 @@ contract MinterTest is BaseTest {
 
         hevm.roll(block.number + 1);
         assertGt(veALCX.balanceOfNFT(1), 995063075414519385);
-        assertEq(alcx.balanceOf(address(veALCX)), 1e18);
+        assertEq(alcx.balanceOf(address(veALCX)), TOKEN_1);
 
         address[] memory pools = new address[](1);
         pools[0] = alETHPool;
@@ -63,6 +64,8 @@ contract MinterTest is BaseTest {
 
         // Initialize minter
         minter.initialize();
+
+        hevm.stopPrank();
     }
 
     // Test emissions for a single epoch
@@ -77,7 +80,7 @@ contract MinterTest is BaseTest {
         minter.updatePeriod();
 
         uint256 totalAfterEpoch = minter.circulatingEmissionsSupply();
-        emit log_named_uint("emissions after one epoch (ether)", totalAfterEpoch / 1e18);
+        emit log_named_uint("emissions after one epoch (ether)", totalAfterEpoch / TOKEN_1);
 
         assertEq(totalAfterEpoch, currentTotalEmissions + epochEmissions);
     }
@@ -93,7 +96,7 @@ contract MinterTest is BaseTest {
         uint256 tailRewards = minter.rewards();
         uint256 tailStepdown = minter.stepdown();
         uint256 tailEmissionSupply = minter.circulatingEmissionsSupply();
-        emit log_named_uint("tail emissions supply (ether)", tailEmissionSupply / 1e18);
+        emit log_named_uint("tail emissions supply (ether)", tailEmissionSupply / TOKEN_1);
 
         // Assert rewards are the constant tail emissions value
         assertEq(tailRewards, minter.TAIL_EMISSIONS_RATE());
@@ -103,5 +106,80 @@ contract MinterTest is BaseTest {
 
         // Assert total emissions are the approximate target at the tail
         assertApproxEq(tailEmissionSupply, supplyAtTail, 17e18);
+    }
+
+    function testVotingEscrow() public {
+        mintAlcx(address(admin), TOKEN_1M);
+
+        address[] memory claimants = new address[](1);
+        claimants[0] = address(0xbeef);
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = TOKEN_1M;
+
+        hevm.startPrank(admin);
+
+        for (uint256 i = 0; i < claimants.length; i++) {
+            veALCX.createLockFor(amounts[i], LOCK, claimants[i]);
+        }
+
+        assertEq(veALCX.ownerOf(2), address(0xbeef));
+        assertEq(veALCX.ownerOf(3), address(0));
+        hevm.roll(block.number + 1);
+
+        // assert if we initialize minter with a supply of alcx
+        // assertEq(alcx.balanceOf(address(minter)), 19 * TOKEN_1M);
+
+        hevm.stopPrank();
+    }
+
+    function testMinterWeeklyDistribute() public {
+        uint256 startingRewards = minter.rewards();
+
+        assertEq(startingRewards, 12724 * TOKEN_1);
+
+        hevm.warp(block.timestamp + nextEpoch);
+        hevm.roll(block.number + 1);
+        minter.updatePeriod();
+
+        assertEq(distributor.claimable(1), 0);
+        assertEq(minter.stepdown(), startingRewards - minter.rewards());
+
+        hevm.warp(block.timestamp + nextEpoch);
+        hevm.roll(block.number + 1);
+        minter.updatePeriod();
+
+        uint256 claimable = distributor.claimable(1);
+        console2.log("~ claimable", claimable);
+        // assertGt(claimable, 128115516517529); // test after setting up distriubtion logic
+        distributor.claim(1);
+        assertEq(distributor.claimable(1), 0);
+
+        hevm.warp(block.timestamp + nextEpoch);
+        hevm.roll(block.number + 1);
+        minter.updatePeriod();
+        console2.log(distributor.claimable(1));
+        distributor.claim(1);
+        hevm.warp(block.timestamp + nextEpoch);
+        hevm.roll(block.number + 1);
+        minter.updatePeriod();
+        console2.log(distributor.claimable(1));
+        uint256[] memory tokenIds = new uint256[](1);
+        tokenIds[0] = 1;
+        distributor.claimMany(tokenIds);
+        hevm.warp(block.timestamp + nextEpoch);
+        hevm.roll(block.number + 1);
+        minter.updatePeriod();
+        console2.log(distributor.claimable(1));
+        distributor.claim(1);
+        hevm.warp(block.timestamp + nextEpoch);
+        hevm.roll(block.number + 1);
+        minter.updatePeriod();
+        console2.log(distributor.claimable(1));
+        distributor.claimMany(tokenIds);
+        hevm.warp(block.timestamp + nextEpoch);
+        hevm.roll(block.number + 1);
+        minter.updatePeriod();
+        console2.log(distributor.claimable(1));
+        distributor.claim(1);
     }
 }
