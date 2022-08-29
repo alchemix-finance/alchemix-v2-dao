@@ -1,37 +1,43 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.15;
 
-import { DSTestPlus } from "./utils/DSTestPlus.sol";
-import { Minter, InitializationParams } from "../src/Minter.sol";
-import { IAlchemixToken } from "../src/interfaces/IAlchemixToken.sol";
-import { IVotingEscrow } from "../src/interfaces/IVotingEscrow.sol";
-import { IRewardsDistributor } from "../src/interfaces/IRewardsDistributor.sol";
-import { Voter } from "../src/Voter.sol";
+import "./BaseTest.sol";
 
-contract MinterTest is DSTestPlus {
-    IAlchemixToken public alcx = IAlchemixToken(0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF);
-    IVotingEscrow public veALCX = IVotingEscrow(address(alcx));
-    IRewardsDistributor public rewardsDistributor = IRewardsDistributor(address(veALCX));
-    address constant admin = 0x8392F6669292fA56123F71949B52d883aE57e225;
-
-    // TODO add emissions distributions to tests with voter contract
-    Voter voter = Voter(address(0x000000000000000000000000000000000000dEaD));
-
+contract MinterTest is BaseTest {
+    VotingEscrow veALCX;
+    Voter voter;
+    PairFactory pairFactory;
+    GaugeFactory gaugeFactory;
+    BribeFactory bribeFactory;
+    RewardsDistributor distributor;
     Minter minter;
 
-    // Values for the current epoch (emissions to be manually minted)
-    uint256 supply = 1793678e18;
-    uint256 rewards = 12724e18;
-    uint256 stepdown = 130e18;
-    uint256 supplyAtTail = 2392609e18;
     uint256 nextEpoch = 86400 * 14;
     uint256 epochsUntilTail = 80;
 
     function setUp() public {
+        hevm.startPrank(admin);
+
+        veALCX = new VotingEscrow(address(alcx));
+        pairFactory = new PairFactory();
+        gaugeFactory = new GaugeFactory();
+        bribeFactory = new BribeFactory();
+        voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory), address(pairFactory));
+
+        address[] memory tokens = new address[](1);
+        tokens[0] = address(alcx);
+        voter.initialize(tokens, admin);
+
+        alcx.approve(address(veALCX), 1e18);
+        veALCX.createLock(1e18, 4 * 365 * 86400);
+
+        distributor = new RewardsDistributor(address(veALCX));
+        veALCX.setVoter(address(voter));
+
         InitializationParams memory params = InitializationParams(
             address(voter),
             address(veALCX),
-            address(rewardsDistributor),
+            address(distributor),
             supply,
             rewards,
             stepdown
@@ -39,10 +45,21 @@ contract MinterTest is DSTestPlus {
 
         minter = new Minter(params);
 
-        // Give the minter role to the minter contract
-        hevm.startPrank(admin, admin);
+        distributor.setDepositor(address(minter));
+
         alcx.grantRole(keccak256("MINTER"), address(minter));
-        hevm.stopPrank();
+
+        voter.createGauge(address(alETHPool));
+
+        hevm.roll(block.number + 1);
+        assertGt(veALCX.balanceOfNFT(1), 995063075414519385);
+        assertEq(alcx.balanceOf(address(veALCX)), 1e18);
+
+        address[] memory pools = new address[](1);
+        pools[0] = alETHPool;
+        uint256[] memory weights = new uint256[](1);
+        weights[0] = 5000;
+        voter.vote(1, pools, weights);
 
         // Initialize minter
         minter.initialize();
