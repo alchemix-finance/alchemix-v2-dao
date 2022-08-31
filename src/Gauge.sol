@@ -16,7 +16,6 @@ contract Gauge {
     address public immutable bribe;
     address public immutable voter;
     address immutable factory;
-    bool public isForPair;
 
     uint256 public derivedSupply;
     mapping(address => uint256) public derivedBalances;
@@ -95,8 +94,7 @@ contract Gauge {
         address _stake,
         address _bribe,
         address __ve,
-        address _voter,
-        bool _isForPair
+        address _voter
     ) {
         stake = _stake;
         bribe = _bribe;
@@ -110,17 +108,6 @@ contract Gauge {
         IBribe(bribe).addRewardToken(_token);
         isReward[_token] = true;
         rewards.push(_token);
-
-        isForPair = _isForPair;
-        if (isForPair) {
-            (address _token0, address _token1) = IPair(stake).tokens();
-            IBribe(bribe).addRewardToken(_token0);
-            isReward[_token0] = true;
-            rewards.push(_token0);
-            IBribe(bribe).addRewardToken(_token1);
-            isReward[_token1] = true;
-            rewards.push(_token1);
-        }
     }
 
     // simple re-entrancy check
@@ -137,9 +124,6 @@ contract Gauge {
     }
 
     function _claimFees() internal returns (uint256 claimed0, uint256 claimed1) {
-        if (!isForPair) {
-            return (0, 0);
-        }
         (claimed0, claimed1) = IPair(stake).claimFees();
         if (claimed0 > 0 || claimed1 > 0) {
             uint256 _fees0 = fees0 + claimed0;

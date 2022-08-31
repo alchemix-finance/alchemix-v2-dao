@@ -3,17 +3,14 @@ pragma solidity ^0.8.15;
 
 import "./libraries/Math.sol";
 import "./interfaces/IBribeFactory.sol";
-import "./interfaces/IPairFactory.sol";
 import "./interfaces/IGauge.sol";
 import "./interfaces/IGaugeFactory.sol";
 import "./interfaces/IERC20.sol";
 import "./interfaces/IMinter.sol";
-import "./interfaces/IPair.sol";
 import "./interfaces/IVotingEscrow.sol";
 
 contract Voter {
     address public immutable veALCX; // veALCX that governs these contracts
-    address public immutable pairfactory;
     address internal immutable base;
     address public immutable gaugefactory;
     address public immutable bribefactory;
@@ -54,14 +51,12 @@ contract Voter {
     constructor(
         address _ve,
         address _gauges,
-        address _bribes,
-        address _pairs
+        address _bribes
     ) {
         veALCX = _ve;
         base = IVotingEscrow(_ve).token();
         gaugefactory = _gauges;
         bribefactory = _bribes;
-        pairfactory = _pairs;
         minter = msg.sender;
         governor = msg.sender;
         emergencyCouncil = msg.sender;
@@ -210,30 +205,9 @@ contract Voter {
     function createGauge(address _pool) external returns (address) {
         require(gauges[_pool] == address(0x0), "exists");
         require(msg.sender == governor, "only governor creates gauges");
-        // TODO determine if we need this logic with our system
-        bool isPair = false; // IPairFactory(pairfactory).isPair(_pool);
-        // address[] memory allowedRewards = new address[](3);
-        // address tokenA;
-        // address tokenB;
-
-        // if (isPair) {
-        //     (tokenA, tokenB) = IPair(_pool).tokens();
-        //     allowedRewards[0] = tokenA;
-        //     allowedRewards[1] = tokenB;
-
-        //     if (base != tokenA && base != tokenB) {
-        //         allowedRewards[2] = base;
-        //     }
-        // }
-
-        if (msg.sender != governor) {
-            // gov can create for any pool
-            require(isPair, "!_pool");
-            // require(isWhitelisted[tokenA] && isWhitelisted[tokenB], "!whitelisted");
-        }
 
         address _bribe = IBribeFactory(bribefactory).createBribe();
-        address _gauge = IGaugeFactory(gaugefactory).createGauge(_pool, _bribe, veALCX, isPair);
+        address _gauge = IGaugeFactory(gaugefactory).createGauge(_pool, _bribe, veALCX);
 
         IERC20(base).approve(_gauge, type(uint256).max);
         bribes[_gauge] = _bribe;

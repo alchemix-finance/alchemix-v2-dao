@@ -6,7 +6,6 @@ import "./BaseTest.sol";
 contract VotingTest is BaseTest {
     VotingEscrow veALCX;
     Voter voter;
-    PairFactory pairFactory;
     GaugeFactory gaugeFactory;
     BribeFactory bribeFactory;
     RewardsDistributor distributor;
@@ -21,10 +20,9 @@ contract VotingTest is BaseTest {
         hevm.startPrank(admin);
 
         veALCX = new VotingEscrow(address(alcx));
-        pairFactory = new PairFactory();
         gaugeFactory = new GaugeFactory();
         bribeFactory = new BribeFactory();
-        voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory), address(pairFactory));
+        voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory));
 
         address[] memory tokens = new address[](1);
         tokens[0] = address(alcx);
@@ -85,7 +83,8 @@ contract VotingTest is BaseTest {
     function testSameEpochVoteOrReset() public {
         hevm.startPrank(admin);
 
-        hevm.warp(block.timestamp + 1 weeks);
+        // Make sure we aren't warping to the end of an epoch
+        hevm.warp(block.timestamp + 1 weeks + (1 weeks / 2));
 
         address[] memory pools = new address[](1);
         pools[0] = alETHPool;
@@ -93,7 +92,7 @@ contract VotingTest is BaseTest {
         weights[0] = 5000;
         voter.vote(1, pools, weights);
 
-        // Forward half epoch
+        // Forward quarter epoch
         hevm.warp(block.timestamp + 1 weeks / 4);
 
         // Voting again fails

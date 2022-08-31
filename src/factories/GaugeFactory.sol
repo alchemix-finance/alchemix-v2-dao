@@ -9,10 +9,9 @@ contract GaugeFactory {
     function createGauge(
         address _pool,
         address _bribe,
-        address _ve,
-        bool isPair
+        address _ve
     ) external returns (address) {
-        lastGauge = address(new Gauge(_pool, _bribe, _ve, msg.sender, isPair));
+        lastGauge = address(new Gauge(_pool, _bribe, _ve, msg.sender));
         return lastGauge;
     }
 }

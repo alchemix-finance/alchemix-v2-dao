@@ -6,7 +6,6 @@ interface IGaugeFactory {
     function createGauge(
         address,
         address,
-        address,
-        bool
+        address
     ) external returns (address);
 }
