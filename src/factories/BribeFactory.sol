@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
-import '../Bribe.sol';
+import "../Bribe.sol";
 
 contract BribeFactory {
-    address public last_gauge;
+    address public lastGauge;
 
     function createBribe() external returns (address) {
-        last_gauge = address(new Bribe());
-        return last_gauge;
+        lastGauge = address(new Bribe());
+        return lastGauge;
     }
 }

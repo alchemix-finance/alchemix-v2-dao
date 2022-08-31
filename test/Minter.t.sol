@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.15;
 
-import "forge-std/console2.sol";
-
 import { DSTestPlus } from "./utils/DSTestPlus.sol";
 import { Minter, InitializationParams } from "../src/Minter.sol";
 import { IAlchemixToken } from "../src/interfaces/IAlchemixToken.sol";
@@ -25,9 +23,9 @@ contract MinterTest is DSTestPlus {
     uint256 supply = 1793678e18;
     uint256 rewards = 12724e18;
     uint256 stepdown = 130e18;
+    uint256 supplyAtTail = 2392609e18;
     uint256 nextEpoch = 86400 * 14;
     uint256 epochsUntilTail = 80;
-    uint256 supplyAtTail = 2392609e18;
 
     function setUp() public {
         InitializationParams memory params = InitializationParams(
