@@ -6,7 +6,6 @@ import "./BaseTest.sol";
 contract MinterTest is BaseTest {
     VotingEscrow veALCX;
     Voter voter;
-    PairFactory pairFactory;
     GaugeFactory gaugeFactory;
     BribeFactory bribeFactory;
     RewardsDistributor distributor;
@@ -22,10 +21,9 @@ contract MinterTest is BaseTest {
         hevm.startPrank(admin);
 
         veALCX = new VotingEscrow(address(alcx));
-        pairFactory = new PairFactory();
         gaugeFactory = new GaugeFactory();
         bribeFactory = new BribeFactory();
-        voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory), address(pairFactory));
+        voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory));
 
         address[] memory tokens = new address[](1);
         tokens[0] = address(alcx);
@@ -153,7 +151,7 @@ contract MinterTest is BaseTest {
 
         minter.updatePeriod();
 
-        assertGt(distributor.claimable(1), 3113259951171);
+        assertGt(distributor.claimable(1), 3013259951171);
 
         distributor.claim(1);
         assertEq(distributor.claimable(1), 0);
