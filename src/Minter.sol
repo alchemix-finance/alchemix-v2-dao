@@ -2,6 +2,7 @@
 pragma solidity ^0.8.15;
 
 import "./libraries/Math.sol";
+import "./interfaces/IMinter.sol";
 import "./interfaces/IRewardsDistributor.sol";
 import "./interfaces/IVoter.sol";
 import "./interfaces/IVotingEscrow.sol";
@@ -16,7 +17,7 @@ struct InitializationParams {
     uint256 stepdown; // rate rewards decreases by
 }
 
-contract Minter {
+contract Minter is IMinter {
     // Allows minting once per epoch (epoch = 1 week, reset every Thursday 00:00 UTC)
     uint256 internal constant WEEK = 86400 * 7;
 
@@ -86,6 +87,7 @@ contract Minter {
         return supply;
     }
 
+    // TODO determine how to handle distribution of newly minted alcx
     // Calculate inflation and adjust ve balances accordingly
     function calculateGrowth(uint256 _minted) public view returns (uint256) {
         uint256 veTotal = ve.totalSupply();
