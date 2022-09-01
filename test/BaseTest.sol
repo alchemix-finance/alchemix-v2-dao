@@ -8,6 +8,7 @@ import { Voter } from "src/Voter.sol";
 import { GaugeFactory } from "src/factories/GaugeFactory.sol";
 import { BribeFactory } from "src/factories/BribeFactory.sol";
 import { Minter, InitializationParams } from "src/Minter.sol";
+import "src/Gauge.sol";
 import "src/RewardsDistributor.sol";
 
 // import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";

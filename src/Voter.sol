@@ -305,7 +305,6 @@ contract Voter {
     }
 
     function _updateFor(address _gauge) internal {
-        require(isAlive[_gauge]); // killed gauges cannot be updated
         address _pool = poolForGauge[_gauge];
         uint256 _supplied = weights[_pool];
         if (_supplied > 0) {
@@ -342,8 +341,6 @@ contract Voter {
             claimable[_gauge] = 0;
             IGauge(_gauge).notifyRewardAmount(base, _claimable);
             emit DistributeReward(msg.sender, _gauge, _claimable);
-            // distribute bribes & fees too
-            IGauge(_gauge).deliverBribes();
         }
     }
 
