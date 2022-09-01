@@ -341,6 +341,8 @@ contract Voter {
             claimable[_gauge] = 0;
             IGauge(_gauge).notifyRewardAmount(base, _claimable);
             emit DistributeReward(msg.sender, _gauge, _claimable);
+            // distribute bribes & fees too
+            IGauge(_gauge).deliverBribes();
         }
     }
 
