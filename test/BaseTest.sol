@@ -26,6 +26,12 @@ abstract contract BaseTest is DSTestPlus {
     uint256 public stepdown = 130e18;
     uint256 public supplyAtTail = 2392609e18;
 
+    uint256 constant TOKEN_1 = 1e18;
+    uint256 constant TOKEN_100K = 1e23; // 1e5 = 100K tokens with 18 decimals
+    uint256 constant TOKEN_1M = 1e24; // 1e6 = 1M tokens with 18 decimals
+    uint256 constant TOKEN_100M = 1e26; // 1e8 = 100M tokens with 18 decimals
+    uint256 constant TOKEN_10B = 1e28; // 1e10 = 10B tokens with 18 decimals
+
     function mintAlcx(address _account, uint256 _amount) public {
         hevm.startPrank(admin);
 

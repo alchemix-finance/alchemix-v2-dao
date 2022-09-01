@@ -1,37 +1,44 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.15;
 
-import { DSTestPlus } from "./utils/DSTestPlus.sol";
-import { Minter, InitializationParams } from "../src/Minter.sol";
-import { IAlchemixToken } from "../src/interfaces/IAlchemixToken.sol";
-import { IVotingEscrow } from "../src/interfaces/IVotingEscrow.sol";
-import { IRewardsDistributor } from "../src/interfaces/IRewardsDistributor.sol";
-import { Voter } from "../src/Voter.sol";
+import "./BaseTest.sol";
 
-contract MinterTest is DSTestPlus {
-    IAlchemixToken public alcx = IAlchemixToken(0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF);
-    IVotingEscrow public veALCX = IVotingEscrow(address(alcx));
-    IRewardsDistributor public rewardsDistributor = IRewardsDistributor(address(veALCX));
-    address constant admin = 0x8392F6669292fA56123F71949B52d883aE57e225;
-
-    // TODO add emissions distributions to tests with voter contract
-    Voter voter = Voter(address(0x000000000000000000000000000000000000dEaD));
-
+contract MinterTest is BaseTest {
+    VotingEscrow veALCX;
+    Voter voter;
+    GaugeFactory gaugeFactory;
+    BribeFactory bribeFactory;
+    RewardsDistributor distributor;
     Minter minter;
 
-    // Values for the current epoch (emissions to be manually minted)
-    uint256 supply = 1793678e18;
-    uint256 rewards = 12724e18;
-    uint256 stepdown = 130e18;
-    uint256 supplyAtTail = 2392609e18;
     uint256 nextEpoch = 86400 * 14;
     uint256 epochsUntilTail = 80;
+    uint256 internal constant LOCK = 86400 * 7 * 52 * 4;
 
     function setUp() public {
+        mintAlcx(address(admin), 1e25);
+
+        hevm.startPrank(admin);
+
+        veALCX = new VotingEscrow(address(alcx));
+        gaugeFactory = new GaugeFactory();
+        bribeFactory = new BribeFactory();
+        voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory));
+
+        address[] memory tokens = new address[](1);
+        tokens[0] = address(alcx);
+        voter.initialize(tokens, admin);
+
+        alcx.approve(address(veALCX), 2e25);
+        veALCX.createLock(TOKEN_1, 4 * 365 * 86400);
+
+        distributor = new RewardsDistributor(address(veALCX));
+        veALCX.setVoter(address(voter));
+
         InitializationParams memory params = InitializationParams(
             address(voter),
             address(veALCX),
-            address(rewardsDistributor),
+            address(distributor),
             supply,
             rewards,
             stepdown
@@ -39,13 +46,26 @@ contract MinterTest is DSTestPlus {
 
         minter = new Minter(params);
 
-        // Give the minter role to the minter contract
-        hevm.startPrank(admin, admin);
+        distributor.setDepositor(address(minter));
+
         alcx.grantRole(keccak256("MINTER"), address(minter));
-        hevm.stopPrank();
+
+        voter.createGauge(address(alETHPool));
+
+        hevm.roll(block.number + 1);
+        assertGt(veALCX.balanceOfNFT(1), 995063075414519385);
+        assertEq(alcx.balanceOf(address(veALCX)), TOKEN_1);
+
+        address[] memory pools = new address[](1);
+        pools[0] = alETHPool;
+        uint256[] memory weights = new uint256[](1);
+        weights[0] = 5000;
+        voter.vote(1, pools, weights);
 
         // Initialize minter
         minter.initialize();
+
+        hevm.stopPrank();
     }
 
     // Test emissions for a single epoch
@@ -60,7 +80,7 @@ contract MinterTest is DSTestPlus {
         minter.updatePeriod();
 
         uint256 totalAfterEpoch = minter.circulatingEmissionsSupply();
-        emit log_named_uint("emissions after one epoch (ether)", totalAfterEpoch / 1e18);
+        emit log_named_uint("emissions after one epoch (ether)", totalAfterEpoch / TOKEN_1);
 
         assertEq(totalAfterEpoch, currentTotalEmissions + epochEmissions);
     }
@@ -76,7 +96,7 @@ contract MinterTest is DSTestPlus {
         uint256 tailRewards = minter.rewards();
         uint256 tailStepdown = minter.stepdown();
         uint256 tailEmissionSupply = minter.circulatingEmissionsSupply();
-        emit log_named_uint("tail emissions supply (ether)", tailEmissionSupply / 1e18);
+        emit log_named_uint("tail emissions supply (ether)", tailEmissionSupply / TOKEN_1);
 
         // Assert rewards are the constant tail emissions value
         assertEq(tailRewards, minter.TAIL_EMISSIONS_RATE());
@@ -86,5 +106,96 @@ contract MinterTest is DSTestPlus {
 
         // Assert total emissions are the approximate target at the tail
         assertApproxEq(tailEmissionSupply, supplyAtTail, 17e18);
+    }
+
+    function initializeVotingEscrow() public {
+        mintAlcx(address(admin), TOKEN_1M);
+
+        address[] memory claimants = new address[](1);
+        claimants[0] = address(admin);
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = TOKEN_1M;
+
+        hevm.startPrank(admin);
+
+        for (uint256 i = 0; i < claimants.length; i++) {
+            veALCX.createLockFor(amounts[i], LOCK, claimants[i]);
+        }
+
+        assertEq(veALCX.ownerOf(2), address(admin));
+        assertEq(veALCX.ownerOf(3), address(0));
+        hevm.roll(block.number + 1);
+
+        hevm.stopPrank();
+    }
+
+    function testMinterWeeklyDistribute() public {
+        initializeVotingEscrow();
+
+        uint256 startingRewards = minter.rewards();
+
+        minter.updatePeriod();
+
+        assertEq(startingRewards, rewards);
+        assertEq(distributor.claimable(1), 0);
+
+        hevm.warp(block.timestamp + nextEpoch);
+        hevm.roll(block.number + 1);
+
+        minter.updatePeriod();
+
+        assertEq(minter.stepdown(), startingRewards - minter.rewards());
+
+        hevm.warp(block.timestamp + nextEpoch);
+        hevm.roll(block.number + 1);
+
+        minter.updatePeriod();
+
+        assertGt(distributor.claimable(1), 3013259951171);
+
+        distributor.claim(1);
+        assertEq(distributor.claimable(1), 0);
+
+        hevm.warp(block.timestamp + nextEpoch);
+        hevm.roll(block.number + 1);
+
+        minter.updatePeriod();
+
+        distributor.claim(1);
+
+        hevm.warp(block.timestamp + nextEpoch);
+        hevm.roll(block.number + 1);
+
+        minter.updatePeriod();
+
+        uint256[] memory tokenIds = new uint256[](2);
+        tokenIds[0] = 1;
+        tokenIds[1] = 2;
+
+        distributor.claimMany(tokenIds);
+
+        hevm.warp(block.timestamp + nextEpoch);
+        hevm.roll(block.number + 1);
+
+        minter.updatePeriod();
+
+        distributor.claim(1);
+
+        hevm.warp(block.timestamp + nextEpoch);
+        hevm.roll(block.number + 1);
+
+        minter.updatePeriod();
+
+        distributor.claimMany(tokenIds);
+
+        assertEq(distributor.claimable(1), 0);
+        assertEq(distributor.claimable(2), 0);
+
+        hevm.warp(block.timestamp + nextEpoch);
+        hevm.roll(block.number + 1);
+
+        minter.updatePeriod();
+
+        distributor.claim(1);
     }
 }

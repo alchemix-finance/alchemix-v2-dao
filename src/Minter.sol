@@ -3,7 +3,6 @@ pragma solidity ^0.8.15;
 
 import "./libraries/Math.sol";
 import "./interfaces/IRewardsDistributor.sol";
-import "./interfaces/IVelo.sol";
 import "./interfaces/IVoter.sol";
 import "./interfaces/IVotingEscrow.sol";
 import "./interfaces/IAlchemixToken.sol";
@@ -56,6 +55,8 @@ contract Minter {
     }
 
     // Remove if contract is not upgradeable
+    // Claimants and amounts can be added as params if
+    // the minter is initialized with address that should have veALCX
     function initialize() external {
         require(initializer == msg.sender);
         initializer = address(0);
@@ -85,25 +86,30 @@ contract Minter {
         return supply;
     }
 
-    // TODO logic to distrubte minted tokens to veALCX holders
-    // calculate inflation and adjust ve balances accordingly
-    // function veGrowth(uint256 _minted) public view returns (uint256) {
-    // 	uint256 _veTotal = ve.totalSupply();
-    // 	uint256 _alcxTotal = alcx.totalSupply();
-    // 	return (((((_minted * _veTotal) / _alcxTotal) * _veTotal) / _alcxTotal) * _veTotal) / _alcxTotal / 2;
-    // }
+    // Calculate inflation and adjust ve balances accordingly
+    function calculateGrowth(uint256 _minted) public view returns (uint256) {
+        uint256 veTotal = ve.totalSupply();
+        uint256 alcxTotal = alcx.totalSupply();
+        return (((((_minted * veTotal) / alcxTotal) * veTotal) / alcxTotal) * veTotal) / alcxTotal / 2;
+    }
 
-    // update period can only be called once per epoch (1 week)
+    // Update period can only be called once per epoch (1 week)
     function updatePeriod() external returns (uint256) {
-        uint256 _period = activePeriod;
+        uint256 period = activePeriod;
 
-        if (block.timestamp >= _period + WEEK && initializer == address(0)) {
-            // only trigger if new epoch
-            _period = (block.timestamp / WEEK) * WEEK;
-            activePeriod = _period;
+        if (block.timestamp >= period + WEEK && initializer == address(0)) {
+            // Only trigger if new epoch
+            period = (block.timestamp / WEEK) * WEEK;
+            activePeriod = period;
             epochEmissions = epochEmission();
 
-            alcx.mint(address(this), epochEmissions);
+            uint256 growth = calculateGrowth(epochEmissions);
+            uint256 required = growth + epochEmissions;
+            uint256 balanceOf = alcx.balanceOf(address(this));
+
+            if (balanceOf < required) {
+                alcx.mint(address(this), required - balanceOf);
+            }
 
             // Set rewards for next epoch
             rewards -= stepdown;
@@ -116,16 +122,17 @@ contract Minter {
                 stepdown = 0;
             }
 
-            // TODO logic to distrubte minted tokens to veALCX holders
-            // require(alcx.transfer(address(rewardsDistributor), _growth));
-            // rewardsDistributor.checkpointToken(); // checkpoint token balance that was just minted in rewards distributor
-            // rewardsDistributor.checkpointTotalSupply(); // checkpoint supply
+            // Logic to distrubte minted tokens
+            alcx.approve(address(rewardsDistributor), growth);
+            require(alcx.transfer(address(rewardsDistributor), growth));
+            rewardsDistributor.checkpointToken(); // Checkpoint token balance that was just minted in rewards distributor
+            rewardsDistributor.checkpointTotalSupply(); // Checkpoint supply
 
-            // alcx.approve(address(voter), epoch);
-            // voter.notifyRewardAmount(epoch);
+            alcx.approve(address(voter), epochEmissions);
+            voter.notifyRewardAmount(epochEmissions);
 
             emit Mint(msg.sender, epochEmissions, circulatingAlcxSupply(), circulatingEmissionsSupply());
         }
-        return _period;
+        return period;
     }
 }
