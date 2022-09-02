@@ -20,6 +20,8 @@ jobs:
             - name: Install submodules
               run: git submodule update --init --recursive
 
+            - run: chmod 755 ./test.sh
+
             - name: Run tests and coverage
               env:
                   ALCHEMY_API_KEY: ${{ secrets.ALCHEMY_API_KEY }}
