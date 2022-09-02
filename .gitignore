@@ -2,4 +2,6 @@
 .DS_Store
 cache/
 out/
+report/
+lcov.info
 notes.md

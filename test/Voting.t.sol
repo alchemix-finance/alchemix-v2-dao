@@ -92,8 +92,8 @@ contract VotingTest is BaseTest {
         weights[0] = 5000;
         voter.vote(1, pools, weights);
 
-        // Forward quarter epoch
-        hevm.warp(block.timestamp + 1 weeks / 4);
+        // Move forward in epoch
+        hevm.warp(block.timestamp + 1 days);
 
         // Voting again fails
         pools[0] = alUSDPool;

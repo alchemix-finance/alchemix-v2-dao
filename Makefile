@@ -26,8 +26,11 @@ MATCH_TEST=--match-test $(TEST)
 # rpc url
 FORK_URL=--fork-url https://eth-mainnet.alchemyapi.io/v2/$(ALCHEMY_API_KEY)
 
-# runs all tests: "make test"
-test :; FOUNDRY_PROFILE=$(PROFILE) forge test $(FORK_URL)
+# runs all tests: "make test_all"
+test_all :; FOUNDRY_PROFILE=$(PROFILE) forge test $(FORK_URL)
+
+# runs test coverage: "make test_coverage" add "--report lcov" to use with lcov reporter
+test_coverage :; FOUNDRY_PROFILE=$(PROFILE) forge coverage $(FORK_URL) 
 
 # runs all tests from a given block (setting block is optional): "make test_block BLOCK=14635241" 
 test_block :; FOUNDRY_PROFILE=$(PROFILE) forge test $(FORK_URL) $(FORK_BLOCK)
