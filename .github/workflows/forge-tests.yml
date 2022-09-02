@@ -4,7 +4,7 @@ on: [push, pull_request]
 
 jobs:
     forge-tests:
-        name: Runs foundry tests
+        name: Runs foundry tests and coverage report
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v2
