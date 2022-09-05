@@ -83,8 +83,10 @@ contract VotingTest is BaseTest {
     function testSameEpochVoteOrReset() public {
         hevm.startPrank(admin);
 
-        // Make sure we aren't warping to the end of an epoch
-        hevm.warp(block.timestamp + 1 weeks + (1 weeks / 2));
+        uint256 period = minter.activePeriod();
+
+        // Move forward a week relative to period
+        hevm.warp(period + 1 weeks);
 
         address[] memory pools = new address[](1);
         pools[0] = alETHPool;
@@ -92,8 +94,8 @@ contract VotingTest is BaseTest {
         weights[0] = 5000;
         voter.vote(1, pools, weights);
 
-        // Move forward in epoch
-        hevm.warp(block.timestamp + 1 days);
+        // Move forward half epoch relative to period
+        hevm.warp(period + 1 weeks / 2);
 
         // Voting again fails
         pools[0] = alUSDPool;
