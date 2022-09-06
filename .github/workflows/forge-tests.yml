@@ -3,31 +3,27 @@ name: Forge Tests
 on: [push, pull_request]
 
 jobs:
-  forge-tests:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
+    forge-tests:
+        name: Runs foundry tests and coverage report
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v2
 
-      - name: Install Foundry
-        uses: onbjerg/foundry-toolchain@v1
-        with:
-          version: nightly
+            - name: Install Foundry
+              uses: onbjerg/foundry-toolchain@v1
+              with:
+                  version: nightly
 
-      - name: Setup SSH keys and hosts
-        env:
-          SSH_AUTH_SOCK: /tmp/ssh_agent.sock
-        run: |
-          ssh-agent -a $SSH_AUTH_SOCK > /dev/null
-          ssh-add - <<< "${{ secrets.V2_FOUNDRY_KEY }}"
+            - name: Install dependencies
+              run: forge install
 
-      - name: Install dependencies
-        run: forge install
+            - name: Install submodules
+              run: git submodule update --init --recursive
 
-      - name: Install submodules
-        run: git submodule update --init --recursive
+            - run: chmod 755 ./test.sh
 
-      - name: Run forge tests
-        # env:
-        #   ALCHEMY_API_KEY: ${{ secrets.ALCHEMY_API_KEY }}
-        # run: forge test --fork-url "https://eth-mainnet.alchemyapi.io/v2/$ALCHEMY_API_KEY"
-        run: forge test -vvv
+            - name: Run tests and coverage
+              env:
+                  ALCHEMY_API_KEY: ${{ secrets.ALCHEMY_API_KEY }}
+                  TEST_PROFILE: default
+              run: ./test.sh
