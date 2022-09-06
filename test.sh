@@ -1,2 +1,1 @@
 make test_all
-make test_coverage
