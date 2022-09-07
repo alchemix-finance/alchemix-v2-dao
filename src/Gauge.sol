@@ -8,13 +8,13 @@ import "./interfaces/IERC20.sol";
 import "./interfaces/IPair.sol";
 import "./interfaces/IVoter.sol";
 import "./interfaces/IVotingEscrow.sol";
+import "./BaseGauge.sol";
 
 // Gauges are used to incentivize pools, they emit reward tokens every 7 days for staked LP tokens
-contract Gauge {
+contract Gauge is BaseGauge {
     address public immutable stake; // the LP token that needs to be staked for rewards
-    address public immutable _ve; // the ve token used for gauges
+    address public immutable ve; // the ve token used for gauges
     address public immutable bribe;
-    address public immutable voter;
     address immutable factory;
 
     uint256 public derivedSupply;
@@ -23,12 +23,6 @@ contract Gauge {
     uint256 internal constant DURATION = 5 days; // rewards are released over the voting period
     uint256 internal constant BRIBE_LAG = 1 days;
     uint256 internal constant MAX_REWARD_TOKENS = 16;
-
-    enum VotingStage {
-        BribesPhase,
-        VotesPhase,
-        RewardsPhase
-    }
 
     uint256 internal constant PRECISION = 10**18;
 
@@ -49,33 +43,12 @@ contract Gauge {
     address[] public rewards;
     mapping(address => bool) public isReward;
 
-    /// @notice A checkpoint for marking balance
-    struct Checkpoint {
-        uint256 timestamp;
-        uint256 balanceOf;
-        bool voted;
-    }
-
     /// @notice A checkpoint for marking reward rate
     struct RewardPerTokenCheckpoint {
         uint256 timestamp;
         uint256 rewardPerToken;
     }
 
-    /// @notice A checkpoint for marking supply
-    struct SupplyCheckpoint {
-        uint256 timestamp;
-        uint256 supply;
-    }
-
-    /// @notice A record of balance checkpoints for each account, by index
-    mapping(address => mapping(uint256 => Checkpoint)) public checkpoints;
-    /// @notice The number of checkpoints for each account
-    mapping(address => uint256) public numCheckpoints;
-    /// @notice A record of balance checkpoints for each token, by index
-    mapping(uint256 => SupplyCheckpoint) public supplyCheckpoints;
-    /// @notice The number of checkpoints
-    uint256 public supplyNumCheckpoints;
     /// @notice A record of balance checkpoints for each token, by index
     mapping(address => mapping(uint256 => RewardPerTokenCheckpoint)) public rewardPerTokenCheckpoints;
     /// @notice The number of checkpoints for each token
@@ -93,24 +66,24 @@ contract Gauge {
     constructor(
         address _stake,
         address _bribe,
-        address __ve,
+        address _ve,
         address _voter
     ) {
         stake = _stake;
         bribe = _bribe;
-        _ve = __ve;
+        ve = _ve;
         voter = _voter;
 
         factory = msg.sender;
 
         IBribe(bribe).setGauge(address(this));
-        address _token = IVotingEscrow(_ve).token();
+        address _token = IVotingEscrow(ve).token();
         IBribe(bribe).addRewardToken(_token);
         isReward[_token] = true;
         rewards.push(_token);
     }
 
-    // simple re-entrancy check
+    // Re-entrancy check
     uint256 internal _unlocked = 1;
     modifier lock() {
         require(_unlocked == 1);
@@ -171,88 +144,6 @@ contract Gauge {
                 _notifyBribeAmount(token, epochRewards, bribeStart);
             }
         }
-    }
-
-    function setVoteStatus(address account, bool voted) external {
-        require(msg.sender == voter);
-        uint256 nCheckpoints = numCheckpoints[account];
-        if (nCheckpoints == 0) {
-            checkpoints[account][0] = Checkpoint(block.timestamp, 0, voted);
-            numCheckpoints[account] = 1;
-        } else {
-            checkpoints[account][nCheckpoints - 1].voted = voted;
-        }
-    }
-
-    /**
-     * @notice Determine the prior balance for an account as of a block number
-     * @dev Block number must be a finalized block or else this function will revert to prevent misinformation.
-     * @param account The address of the account to check
-     * @param timestamp The timestamp to get the balance at
-     * @return The balance the account had as of the given block
-     */
-    function getPriorBalanceIndex(address account, uint256 timestamp) public view returns (uint256) {
-        uint256 nCheckpoints = numCheckpoints[account];
-        if (nCheckpoints == 0) {
-            return 0;
-        }
-
-        // First check most recent balance
-        if (checkpoints[account][nCheckpoints - 1].timestamp <= timestamp) {
-            return (nCheckpoints - 1);
-        }
-
-        // Next check implicit zero balance
-        if (checkpoints[account][0].timestamp > timestamp) {
-            return 0;
-        }
-
-        uint256 lower = 0;
-        uint256 upper = nCheckpoints - 1;
-        while (upper > lower) {
-            uint256 center = upper - (upper - lower) / 2; // ceil, avoiding overflow
-            Checkpoint memory cp = checkpoints[account][center];
-            if (cp.timestamp == timestamp) {
-                return center;
-            } else if (cp.timestamp < timestamp) {
-                lower = center;
-            } else {
-                upper = center - 1;
-            }
-        }
-        return lower;
-    }
-
-    function getPriorSupplyIndex(uint256 timestamp) public view returns (uint256) {
-        uint256 nCheckpoints = supplyNumCheckpoints;
-        if (nCheckpoints == 0) {
-            return 0;
-        }
-
-        // First check most recent balance
-        if (supplyCheckpoints[nCheckpoints - 1].timestamp <= timestamp) {
-            return (nCheckpoints - 1);
-        }
-
-        // Next check implicit zero balance
-        if (supplyCheckpoints[0].timestamp > timestamp) {
-            return 0;
-        }
-
-        uint256 lower = 0;
-        uint256 upper = nCheckpoints - 1;
-        while (upper > lower) {
-            uint256 center = upper - (upper - lower) / 2; // ceil, avoiding overflow
-            SupplyCheckpoint memory cp = supplyCheckpoints[center];
-            if (cp.timestamp == timestamp) {
-                return center;
-            } else if (cp.timestamp < timestamp) {
-                lower = center;
-            } else {
-                upper = center - 1;
-            }
-        }
-        return lower;
     }
 
     function getPriorRewardPerToken(address token, uint256 timestamp) public view returns (uint256, uint256) {
@@ -553,7 +444,7 @@ contract Gauge {
         balanceOf[msg.sender] += amount;
 
         if (tokenId > 0) {
-            require(IVotingEscrow(_ve).ownerOf(tokenId) == msg.sender);
+            require(IVotingEscrow(ve).ownerOf(tokenId) == msg.sender);
             if (tokenIds[msg.sender] == 0) {
                 tokenIds[msg.sender] = tokenId;
                 IVoter(voter).attachTokenToGauge(tokenId, msg.sender);
