@@ -208,7 +208,7 @@ contract Voter {
         emit Whitelisted(msg.sender, _token);
     }
 
-    function createGauge(address _pool, uint256 _gaugeType) external returns (address) {
+    function createGauge(address _pool, GaugeType _gaugeType) external returns (address) {
         require(gauges[_pool] == address(0x0), "exists");
         require(msg.sender == governor, "only governor creates gauges");
 

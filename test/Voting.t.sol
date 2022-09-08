@@ -49,7 +49,7 @@ contract VotingTest is BaseTest {
 
         alcx.grantRole(keccak256("MINTER"), address(minter));
 
-        voter.createGauge(address(alETHPool), GaugeType.Staking);
+        voter.createGauge(address(alETHPool), Voter.GaugeType.Staking);
 
         hevm.roll(block.number + 1);
         assertGt(veALCX.balanceOfNFT(1), 995063075414519385);

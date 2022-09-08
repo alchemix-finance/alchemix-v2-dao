@@ -4,7 +4,7 @@ import "forge-std/console2.sol";
 import { DSTest } from "ds-test/test.sol";
 import { DSTestPlus } from "./utils/DSTestPlus.sol";
 import { VotingEscrow } from "src/VotingEscrow.sol";
-import { Voter, GaugeType } from "src/Voter.sol";
+import { Voter } from "src/Voter.sol";
 import { GaugeFactory } from "src/factories/GaugeFactory.sol";
 import { BribeFactory } from "src/factories/BribeFactory.sol";
 import { Minter, InitializationParams } from "src/Minter.sol";
