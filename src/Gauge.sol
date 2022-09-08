@@ -10,7 +10,6 @@ import "./BaseGauge.sol";
 contract Gauge is BaseGauge {
     event Deposit(address indexed from, uint256 tokenId, uint256 amount);
     event Withdraw(address indexed from, uint256 tokenId, uint256 amount);
-    event ClaimRewards(address indexed from, address indexed reward, uint256 amount);
 
     constructor(
         address _stake,
@@ -30,33 +29,6 @@ contract Gauge is BaseGauge {
         IBribe(bribe).addRewardToken(_token);
         isReward[_token] = true;
         rewards.push(_token);
-    }
-
-    function getReward(address account, address[] memory tokens) external lock {
-        require(msg.sender == account || msg.sender == voter);
-        _unlocked = 1;
-        IVoter(voter).distribute(address(this));
-        _unlocked = 2;
-
-        for (uint256 i = 0; i < tokens.length; i++) {
-            (rewardPerTokenStored[tokens[i]], lastUpdateTime[tokens[i]]) = _updateRewardPerToken(tokens[i]);
-
-            uint256 _reward = earned(tokens[i], account);
-            lastEarn[tokens[i]][account] = block.timestamp;
-            userRewardPerTokenStored[tokens[i]][account] = rewardPerTokenStored[tokens[i]];
-            if (_reward > 0) _safeTransfer(tokens[i], account, _reward);
-
-            emit ClaimRewards(msg.sender, tokens[i], _reward);
-        }
-
-        uint256 _derivedBalance = derivedBalances[account];
-        derivedSupply -= _derivedBalance;
-        _derivedBalance = derivedBalance(account);
-        derivedBalances[account] = _derivedBalance;
-        derivedSupply += _derivedBalance;
-
-        _writeCheckpoint(account, derivedBalances[account]);
-        _writeSupplyCheckpoint();
     }
 
     function depositAll(uint256 tokenId) external {

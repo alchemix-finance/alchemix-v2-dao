@@ -8,6 +8,8 @@ interface IBaseGauge {
 
     function addBribeRewardToken(address token) external;
 
+    function getReward(address account, address[] memory tokens) external;
+
     function left(address token) external view returns (uint256);
 
     function setVoteStatus(address account, bool voted) external;

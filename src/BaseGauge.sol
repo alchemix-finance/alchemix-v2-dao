@@ -6,6 +6,7 @@ import "./interfaces/IBribe.sol";
 import "./interfaces/IGaugeFactory.sol";
 import "./interfaces/IERC20.sol";
 import "./interfaces/IBaseGauge.sol";
+import "./interfaces/IVoter.sol";
 
 // Gauges are used to incentivize pools, they emit reward tokens every 7 days for staked LP tokens
 abstract contract BaseGauge is IBaseGauge {
@@ -81,6 +82,7 @@ abstract contract BaseGauge is IBaseGauge {
     mapping(address => uint256) public rewardPerTokenNumCheckpoints;
 
     event NotifyReward(address indexed from, address indexed reward, uint256 amount);
+    event ClaimRewards(address indexed from, address indexed reward, uint256 amount);
 
     // Re-entrancy check
     uint256 internal _unlocked = 1;
@@ -125,6 +127,33 @@ abstract contract BaseGauge is IBaseGauge {
         } else {
             checkpoints[account][nCheckpoints - 1].voted = voted;
         }
+    }
+
+    function getReward(address account, address[] memory tokens) external lock {
+        require(msg.sender == account || msg.sender == voter);
+        _unlocked = 1;
+        IVoter(voter).distribute(address(this));
+        _unlocked = 2;
+
+        for (uint256 i = 0; i < tokens.length; i++) {
+            (rewardPerTokenStored[tokens[i]], lastUpdateTime[tokens[i]]) = _updateRewardPerToken(tokens[i]);
+
+            uint256 _reward = earned(tokens[i], account);
+            lastEarn[tokens[i]][account] = block.timestamp;
+            userRewardPerTokenStored[tokens[i]][account] = rewardPerTokenStored[tokens[i]];
+            if (_reward > 0) _safeTransfer(tokens[i], account, _reward);
+
+            emit ClaimRewards(msg.sender, tokens[i], _reward);
+        }
+
+        uint256 _derivedBalance = derivedBalances[account];
+        derivedSupply -= _derivedBalance;
+        _derivedBalance = derivedBalance(account);
+        derivedBalances[account] = _derivedBalance;
+        derivedSupply += _derivedBalance;
+
+        _writeCheckpoint(account, derivedBalances[account]);
+        _writeSupplyCheckpoint();
     }
 
     /**
