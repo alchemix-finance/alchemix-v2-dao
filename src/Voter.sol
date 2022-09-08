@@ -3,6 +3,7 @@ pragma solidity ^0.8.15;
 
 import "./libraries/Math.sol";
 import "./interfaces/IBribeFactory.sol";
+import "./interfaces/IBaseGauge.sol";
 import "./interfaces/IGauge.sol";
 import "./interfaces/IGaugeFactory.sol";
 import "./interfaces/IERC20.sol";
@@ -21,6 +22,12 @@ contract Voter {
     address public emergencyCouncil; // credibly neutral party similar to Curve's Emergency DAO
 
     uint256 public totalWeight; // total voting weight
+
+    // Type of gauge being created
+    enum GaugeType {
+        Staking,
+        Passthrough
+    }
 
     address[] public pools; // all pools viable for incentives
     mapping(address => address) public gauges; // pool => gauge
@@ -62,7 +69,7 @@ contract Voter {
         emergencyCouncil = msg.sender;
     }
 
-    // re-entrancy check
+    // Re-entrancy check
     uint256 internal _unlocked = 1;
     modifier lock() {
         require(_unlocked == 1);
@@ -72,7 +79,7 @@ contract Voter {
     }
 
     modifier onlyNewEpoch(uint256 _tokenId) {
-        // ensure new epoch since last vote
+        // Ensure new epoch since last vote
         require((block.timestamp / DURATION) * DURATION > lastVoted[_tokenId], "TOKEN_ALREADY_VOTED_THIS_EPOCH");
         _;
     }
@@ -118,7 +125,7 @@ contract Voter {
                 if (_votes > 0) {
                     _totalWeight += _votes;
                 }
-                IGauge(gauges[_pool]).setVoteStatus(IVotingEscrow(veALCX).ownerOf(_tokenId), false);
+                IBaseGauge(gauges[_pool]).setVoteStatus(IVotingEscrow(veALCX).ownerOf(_tokenId), false);
                 emit Abstained(_tokenId, _votes);
             }
         }
@@ -171,7 +178,7 @@ contract Voter {
                 votes[_tokenId][_pool] += _poolWeight;
                 _usedWeight += _poolWeight;
                 _totalWeight += _poolWeight;
-                IGauge(gauges[_pool]).setVoteStatus(IVotingEscrow(veALCX).ownerOf(_tokenId), true);
+                IBaseGauge(gauges[_pool]).setVoteStatus(IVotingEscrow(veALCX).ownerOf(_tokenId), true);
                 emit Voted(msg.sender, _tokenId, _poolWeight);
             }
         }
@@ -207,6 +214,7 @@ contract Voter {
         require(msg.sender == governor, "only governor creates gauges");
 
         address _bribe = IBribeFactory(bribefactory).createBribe();
+        // TODO logic for handling gauge types
         address _gauge = IGaugeFactory(gaugefactory).createGauge(_pool, _bribe, veALCX);
 
         IERC20(base).approve(_gauge, type(uint256).max);
@@ -327,22 +335,16 @@ contract Voter {
         }
     }
 
-    function distributeFees(address[] memory _gauges) external {
-        for (uint256 i = 0; i < _gauges.length; i++) {
-            IGauge(_gauges[i]).claimFees();
-        }
-    }
-
     function distribute(address _gauge) public lock {
         IMinter(minter).updatePeriod();
         _updateFor(_gauge);
         uint256 _claimable = claimable[_gauge];
-        if (_claimable > IGauge(_gauge).left(base) && _claimable / DURATION > 0) {
+        if (_claimable > IBaseGauge(_gauge).left(base) && _claimable / DURATION > 0) {
             claimable[_gauge] = 0;
-            IGauge(_gauge).notifyRewardAmount(base, _claimable);
+            IBaseGauge(_gauge).notifyRewardAmount(base, _claimable);
             emit DistributeReward(msg.sender, _gauge, _claimable);
             // distribute bribes & fees too
-            IGauge(_gauge).deliverBribes();
+            IBaseGauge(_gauge).deliverBribes();
         }
     }
 

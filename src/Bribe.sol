@@ -3,7 +3,7 @@ pragma solidity ^0.8.15;
 
 import './interfaces/IERC20.sol';
 import './interfaces/IBribe.sol';
-import './interfaces/IGauge.sol';
+import './interfaces/IBaseGauge.sol';
 
 contract Bribe is IBribe {
   uint256 internal constant DURATION = 5 days; // rewards are released over the voting period
@@ -53,7 +53,7 @@ contract Bribe is IBribe {
       if (!isReward[token]) {
           isReward[token] = true;
           rewards.push(token);
-          IGauge(gauge).addBribeRewardToken(token);
+          IBaseGauge(gauge).addBribeRewardToken(token);
       }
 
       emit NotifyReward(msg.sender, token, adjustedTstamp, amount);

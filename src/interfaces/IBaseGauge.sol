@@ -1,28 +1,14 @@
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
 interface IBaseGauge {
-    enum VotingStage {
-        BribesPhase,
-        VotesPhase,
-        RewardsPhase
-    }
+    function notifyRewardAmount(address token, uint256 amount) external;
 
-    /// @notice A checkpoint for marking balance
-    struct Checkpoint {
-        uint256 timestamp;
-        uint256 balanceOf;
-        bool voted;
-    }
+    function deliverBribes() external;
 
-    /// @notice A checkpoint for marking supply
-    struct SupplyCheckpoint {
-        uint256 timestamp;
-        uint256 supply;
-    }
+    function addBribeRewardToken(address token) external;
+
+    function left(address token) external view returns (uint256);
 
     function setVoteStatus(address account, bool voted) external;
-
-    function getPriorBalanceIndex(address account, uint256 timestamp) external returns (uint256);
-
-    function getPriorSupplyIndex(uint256 timestamp) external returns (uint256);
 }
