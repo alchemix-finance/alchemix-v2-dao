@@ -4,7 +4,6 @@ pragma solidity ^0.8.15;
 import "./libraries/Math.sol";
 import "./interfaces/IBribeFactory.sol";
 import "./interfaces/IBaseGauge.sol";
-import "./interfaces/IStakingGauge.sol";
 import "./interfaces/IGaugeFactory.sol";
 import "./interfaces/IERC20.sol";
 import "./interfaces/IMinter.sol";
@@ -336,7 +335,7 @@ contract Voter {
 
     function claimRewards(address[] memory _gauges, address[][] memory _tokens) external {
         for (uint256 i = 0; i < _gauges.length; i++) {
-            IStakingGauge(_gauges[i]).getReward(msg.sender, _tokens[i]);
+            IBaseGauge(_gauges[i]).getReward(msg.sender, _tokens[i]);
         }
     }
 
