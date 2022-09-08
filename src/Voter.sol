@@ -218,6 +218,7 @@ contract Voter {
         if (_gaugeType == GaugeType.Staking) {
             _gauge = IGaugeFactory(gaugefactory).createStakingGauge(_pool, _bribe, veALCX);
         } else {
+            // TODO update when passthrough gague logic is completed
             // _gauge = IGaugeFactory(gaugefactory).createPassthroughGauge(_pool, _bribe, veALCX);
         }
 
