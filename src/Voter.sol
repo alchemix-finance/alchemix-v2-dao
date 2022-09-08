@@ -4,7 +4,7 @@ pragma solidity ^0.8.15;
 import "./libraries/Math.sol";
 import "./interfaces/IBribeFactory.sol";
 import "./interfaces/IBaseGauge.sol";
-import "./interfaces/IGauge.sol";
+import "./interfaces/IStakingGauge.sol";
 import "./interfaces/IGaugeFactory.sol";
 import "./interfaces/IERC20.sol";
 import "./interfaces/IMinter.sol";
@@ -209,13 +209,18 @@ contract Voter {
         emit Whitelisted(msg.sender, _token);
     }
 
-    function createGauge(address _pool) external returns (address) {
+    function createGauge(address _pool, uint256 _gaugeType) external returns (address) {
         require(gauges[_pool] == address(0x0), "exists");
         require(msg.sender == governor, "only governor creates gauges");
 
         address _bribe = IBribeFactory(bribefactory).createBribe();
-        // TODO logic for handling gauge types
-        address _gauge = IGaugeFactory(gaugefactory).createGauge(_pool, _bribe, veALCX);
+        // Handling different gauge types
+        address _gauge;
+        if (_gaugeType == GaugeType.Staking) {
+            _gauge = IGaugeFactory(gaugefactory).createStakingGauge(_pool, _bribe, veALCX);
+        } else {
+            // _gauge = IGaugeFactory(gaugefactory).createPassthroughGauge(_pool, _bribe, veALCX);
+        }
 
         IERC20(base).approve(_gauge, type(uint256).max);
         bribes[_gauge] = _bribe;
@@ -331,7 +336,7 @@ contract Voter {
 
     function claimRewards(address[] memory _gauges, address[][] memory _tokens) external {
         for (uint256 i = 0; i < _gauges.length; i++) {
-            IGauge(_gauges[i]).getReward(msg.sender, _tokens[i]);
+            IStakingGauge(_gauges[i]).getReward(msg.sender, _tokens[i]);
         }
     }
 

@@ -7,7 +7,7 @@ import "./interfaces/IVoter.sol";
 import "./interfaces/IVotingEscrow.sol";
 import "./BaseGauge.sol";
 
-contract Gauge is BaseGauge {
+contract StakingGauge is BaseGauge {
     event Deposit(address indexed from, uint256 tokenId, uint256 amount);
     event Withdraw(address indexed from, uint256 tokenId, uint256 amount);
     event ClaimRewards(address indexed from, address indexed reward, uint256 amount);

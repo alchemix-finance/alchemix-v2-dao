@@ -3,15 +3,15 @@ pragma solidity ^0.8.15;
 
 import "./BaseTest.sol";
 
-contract GaugeTest is BaseTest {
+contract StakingGaugeTest is BaseTest {
     VotingEscrow veALCX;
     GaugeFactory gaugeFactory;
     BribeFactory bribeFactory;
     Voter voter;
     RewardsDistributor distributor;
     Minter minter;
-    Gauge gauge;
-    Gauge gauge2;
+    StakingGauge gauge;
+    StakingGauge gauge2;
 
     function setUp() public {
         mintAlcx(address(admin), 1e25);
@@ -50,14 +50,14 @@ contract GaugeTest is BaseTest {
 
         alcx.grantRole(keccak256("MINTER"), address(minter));
 
-        voter.createGauge(address(alcx));
-        voter.createGauge(address(alUSDPool));
+        voter.createGauge(address(alcx), GaugeType.Staking);
+        voter.createGauge(address(alUSDPool), GaugeType.Staking);
 
         address gaugeAddress = voter.gauges(address(alcx));
         address gaugeAddress2 = voter.gauges(address(alUSDPool));
 
-        gauge = Gauge(gaugeAddress);
-        gauge2 = Gauge(gaugeAddress2);
+        gauge = StakingGauge(gaugeAddress);
+        gauge2 = StakingGauge(gaugeAddress2);
 
         hevm.stopPrank();
     }
