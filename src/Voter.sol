@@ -208,13 +208,19 @@ contract Voter {
         emit Whitelisted(msg.sender, _token);
     }
 
-    function createGauge(address _pool) external returns (address) {
+    function createGauge(address _pool, GaugeType _gaugeType) external returns (address) {
         require(gauges[_pool] == address(0x0), "exists");
         require(msg.sender == governor, "only governor creates gauges");
 
         address _bribe = IBribeFactory(bribefactory).createBribe();
-        // TODO logic for handling gauge types
-        address _gauge = IGaugeFactory(gaugefactory).createGauge(_pool, _bribe, veALCX);
+        // Handling different gauge types
+        address _gauge;
+        if (_gaugeType == GaugeType.Staking) {
+            _gauge = IGaugeFactory(gaugefactory).createStakingGauge(_pool, _bribe, veALCX);
+        } else {
+            // TODO update when passthrough gague logic is completed
+            // _gauge = IGaugeFactory(gaugefactory).createPassthroughGauge(_pool, _bribe, veALCX);
+        }
 
         IERC20(base).approve(_gauge, type(uint256).max);
         bribes[_gauge] = _bribe;
