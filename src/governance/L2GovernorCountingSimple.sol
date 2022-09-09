@@ -3,7 +3,7 @@
 
 pragma solidity ^0.8.0;
 
-import {L2Governor} from "./L2Governor.sol";
+import { L2GovernorTimelock } from "./L2GovernorTimelock.sol";
 
 /**
  * @author Modified from RollCall (https://github.com/withtally/rollcall/blob/main/src/standards/L2GovernorCountingSimple.sol)
@@ -12,7 +12,7 @@ import {L2Governor} from "./L2Governor.sol";
  *
  * _Available since v4.3._
  */
-abstract contract L2GovernorCountingSimple is L2Governor {
+abstract contract L2GovernorCountingSimple is L2GovernorTimelock {
     /**
      * @dev Supported vote types. Matches Governor Bravo ordering.
      */
