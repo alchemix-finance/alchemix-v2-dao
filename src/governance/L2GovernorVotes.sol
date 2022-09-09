@@ -3,7 +3,7 @@
 
 pragma solidity ^0.8.0;
 
-import { L2GovernorTimelock } from "./L2GovernorTimelock.sol";
+import { L2Governor } from "./L2Governor.sol";
 import { IVotes } from "openzeppelin-contracts/contracts/governance/utils/IVotes.sol";
 
 /**
@@ -13,7 +13,7 @@ import { IVotes } from "openzeppelin-contracts/contracts/governance/utils/IVotes
  *
  * _Available since v4.3._
  */
-abstract contract L2GovernorVotes is L2GovernorTimelock {
+abstract contract L2GovernorVotes is L2Governor {
     IVotes public immutable token;
 
     constructor(IVotes tokenAddress) {

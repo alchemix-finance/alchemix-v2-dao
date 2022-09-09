@@ -3,9 +3,9 @@ pragma solidity ^0.8.15;
 
 import "../../lib/openzeppelin-contracts/contracts/governance/Governor.sol";
 
-/// @title IL2GovernorTimelock
+/// @title IL2Governor
 /// @author Alchemix Finance
-abstract contract IL2GovernorTimelock is IGovernor {
+abstract contract IL2Governor is IGovernor {
     /**
      * @dev Emitted when a proposal is created.
      */

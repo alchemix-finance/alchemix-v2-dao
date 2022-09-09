@@ -4,14 +4,14 @@ pragma solidity ^0.8.15;
 import { IGovernor } from "openzeppelin-contracts/contracts/governance/IGovernor.sol";
 import { IVotes } from "openzeppelin-contracts/contracts/governance/utils/IVotes.sol";
 
-import { L2GovernorTimelock } from "./governance/L2GovernorTimelock.sol";
+import { L2Governor } from "./governance/L2Governor.sol";
 import { L2GovernorCountingSimple } from "./governance/L2GovernorCountingSimple.sol";
 import { L2GovernorVotes } from "./governance/L2GovernorVotes.sol";
 import { L2GovernorVotesQuorumFraction } from "./governance/L2GovernorVotesQuorumFraction.sol";
 import "./governance/TimelockExecutor.sol";
 
 abstract contract AlchemixGovernor is
-    L2GovernorTimelock,
+    L2Governor,
     L2GovernorCountingSimple,
     L2GovernorVotes,
     L2GovernorVotesQuorumFraction
@@ -22,7 +22,7 @@ abstract contract AlchemixGovernor is
     uint256 public proposalNumerator = 2; // start at 0.02%
 
     constructor(IVotes _ve, TimelockExecutor timelockAddress)
-        L2GovernorTimelock("Alchemix Governor", timelockAddress)
+        L2Governor("Alchemix Governor", timelockAddress)
         L2GovernorVotes(_ve)
         L2GovernorVotesQuorumFraction(4) // 4%
     {
@@ -48,7 +48,7 @@ abstract contract AlchemixGovernor is
         proposalNumerator = numerator;
     }
 
-    function proposalThreshold() public view override(L2GovernorTimelock) returns (uint256) {
+    function proposalThreshold() public view override(L2Governor) returns (uint256) {
         return (token.getPastTotalSupply(block.timestamp) * proposalNumerator) / PROPOSAL_DENOMINATOR;
     }
 }

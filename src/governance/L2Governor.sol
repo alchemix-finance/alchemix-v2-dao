@@ -14,7 +14,7 @@ import "openzeppelin-contracts/contracts/utils/Address.sol";
 import "openzeppelin-contracts/contracts/utils/Context.sol";
 import "openzeppelin-contracts/contracts/utils/Timers.sol";
 
-import { IL2GovernorTimelock } from "../interfaces/IL2GovernorTimelock.sol";
+import { IL2Governor } from "../interfaces/IL2Governor.sol";
 import "./TimelockExecutor.sol";
 
 /**
@@ -30,14 +30,7 @@ import "./TimelockExecutor.sol";
  *
  * _Available since v4.3._
  */
-abstract contract L2GovernorTimelock is
-    Context,
-    ERC165,
-    EIP712,
-    IL2GovernorTimelock,
-    IERC721Receiver,
-    IERC1155Receiver
-{
+abstract contract L2Governor is Context, ERC165, EIP712, IL2Governor, IERC721Receiver, IERC1155Receiver {
     using DoubleEndedQueue for DoubleEndedQueue.Bytes32Deque;
     using SafeCast for uint256;
     using Timers for Timers.Timestamp;
@@ -114,11 +107,11 @@ abstract contract L2GovernorTimelock is
         // include the castVoteWithReasonAndParams() function as standard
         return
             interfaceId ==
-            (type(IL2GovernorTimelock).interfaceId ^
+            (type(IL2Governor).interfaceId ^
                 this.castVoteWithReasonAndParams.selector ^
                 this.castVoteWithReasonAndParamsBySig.selector ^
                 this.getVotesWithParams.selector) ||
-            interfaceId == type(IL2GovernorTimelock).interfaceId ||
+            interfaceId == type(IL2Governor).interfaceId ||
             interfaceId == type(IERC1155Receiver).interfaceId ||
             super.supportsInterface(interfaceId);
     }
