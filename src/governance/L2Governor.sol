@@ -301,7 +301,7 @@ abstract contract L2Governor is Context, ERC165, EIP712, IL2Governor, IERC721Rec
 
         uint64 start = block.timestamp.toUint64() + votingDelay().toUint64();
         uint64 deadline = start + votingPeriod().toUint64();
-        uint256 delay = _timelock.getMinDelay();
+        uint256 delay = _timelock.getDelay();
 
         proposal.voteStart.setDeadline(start);
         proposal.voteEnd.setDeadline(deadline);
@@ -313,7 +313,7 @@ abstract contract L2Governor is Context, ERC165, EIP712, IL2Governor, IERC721Rec
             keccak256(bytes(description)),
             chainId
         );
-        _timelock.scheduleBatch(targets, values, calldatas, keccak256(bytes(description)), chainId, delay);
+        _timelock.scheduleBatch(targets, values, calldatas, keccak256(bytes(description)), chainId);
 
         emit ProposalCreated(
             proposalId,

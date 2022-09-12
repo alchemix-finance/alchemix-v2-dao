@@ -3,7 +3,6 @@
 
 pragma solidity ^0.8.0;
 
-import "openzeppelin-contracts/contracts/access/AccessControl.sol";
 import "openzeppelin-contracts/contracts/token/ERC721/IERC721Receiver.sol";
 import "openzeppelin-contracts/contracts/token/ERC1155/IERC1155Receiver.sol";
 import "openzeppelin-contracts/contracts/utils/Address.sol";
@@ -16,22 +15,21 @@ import "openzeppelin-contracts/contracts/utils/Address.sol";
  * operation is applied.
  *
  * By default, this contract is self administered, meaning administration tasks
- * have to go through the timelock process. The proposer (resp executor) role
- * is in charge of proposing (resp executing) operations. A common use case is
+ * have to go through the timelock process. The admin
+ * is in charge of operations. A common use case is
  * to position this {TimelockExecutor} as the owner of a smart contract, with
- * a multisig or a DAO as the sole proposer.
+ * a multisig or a DAO as the admin.
  *
  * _Available since v3.3._
  */
-contract TimelockExecutor is AccessControl, IERC721Receiver, IERC1155Receiver {
-    bytes32 public constant TIMELOCK_ADMIN_ROLE = keccak256("TIMELOCK_ADMIN_ROLE");
-    bytes32 public constant PROPOSER_ROLE = keccak256("PROPOSER_ROLE");
-    bytes32 public constant EXECUTOR_ROLE = keccak256("EXECUTOR_ROLE");
-    bytes32 public constant CANCELLER_ROLE = keccak256("CANCELLER_ROLE");
+contract TimelockExecutor is IERC721Receiver, IERC1155Receiver {
+    address public admin;
+    address public pendingAdmin;
+
     uint256 internal constant _DONE_TIMESTAMP = uint256(1);
 
     mapping(bytes32 => uint256) private _timestamps;
-    uint256 private _minDelay;
+    uint256 private _delay;
 
     /**
      * @dev Emitted when a call is scheduled as part of operation `id`.
@@ -57,62 +55,18 @@ contract TimelockExecutor is AccessControl, IERC721Receiver, IERC1155Receiver {
     event Cancelled(bytes32 indexed id);
 
     /**
-     * @dev Emitted when the minimum delay for future operations is modified.
+     * @dev Emitted when the delay for future operations is modified.
      */
-    event MinDelayChange(uint256 oldDuration, uint256 newDuration);
+    event DelayChange(uint256 oldDuration, uint256 newDuration);
 
     /**
-     * @dev Initializes the contract with a given `minDelay`, and a list of
-     * initial proposers and executors. The proposers receive both the
-     * proposer and the canceller role (for backward compatibility). The
-     * executors receive the executor role.
-     *
-     * NOTE: At construction, both the deployer and the timelock itself are
-     * administrators. This helps further configuration of the timelock by the
-     * deployer. After configuration is done, it is recommended that the
-     * deployer renounces its admin position and relies on timelocked
-     * operations to perform future maintenance.
+     * @dev Initializes the contract with a given `delay`, and an admin.
      */
-    constructor(
-        uint256 minDelay,
-        address[] memory proposers,
-        address[] memory executors
-    ) {
-        _setRoleAdmin(TIMELOCK_ADMIN_ROLE, TIMELOCK_ADMIN_ROLE);
-        _setRoleAdmin(PROPOSER_ROLE, TIMELOCK_ADMIN_ROLE);
-        _setRoleAdmin(EXECUTOR_ROLE, TIMELOCK_ADMIN_ROLE);
-        _setRoleAdmin(CANCELLER_ROLE, TIMELOCK_ADMIN_ROLE);
+    constructor(uint256 delay) {
+        admin = msg.sender;
 
-        // deployer + self administration
-        _setupRole(TIMELOCK_ADMIN_ROLE, _msgSender());
-        _setupRole(TIMELOCK_ADMIN_ROLE, address(this));
-
-        // register proposers and cancellers
-        for (uint256 i = 0; i < proposers.length; ++i) {
-            _setupRole(PROPOSER_ROLE, proposers[i]);
-            _setupRole(CANCELLER_ROLE, proposers[i]);
-        }
-
-        // register executors
-        for (uint256 i = 0; i < executors.length; ++i) {
-            _setupRole(EXECUTOR_ROLE, executors[i]);
-        }
-
-        _minDelay = minDelay;
-        emit MinDelayChange(0, minDelay);
-    }
-
-    /**
-     * @dev Modifier to make a function callable only by a certain role. In
-     * addition to checking the sender's role, `address(0)` 's role is also
-     * considered. Granting a role to `address(0)` is equivalent to enabling
-     * this role for everyone.
-     */
-    modifier onlyRoleOrOpenRole(bytes32 role) {
-        if (!hasRole(role, address(0))) {
-            _checkRole(role, _msgSender());
-        }
-        _;
+        _delay = delay;
+        emit DelayChange(0, delay);
     }
 
     /**
@@ -120,11 +74,21 @@ contract TimelockExecutor is AccessControl, IERC721Receiver, IERC1155Receiver {
      */
     receive() external payable {}
 
+    function setAdmin(address _admin) external {
+        require(msg.sender == admin, "not admin");
+        pendingAdmin = _admin;
+    }
+
+    function acceptAdmin() external {
+        require(msg.sender == pendingAdmin, "not pending admin");
+        admin = pendingAdmin;
+    }
+
     /**
      * @dev See {IERC165-supportsInterface}.
      */
-    function supportsInterface(bytes4 interfaceId) public view virtual override(IERC165, AccessControl) returns (bool) {
-        return interfaceId == type(IERC1155Receiver).interfaceId || super.supportsInterface(interfaceId);
+    function supportsInterface(bytes4 interfaceId) public view virtual override(IERC165) returns (bool) {
+        return interfaceId == type(IERC1155Receiver).interfaceId;
     }
 
     /**
@@ -166,12 +130,12 @@ contract TimelockExecutor is AccessControl, IERC721Receiver, IERC1155Receiver {
     }
 
     /**
-     * @dev Returns the minimum delay for an operation to become valid.
+     * @dev Returns the delay for an operation to become valid.
      *
      * This value can be changed by executing an operation that calls `updateDelay`.
      */
-    function getMinDelay() public view virtual returns (uint256 duration) {
-        return _minDelay;
+    function getDelay() public view virtual returns (uint256 duration) {
+        return _delay;
     }
 
     /**
@@ -209,19 +173,20 @@ contract TimelockExecutor is AccessControl, IERC721Receiver, IERC1155Receiver {
      *
      * Requirements:
      *
-     * - the caller must have the 'proposer' role.
+     * - the caller must be the 'admin'.
      */
     function schedule(
         address target,
         uint256 value,
         bytes calldata data,
         bytes32 descriptionHash,
-        uint256 chainId,
-        uint256 delay
-    ) public virtual onlyRole(PROPOSER_ROLE) {
+        uint256 chainId
+    ) public virtual {
+        require(msg.sender == admin, "not admin");
+
         bytes32 id = hashOperation(target, value, data, descriptionHash, chainId);
-        _schedule(id, delay);
-        emit CallScheduled(id, 0, target, value, data, descriptionHash, delay);
+        _schedule(id);
+        emit CallScheduled(id, 0, target, value, data, descriptionHash, _delay);
     }
 
     /**
@@ -231,33 +196,32 @@ contract TimelockExecutor is AccessControl, IERC721Receiver, IERC1155Receiver {
      *
      * Requirements:
      *
-     * - the caller must have the 'proposer' role.
+     * - the caller must be the 'admin'.
      */
     function scheduleBatch(
         address[] calldata targets,
         uint256[] calldata values,
         bytes[] calldata payloads,
         bytes32 descriptionHash,
-        uint256 chainId,
-        uint256 delay
-    ) public virtual onlyRole(PROPOSER_ROLE) {
+        uint256 chainId
+    ) public virtual {
+        require(msg.sender == admin, "not admin");
         require(targets.length == values.length, "TimelockExecutor: length mismatch");
         require(targets.length == payloads.length, "TimelockExecutor: length mismatch");
 
         bytes32 id = hashOperationBatch(targets, values, payloads, descriptionHash, chainId);
-        _schedule(id, delay);
+        _schedule(id);
         for (uint256 i = 0; i < targets.length; ++i) {
-            emit CallScheduled(id, i, targets[i], values[i], payloads[i], descriptionHash, delay);
+            emit CallScheduled(id, i, targets[i], values[i], payloads[i], descriptionHash, _delay);
         }
     }
 
     /**
      * @dev Schedule an operation that is to becomes valid after a given delay.
      */
-    function _schedule(bytes32 id, uint256 delay) private {
+    function _schedule(bytes32 id) private {
         require(!isOperation(id), "TimelockExecutor: operation already scheduled");
-        require(delay >= getMinDelay(), "TimelockExecutor: insufficient delay");
-        _timestamps[id] = block.timestamp + delay;
+        _timestamps[id] = block.timestamp + _delay;
     }
 
     /**
@@ -265,9 +229,10 @@ contract TimelockExecutor is AccessControl, IERC721Receiver, IERC1155Receiver {
      *
      * Requirements:
      *
-     * - the caller must have the 'canceller' role.
+     * - the caller must be the 'admin'.
      */
-    function cancel(bytes32 id) public virtual onlyRole(CANCELLER_ROLE) {
+    function cancel(bytes32 id) public virtual {
+        require(msg.sender == admin, "not admin");
         require(isOperationPending(id), "TimelockExecutor: operation cannot be cancelled");
         delete _timestamps[id];
 
@@ -278,10 +243,6 @@ contract TimelockExecutor is AccessControl, IERC721Receiver, IERC1155Receiver {
      * @dev Execute an (ready) operation containing a single transaction.
      *
      * Emits a {CallExecuted} event.
-     *
-     * Requirements:
-     *
-     * - the caller must have the 'executor' role.
      */
     // This function can reenter, but it doesn't pose a risk because _afterCall checks that the proposal is pending,
     // thus any modifications to the operation during reentrancy should be caught.
@@ -292,7 +253,7 @@ contract TimelockExecutor is AccessControl, IERC721Receiver, IERC1155Receiver {
         bytes calldata data,
         bytes32 descriptionHash,
         uint256 chainId
-    ) public payable virtual onlyRoleOrOpenRole(EXECUTOR_ROLE) {
+    ) public payable virtual {
         bytes32 id = hashOperation(target, value, data, descriptionHash, chainId);
         _beforeCall(id, descriptionHash);
         _call(id, 0, target, value, data);
@@ -303,10 +264,6 @@ contract TimelockExecutor is AccessControl, IERC721Receiver, IERC1155Receiver {
      * @dev Execute an (ready) operation containing a batch of transactions.
      *
      * Emits one {CallExecuted} event per transaction in the batch.
-     *
-     * Requirements:
-     *
-     * - the caller must have the 'executor' role.
      */
     function executeBatch(
         address[] calldata targets,
@@ -314,7 +271,7 @@ contract TimelockExecutor is AccessControl, IERC721Receiver, IERC1155Receiver {
         bytes[] calldata payloads,
         bytes32 descriptionHash,
         uint256 chainId
-    ) public payable virtual onlyRoleOrOpenRole(EXECUTOR_ROLE) {
+    ) public payable virtual {
         require(targets.length == values.length, "TimelockExecutor: length mismatch");
         require(targets.length == payloads.length, "TimelockExecutor: length mismatch");
 
@@ -368,7 +325,7 @@ contract TimelockExecutor is AccessControl, IERC721Receiver, IERC1155Receiver {
     /**
      * @dev Changes the minimum timelock duration for future operations.
      *
-     * Emits a {MinDelayChange} event.
+     * Emits a {DelayChange} event.
      *
      * Requirements:
      *
@@ -377,8 +334,8 @@ contract TimelockExecutor is AccessControl, IERC721Receiver, IERC1155Receiver {
      */
     function updateDelay(uint256 newDelay) external virtual {
         require(msg.sender == address(this), "TimelockExecutor: caller must be timelock");
-        emit MinDelayChange(_minDelay, newDelay);
-        _minDelay = newDelay;
+        emit DelayChange(_delay, newDelay);
+        _delay = newDelay;
     }
 
     /**
