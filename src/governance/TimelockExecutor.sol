@@ -225,21 +225,6 @@ contract TimelockExecutor is IERC721Receiver, IERC1155Receiver {
     }
 
     /**
-     * @dev Cancel an operation.
-     *
-     * Requirements:
-     *
-     * - the caller must be the 'admin'.
-     */
-    function cancel(bytes32 id) public virtual {
-        require(msg.sender == admin, "not admin");
-        require(isOperationPending(id), "TimelockExecutor: operation cannot be cancelled");
-        delete _timestamps[id];
-
-        emit Cancelled(id);
-    }
-
-    /**
      * @dev Execute an (ready) operation containing a single transaction.
      *
      * Emits a {CallExecuted} event.

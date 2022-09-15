@@ -4,18 +4,14 @@ pragma solidity ^0.8.15;
 import { IGovernor } from "openzeppelin-contracts/contracts/governance/IGovernor.sol";
 import { IVotes } from "openzeppelin-contracts/contracts/governance/utils/IVotes.sol";
 
-import { L2Governor } from "./governance/L2Governor.sol";
-import { L2GovernorCountingSimple } from "./governance/L2GovernorCountingSimple.sol";
-import { L2GovernorVotes } from "./governance/L2GovernorVotes.sol";
-import { L2GovernorVotesQuorumFraction } from "./governance/L2GovernorVotesQuorumFraction.sol";
-import "./governance/TimelockExecutor.sol";
+import { L2Governor } from "src/governance/L2Governor.sol";
+import { L2GovernorCountingSimple } from "src/governance/L2GovernorCountingSimple.sol";
+import { L2GovernorVotes } from "src/governance/L2GovernorVotes.sol";
+import { L2GovernorVotesQuorumFraction } from "src/governance/L2GovernorVotesQuorumFraction.sol";
 
-abstract contract AlchemixGovernor is
-    L2Governor,
-    L2GovernorCountingSimple,
-    L2GovernorVotes,
-    L2GovernorVotesQuorumFraction
-{
+import "src/governance/TimelockExecutor.sol";
+
+contract AlchemixGovernor is L2Governor, L2GovernorVotes, L2GovernorVotesQuorumFraction, L2GovernorCountingSimple {
     address public admin;
     uint256 public constant MAX_PROPOSAL_NUMERATOR = 50; // max 5%
     uint256 public constant PROPOSAL_DENOMINATOR = 1000;
@@ -27,14 +23,6 @@ abstract contract AlchemixGovernor is
         L2GovernorVotesQuorumFraction(4) // 4%
     {
         admin = msg.sender;
-    }
-
-    function votingDelay() public pure override(IGovernor) returns (uint256) {
-        return 15 minutes; // 1 block
-    }
-
-    function votingPeriod() public pure override(IGovernor) returns (uint256) {
-        return 1 weeks;
     }
 
     function setAdmin(address newAdmin) external {

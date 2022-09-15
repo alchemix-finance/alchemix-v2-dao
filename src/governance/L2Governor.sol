@@ -13,8 +13,8 @@ import "openzeppelin-contracts/contracts/utils/structs/DoubleEndedQueue.sol";
 import "openzeppelin-contracts/contracts/utils/Address.sol";
 import "openzeppelin-contracts/contracts/utils/Context.sol";
 import "openzeppelin-contracts/contracts/utils/Timers.sol";
-
-import { IL2Governor } from "../interfaces/IL2Governor.sol";
+// import "openzeppelin-contracts/contracts/governance/IGovernor.sol";
+import "src/interfaces/IGovernor.sol";
 import "./TimelockExecutor.sol";
 
 /**
@@ -30,7 +30,7 @@ import "./TimelockExecutor.sol";
  *
  * _Available since v4.3._
  */
-abstract contract L2Governor is Context, ERC165, EIP712, IL2Governor, IERC721Receiver, IERC1155Receiver {
+abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Receiver, IERC1155Receiver {
     using DoubleEndedQueue for DoubleEndedQueue.Bytes32Deque;
     using SafeCast for uint256;
     using Timers for Timers.Timestamp;
@@ -107,11 +107,11 @@ abstract contract L2Governor is Context, ERC165, EIP712, IL2Governor, IERC721Rec
         // include the castVoteWithReasonAndParams() function as standard
         return
             interfaceId ==
-            (type(IL2Governor).interfaceId ^
+            (type(IGovernor).interfaceId ^
                 this.castVoteWithReasonAndParams.selector ^
                 this.castVoteWithReasonAndParamsBySig.selector ^
                 this.getVotesWithParams.selector) ||
-            interfaceId == type(IL2Governor).interfaceId ||
+            interfaceId == type(IGovernor).interfaceId ||
             interfaceId == type(IERC1155Receiver).interfaceId ||
             super.supportsInterface(interfaceId);
     }
@@ -200,14 +200,14 @@ abstract contract L2Governor is Context, ERC165, EIP712, IL2Governor, IERC721Rec
     /**
      * @dev Public accessor to check the address of the timelock
      */
-    function timelock() public view virtual override returns (address) {
+    function timelock() public view virtual returns (address) {
         return address(_timelock);
     }
 
     /**
      * @dev Public accessor to check the eta of a queued proposal
      */
-    function proposalEta(uint256 proposalId) public view virtual override returns (uint256) {
+    function proposalEta(uint256 proposalId) public view virtual returns (uint256) {
         uint256 eta = _timelock.getTimestamp(_timelockIds[proposalId]);
         return eta == 1 ? 0 : eta; // _DONE_TIMESTAMP (1) should be replaced with a 0 value
     }
@@ -275,6 +275,14 @@ abstract contract L2Governor is Context, ERC165, EIP712, IL2Governor, IERC721Rec
         return "";
     }
 
+    function votingDelay() public pure override returns (uint256) {
+        return 15 minutes; // 1 block
+    }
+
+    function votingPeriod() public pure override returns (uint256) {
+        return 1 weeks;
+    }
+
     /**
      * @dev See {IGovernor-propose}.
      */
@@ -301,7 +309,6 @@ abstract contract L2Governor is Context, ERC165, EIP712, IL2Governor, IERC721Rec
 
         uint64 start = block.timestamp.toUint64() + votingDelay().toUint64();
         uint64 deadline = start + votingPeriod().toUint64();
-        uint256 delay = _timelock.getDelay();
 
         proposal.voteStart.setDeadline(start);
         proposal.voteEnd.setDeadline(deadline);
@@ -325,8 +332,7 @@ abstract contract L2Governor is Context, ERC165, EIP712, IL2Governor, IERC721Rec
             start,
             deadline,
             description,
-            chainId,
-            block.timestamp + delay
+            chainId
         );
 
         return proposalId;
@@ -433,11 +439,6 @@ abstract contract L2Governor is Context, ERC165, EIP712, IL2Governor, IERC721Rec
             "Governor: proposal not active"
         );
         _proposals[proposalId].canceled = true;
-
-        if (_timelockIds[proposalId] != 0) {
-            _timelock.cancel(_timelockIds[proposalId]);
-            delete _timelockIds[proposalId];
-        }
 
         emit ProposalCanceled(proposalId);
 
