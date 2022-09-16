@@ -17,7 +17,7 @@ contract Voter {
     uint256 internal constant DURATION = 7 days; // rewards are released over 7 days
     uint256 internal constant BRIBE_LAG = 1 days;
     address public minter;
-    address public governor; // should be set to an IGovernor
+    address public executor; // should be set to the timelock executor
     address public emergencyCouncil; // credibly neutral party similar to Curve's Emergency DAO
 
     uint256 public totalWeight; // total voting weight
@@ -64,7 +64,7 @@ contract Voter {
         gaugefactory = _gauges;
         bribefactory = _bribes;
         minter = msg.sender;
-        governor = msg.sender;
+        executor = msg.sender;
         emergencyCouncil = msg.sender;
     }
 
@@ -91,9 +91,9 @@ contract Voter {
         minter = _minter;
     }
 
-    function setGovernor(address _governor) public {
-        require(msg.sender == governor);
-        governor = _governor;
+    function setExecutor(address _executor) public {
+        require(msg.sender == executor);
+        executor = _executor;
     }
 
     function setEmergencyCouncil(address _council) public {
@@ -198,7 +198,7 @@ contract Voter {
     }
 
     function whitelist(address _token) public {
-        require(msg.sender == governor);
+        require(msg.sender == executor, "not executor");
         _whitelist(_token);
     }
 
@@ -210,7 +210,7 @@ contract Voter {
 
     function createGauge(address _pool, GaugeType _gaugeType) external returns (address) {
         require(gauges[_pool] == address(0x0), "exists");
-        require(msg.sender == governor, "only governor creates gauges");
+        require(msg.sender == executor, "only executor creates gauges");
 
         address _bribe = IBribeFactory(bribefactory).createBribe();
         // Handling different gauge types

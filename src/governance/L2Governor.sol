@@ -3,6 +3,8 @@
 
 pragma solidity ^0.8.0;
 
+import "forge-std/console2.sol";
+
 import "openzeppelin-contracts/contracts/token/ERC721/IERC721Receiver.sol";
 import "openzeppelin-contracts/contracts/token/ERC1155/IERC1155Receiver.sol";
 import "openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol";
@@ -162,12 +164,8 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
         // Check if successful proposal have been queued
         bytes32 queueid = _timelockIds[proposalId];
 
-        if (proposal.executed && _timelock.isOperationDone(queueid)) {
+        if (proposal.executed) {
             return ProposalState.Executed;
-        }
-
-        if (_timelock.isOperationPending(queueid)) {
-            return ProposalState.Queued;
         }
 
         if (proposal.canceled) {
@@ -180,7 +178,7 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
             revert("Governor: unknown proposal id");
         }
 
-        if (start >= block.timestamp) {
+        if (start >= block.timestamp && _timelock.isOperationPending(queueid)) {
             return ProposalState.Pending;
         }
 
@@ -317,10 +315,11 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
             targets,
             values,
             calldatas,
+            0,
             keccak256(bytes(description)),
             chainId
         );
-        _timelock.scheduleBatch(targets, values, calldatas, keccak256(bytes(description)), chainId);
+        _timelock.scheduleBatch(targets, values, calldatas, 0, keccak256(bytes(description)), chainId);
 
         emit ProposalCreated(
             proposalId,
@@ -377,7 +376,7 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
         bytes32 descriptionHash,
         uint256 chainId
     ) internal virtual {
-        _timelock.executeBatch(targets, values, calldatas, descriptionHash, chainId);
+        _timelock.executeBatch(targets, values, calldatas, 0, descriptionHash, chainId);
     }
 
     /**
@@ -576,6 +575,7 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
         bytes memory params
     ) internal virtual returns (uint256) {
         ProposalCore storage proposal = _proposals[proposalId];
+
         require(state(proposalId) == ProposalState.Active, "Governor: vote not currently active");
 
         uint256 weight = _getVotes(account, proposal.voteStart.getDeadline(), params);

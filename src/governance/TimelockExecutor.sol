@@ -7,6 +7,8 @@ import "openzeppelin-contracts/contracts/token/ERC721/IERC721Receiver.sol";
 import "openzeppelin-contracts/contracts/token/ERC1155/IERC1155Receiver.sol";
 import "openzeppelin-contracts/contracts/utils/Address.sol";
 
+import "forge-std/console2.sol";
+
 /**
  * @dev Contract module which acts as a timelocked controller. When set as the
  * owner of an `Ownable` smart contract, it enforces a timelock on all
@@ -40,6 +42,7 @@ contract TimelockExecutor is IERC721Receiver, IERC1155Receiver {
         address target,
         uint256 value,
         bytes data,
+        bytes32 predecessor,
         bytes32 descriptionHash,
         uint256 delay
     );
@@ -146,10 +149,11 @@ contract TimelockExecutor is IERC721Receiver, IERC1155Receiver {
         address target,
         uint256 value,
         bytes calldata callData,
+        bytes32 predecessor,
         bytes32 descriptionHash,
         uint256 chainId
     ) public pure virtual returns (bytes32 hash) {
-        return keccak256(abi.encode(target, value, callData, descriptionHash, chainId));
+        return keccak256(abi.encode(target, value, callData, predecessor, descriptionHash, chainId));
     }
 
     /**
@@ -160,10 +164,11 @@ contract TimelockExecutor is IERC721Receiver, IERC1155Receiver {
         address[] calldata targets,
         uint256[] calldata values,
         bytes[] calldata calldatas,
+        bytes32 predecessor,
         bytes32 descriptionHash,
         uint256 chainId
     ) public pure virtual returns (bytes32 hash) {
-        return keccak256(abi.encode(targets, values, calldatas, descriptionHash, chainId));
+        return keccak256(abi.encode(targets, values, calldatas, predecessor, descriptionHash, chainId));
     }
 
     /**
@@ -179,14 +184,13 @@ contract TimelockExecutor is IERC721Receiver, IERC1155Receiver {
         address target,
         uint256 value,
         bytes calldata data,
+        bytes32 predecessor,
         bytes32 descriptionHash,
         uint256 chainId
     ) public virtual {
-        require(msg.sender == admin, "not admin");
-
-        bytes32 id = hashOperation(target, value, data, descriptionHash, chainId);
+        bytes32 id = hashOperation(target, value, data, predecessor, descriptionHash, chainId);
         _schedule(id);
-        emit CallScheduled(id, 0, target, value, data, descriptionHash, _delay);
+        emit CallScheduled(id, 0, target, value, data, predecessor, descriptionHash, _delay);
     }
 
     /**
@@ -202,17 +206,17 @@ contract TimelockExecutor is IERC721Receiver, IERC1155Receiver {
         address[] calldata targets,
         uint256[] calldata values,
         bytes[] calldata payloads,
+        bytes32 predecessor,
         bytes32 descriptionHash,
         uint256 chainId
     ) public virtual {
-        require(msg.sender == admin, "not admin");
         require(targets.length == values.length, "TimelockExecutor: length mismatch");
         require(targets.length == payloads.length, "TimelockExecutor: length mismatch");
 
-        bytes32 id = hashOperationBatch(targets, values, payloads, descriptionHash, chainId);
+        bytes32 id = hashOperationBatch(targets, values, payloads, predecessor, descriptionHash, chainId);
         _schedule(id);
         for (uint256 i = 0; i < targets.length; ++i) {
-            emit CallScheduled(id, i, targets[i], values[i], payloads[i], descriptionHash, _delay);
+            emit CallScheduled(id, i, targets[i], values[i], payloads[i], predecessor, descriptionHash, _delay);
         }
     }
 
@@ -236,12 +240,13 @@ contract TimelockExecutor is IERC721Receiver, IERC1155Receiver {
         address target,
         uint256 value,
         bytes calldata data,
+        bytes32 predecessor,
         bytes32 descriptionHash,
         uint256 chainId
     ) public payable virtual {
-        bytes32 id = hashOperation(target, value, data, descriptionHash, chainId);
-        _beforeCall(id, descriptionHash);
-        _call(id, 0, target, value, data);
+        bytes32 id = hashOperation(target, value, data, predecessor, descriptionHash, chainId);
+        _beforeCall(id, predecessor);
+        _execute(id, 0, target, value, data);
         _afterCall(id);
     }
 
@@ -254,16 +259,18 @@ contract TimelockExecutor is IERC721Receiver, IERC1155Receiver {
         address[] calldata targets,
         uint256[] calldata values,
         bytes[] calldata payloads,
+        bytes32 predecessor,
         bytes32 descriptionHash,
         uint256 chainId
     ) public payable virtual {
         require(targets.length == values.length, "TimelockExecutor: length mismatch");
         require(targets.length == payloads.length, "TimelockExecutor: length mismatch");
 
-        bytes32 id = hashOperationBatch(targets, values, payloads, descriptionHash, chainId);
-        _beforeCall(id, descriptionHash);
+        bytes32 id = hashOperationBatch(targets, values, payloads, predecessor, descriptionHash, chainId);
+
+        _beforeCall(id, predecessor);
         for (uint256 i = 0; i < targets.length; ++i) {
-            _call(id, i, targets[i], values[i], payloads[i]);
+            _execute(id, i, targets[i], values[i], payloads[i]);
         }
         _afterCall(id);
     }
@@ -271,12 +278,9 @@ contract TimelockExecutor is IERC721Receiver, IERC1155Receiver {
     /**
      * @dev Checks before execution of an operation's calls.
      */
-    function _beforeCall(bytes32 id, bytes32 descriptionHash) private view {
+    function _beforeCall(bytes32 id, bytes32 predecessor) private view {
         require(isOperationReady(id), "TimelockExecutor: operation is not ready");
-        require(
-            descriptionHash == bytes32(0) || isOperationDone(descriptionHash),
-            "TimelockExecutor: missing dependency"
-        );
+        require(predecessor == bytes32(0) || isOperationDone(predecessor), "TimelockExecutor: missing dependency");
     }
 
     /**
@@ -289,10 +293,8 @@ contract TimelockExecutor is IERC721Receiver, IERC1155Receiver {
 
     /**
      * @dev Execute an operation's call.
-     *
-     * Emits a {CallExecuted} event.
      */
-    function _call(
+    function _execute(
         bytes32 id,
         uint256 index,
         address target,

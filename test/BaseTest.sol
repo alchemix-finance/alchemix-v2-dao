@@ -21,6 +21,9 @@ abstract contract BaseTest is DSTestPlus {
     address account = address(0xbeef);
     address public alETHPool = 0xC4C319E2D4d66CcA4464C0c2B32c9Bd23ebe784e;
     address public alUSDPool = 0x9735F7d3Ea56b454b24fFD74C58E9bD85cfaD31B;
+    address public USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+
+    uint256 public mainnet = 1;
 
     // Values for the current epoch (emissions to be manually minted)
     uint256 public supply = 1793678e18;
