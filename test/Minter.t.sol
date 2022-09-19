@@ -50,7 +50,7 @@ contract MinterTest is BaseTest {
 
         alcx.grantRole(keccak256("MINTER"), address(minter));
 
-        voter.createGauge(address(alETHPool), Voter.GaugeType.Staking);
+        voter.createGauge(alETHPool, Voter.GaugeType.Staking);
 
         hevm.roll(block.number + 1);
         assertGt(veALCX.balanceOfNFT(1), 995063075414519385);
@@ -62,7 +62,6 @@ contract MinterTest is BaseTest {
         weights[0] = 5000;
         voter.vote(1, pools, weights);
 
-        // Initialize minter
         minter.initialize();
 
         hevm.stopPrank();

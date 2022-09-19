@@ -61,8 +61,8 @@ contract AlchemixGovernorTest is BaseTest {
         alcx.grantRole(keccak256("MINTER"), address(minter));
 
         alcx.approve(address(gaugeFactory), 15 * TOKEN_100K);
-        voter.createGauge(address(alETHPool), Voter.GaugeType.Staking);
-        address gaugeAddress = voter.gauges(address(alETHPool));
+        voter.createGauge(alETHPool, Voter.GaugeType.Staking);
+        address gaugeAddress = voter.gauges(alETHPool);
         address bribeAddress = voter.bribes(gaugeAddress);
         gauge = StakingGauge(gaugeAddress);
         bribe = Bribe(bribeAddress);

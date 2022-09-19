@@ -15,7 +15,7 @@ contract VotingTest is BaseTest {
     uint256 lockTime = 30 days;
 
     function setUp() public {
-        mintAlcx(admin, 1e18);
+        mintAlcx(admin, TOKEN_1);
 
         hevm.startPrank(admin);
 
@@ -28,8 +28,8 @@ contract VotingTest is BaseTest {
         tokens[0] = address(alcx);
         voter.initialize(tokens, admin);
 
-        alcx.approve(address(veALCX), 1e18);
-        veALCX.createLock(1e18, 4 * 365 * 86400);
+        alcx.approve(address(veALCX), TOKEN_1);
+        veALCX.createLock(TOKEN_1, 4 * 365 * 86400);
 
         distributor = new RewardsDistributor(address(veALCX));
         veALCX.setVoter(address(voter));
@@ -53,7 +53,7 @@ contract VotingTest is BaseTest {
 
         hevm.roll(block.number + 1);
         assertGt(veALCX.balanceOfNFT(1), 995063075414519385);
-        assertEq(alcx.balanceOf(address(veALCX)), 1e18);
+        assertEq(alcx.balanceOf(address(veALCX)), TOKEN_1);
 
         address[] memory pools = new address[](1);
         pools[0] = alETHPool;
@@ -76,7 +76,8 @@ contract VotingTest is BaseTest {
         hevm.roll(block.number + 1);
 
         minter.updatePeriod();
-        assertGt(alcx.balanceOf(address(minter)), before);
+        assertGt(alcx.balanceOf(address(distributor)), before);
+        assertGt(alcx.balanceOf(address(voter)), before);
         hevm.stopPrank();
     }
 
