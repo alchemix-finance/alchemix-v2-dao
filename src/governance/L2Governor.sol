@@ -3,8 +3,6 @@
 
 pragma solidity ^0.8.0;
 
-import "forge-std/console2.sol";
-
 import "openzeppelin-contracts/contracts/token/ERC721/IERC721Receiver.sol";
 import "openzeppelin-contracts/contracts/token/ERC1155/IERC1155Receiver.sol";
 import "openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol";
@@ -307,6 +305,7 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
 
         uint64 start = block.timestamp.toUint64() + votingDelay().toUint64();
         uint64 deadline = start + votingPeriod().toUint64();
+        uint256 delay = _timelock.getDelay();
 
         proposal.voteStart.setDeadline(start);
         proposal.voteEnd.setDeadline(deadline);
@@ -319,7 +318,7 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
             keccak256(bytes(description)),
             chainId
         );
-        _timelock.scheduleBatch(targets, values, calldatas, 0, keccak256(bytes(description)), chainId);
+        _timelock.scheduleBatch(targets, values, calldatas, 0, keccak256(bytes(description)), chainId, delay);
 
         emit ProposalCreated(
             proposalId,
@@ -330,7 +329,6 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
             calldatas,
             start,
             deadline,
-            description,
             chainId
         );
 

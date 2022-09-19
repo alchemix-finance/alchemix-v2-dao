@@ -71,7 +71,11 @@ contract AlchemixGovernorTest is BaseTest {
 
         governor = new AlchemixGovernor(veALCX, TimelockExecutor(timelockExecutor));
         voter.setExecutor(address(timelockExecutor));
+        timelockExecutor.setAdmin(address(governor));
+        hevm.stopPrank();
 
+        hevm.startPrank(address(governor));
+        timelockExecutor.acceptAdmin();
         hevm.stopPrank();
     }
 

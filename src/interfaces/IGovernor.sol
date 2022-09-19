@@ -24,7 +24,6 @@ interface IGovernor {
         bytes[] calldatas,
         uint256 startBlock,
         uint256 endBlock,
-        string description,
         uint256 chainId
     );
 

@@ -7,8 +7,6 @@ import "openzeppelin-contracts/contracts/token/ERC721/IERC721Receiver.sol";
 import "openzeppelin-contracts/contracts/token/ERC1155/IERC1155Receiver.sol";
 import "openzeppelin-contracts/contracts/utils/Address.sol";
 
-import "forge-std/console2.sol";
-
 /**
  * @dev Contract module which acts as a timelocked controller. When set as the
  * owner of an `Ownable` smart contract, it enforces a timelock on all
@@ -25,6 +23,7 @@ import "forge-std/console2.sol";
  * _Available since v3.3._
  */
 contract TimelockExecutor is IERC721Receiver, IERC1155Receiver {
+    // Admin will be the governor
     address public admin;
     address public pendingAdmin;
 
@@ -43,7 +42,6 @@ contract TimelockExecutor is IERC721Receiver, IERC1155Receiver {
         uint256 value,
         bytes data,
         bytes32 predecessor,
-        bytes32 descriptionHash,
         uint256 delay
     );
 
@@ -186,11 +184,12 @@ contract TimelockExecutor is IERC721Receiver, IERC1155Receiver {
         bytes calldata data,
         bytes32 predecessor,
         bytes32 descriptionHash,
-        uint256 chainId
+        uint256 chainId,
+        uint256 delay
     ) public virtual {
         bytes32 id = hashOperation(target, value, data, predecessor, descriptionHash, chainId);
-        _schedule(id);
-        emit CallScheduled(id, 0, target, value, data, predecessor, descriptionHash, _delay);
+        _schedule(id, delay);
+        emit CallScheduled(id, 0, target, value, data, predecessor, _delay);
     }
 
     /**
@@ -208,23 +207,26 @@ contract TimelockExecutor is IERC721Receiver, IERC1155Receiver {
         bytes[] calldata payloads,
         bytes32 predecessor,
         bytes32 descriptionHash,
-        uint256 chainId
+        uint256 chainId,
+        uint256 delay
     ) public virtual {
         require(targets.length == values.length, "TimelockExecutor: length mismatch");
         require(targets.length == payloads.length, "TimelockExecutor: length mismatch");
 
         bytes32 id = hashOperationBatch(targets, values, payloads, predecessor, descriptionHash, chainId);
-        _schedule(id);
+        _schedule(id, delay);
         for (uint256 i = 0; i < targets.length; ++i) {
-            emit CallScheduled(id, i, targets[i], values[i], payloads[i], predecessor, descriptionHash, _delay);
+            emit CallScheduled(id, i, targets[i], values[i], payloads[i], predecessor, _delay);
         }
     }
 
     /**
      * @dev Schedule an operation that is to becomes valid after a given delay.
      */
-    function _schedule(bytes32 id) private {
+    function _schedule(bytes32 id, uint256 delay) private {
         require(!isOperation(id), "TimelockExecutor: operation already scheduled");
+        require(delay >= getDelay(), "TimelockController: insufficient delay");
+
         _timestamps[id] = block.timestamp + _delay;
     }
 
@@ -244,6 +246,8 @@ contract TimelockExecutor is IERC721Receiver, IERC1155Receiver {
         bytes32 descriptionHash,
         uint256 chainId
     ) public payable virtual {
+        require(msg.sender == admin, "not admin");
+
         bytes32 id = hashOperation(target, value, data, predecessor, descriptionHash, chainId);
         _beforeCall(id, predecessor);
         _execute(id, 0, target, value, data);
@@ -263,6 +267,8 @@ contract TimelockExecutor is IERC721Receiver, IERC1155Receiver {
         bytes32 descriptionHash,
         uint256 chainId
     ) public payable virtual {
+        require(msg.sender == admin, "not admin");
+
         require(targets.length == values.length, "TimelockExecutor: length mismatch");
         require(targets.length == payloads.length, "TimelockExecutor: length mismatch");
 
