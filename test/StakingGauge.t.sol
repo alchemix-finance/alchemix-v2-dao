@@ -14,7 +14,7 @@ contract StakingGaugeTest is BaseTest {
     StakingGauge gauge2;
 
     function setUp() public {
-        mintAlcx(address(admin), 1e25);
+        mintAlcx(admin, 1e25);
 
         hevm.startPrank(admin);
 
@@ -103,7 +103,7 @@ contract StakingGaugeTest is BaseTest {
         address gaugeAddress = address(gauge);
         voter.killGauge(gaugeAddress);
 
-        uint256 amount = alcx.balanceOf(address(admin));
+        uint256 amount = alcx.balanceOf(admin);
         alcx.approve(gaugeAddress, amount);
 
         hevm.expectRevert(abi.encodePacked(""));
@@ -118,7 +118,7 @@ contract StakingGaugeTest is BaseTest {
 
         address gaugeAddress = address(gauge);
 
-        uint256 amount = alcx.balanceOf(address(admin));
+        uint256 amount = alcx.balanceOf(admin);
         alcx.approve(gaugeAddress, amount);
 
         gauge.deposit(amount, 1);

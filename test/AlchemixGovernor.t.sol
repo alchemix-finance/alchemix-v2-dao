@@ -15,7 +15,7 @@ contract AlchemixGovernorTest is BaseTest {
     AlchemixGovernor governor;
 
     function setUp() public {
-        mintAlcx(address(admin), 2e25);
+        mintAlcx(admin, 2e25);
         mintAlcx(address(0xbeef), 1e25);
         mintAlcx(address(0xdead), 1e25);
 
@@ -148,7 +148,7 @@ contract AlchemixGovernorTest is BaseTest {
         string memory description = "Whitelist USDC";
 
         // propose
-        hevm.startPrank(address(admin));
+        hevm.startPrank(admin);
         uint256 pid = governor.propose(targets, values, calldatas, description, mainnet);
         hevm.warp(block.timestamp + 2 days); // delay
         hevm.stopPrank();
@@ -160,7 +160,7 @@ contract AlchemixGovernorTest is BaseTest {
         hevm.stopPrank();
 
         // execute
-        hevm.startPrank(address(admin));
+        hevm.startPrank(admin);
         // Proposal unsuccessful due to _quorumReached returning false
         hevm.expectRevert(abi.encodePacked("Governor: proposal not successful"));
         governor.execute(targets, values, calldatas, keccak256(bytes(description)), mainnet);
@@ -179,20 +179,20 @@ contract AlchemixGovernorTest is BaseTest {
         string memory description = "Whitelist USDC";
 
         // propose
-        hevm.startPrank(address(admin));
+        hevm.startPrank(admin);
         uint256 pid = governor.propose(targets, values, calldatas, description, mainnet);
         hevm.warp(block.timestamp + 2 days); // delay
         hevm.roll(block.number + 1);
         hevm.stopPrank();
 
         // vote
-        hevm.startPrank(address(admin));
+        hevm.startPrank(admin);
         governor.castVote(pid, 1);
         hevm.warp(block.timestamp + 1 weeks); // voting period
         hevm.stopPrank();
 
         // execute
-        hevm.startPrank(address(admin));
+        hevm.startPrank(admin);
         governor.execute(targets, values, calldatas, keccak256(bytes(description)), mainnet);
         hevm.stopPrank();
 

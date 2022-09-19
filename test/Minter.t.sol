@@ -16,7 +16,7 @@ contract MinterTest is BaseTest {
     uint256 internal constant LOCK = 86400 * 7 * 52 * 4;
 
     function setUp() public {
-        mintAlcx(address(admin), 1e25);
+        mintAlcx(admin, 1e25);
 
         hevm.startPrank(admin);
 
@@ -109,10 +109,10 @@ contract MinterTest is BaseTest {
     }
 
     function initializeVotingEscrow() public {
-        mintAlcx(address(admin), TOKEN_1M);
+        mintAlcx(admin, TOKEN_1M);
 
         address[] memory claimants = new address[](1);
-        claimants[0] = address(admin);
+        claimants[0] = admin;
         uint256[] memory amounts = new uint256[](1);
         amounts[0] = TOKEN_1M;
 
@@ -122,7 +122,7 @@ contract MinterTest is BaseTest {
             veALCX.createLockFor(amounts[i], LOCK, claimants[i]);
         }
 
-        assertEq(veALCX.ownerOf(2), address(admin));
+        assertEq(veALCX.ownerOf(2), admin);
         assertEq(veALCX.ownerOf(3), address(0));
         hevm.roll(block.number + 1);
 

@@ -40,7 +40,7 @@ abstract contract BaseTest is DSTestPlus {
     function mintAlcx(address _account, uint256 _amount) public {
         hevm.startPrank(admin);
 
-        alcx.grantRole(keccak256("MINTER"), address(admin));
+        alcx.grantRole(keccak256("MINTER"), admin);
         alcx.mint(_account, _amount);
 
         hevm.stopPrank();

@@ -49,7 +49,7 @@ contract VotingTest is BaseTest {
 
         alcx.grantRole(keccak256("MINTER"), address(minter));
 
-        voter.createGauge(address(alETHPool), Voter.GaugeType.Staking);
+        voter.createGauge(alETHPool, Voter.GaugeType.Staking);
 
         hevm.roll(block.number + 1);
         assertGt(veALCX.balanceOfNFT(1), 995063075414519385);
@@ -63,7 +63,7 @@ contract VotingTest is BaseTest {
 
         minter.initialize();
 
-        assertEq(veALCX.ownerOf(1), address(admin));
+        assertEq(veALCX.ownerOf(1), admin);
 
         hevm.roll(block.number + 1);
 
@@ -125,7 +125,7 @@ contract VotingTest is BaseTest {
         hevm.warp(block.timestamp + 1 weeks);
 
         // New vote succeeds
-        pools[0] = address(alUSDPool);
+        pools[0] = alUSDPool;
         voter.vote(1, pools, weights);
 
         // Next epoch
