@@ -4,12 +4,15 @@ import "forge-std/console2.sol";
 import { DSTest } from "ds-test/test.sol";
 import { DSTestPlus } from "./utils/DSTestPlus.sol";
 import { VotingEscrow } from "src/VotingEscrow.sol";
+import { AlchemixGovernor } from "src/AlchemixGovernor.sol";
+import "src/governance/TimelockExecutor.sol";
 import { Voter } from "src/Voter.sol";
 import { GaugeFactory } from "src/factories/GaugeFactory.sol";
 import { BribeFactory } from "src/factories/BribeFactory.sol";
 import { Minter, InitializationParams } from "src/Minter.sol";
 import "src/StakingGauge.sol";
 import "src/RewardsDistributor.sol";
+import "src/Bribe.sol";
 import { IAlchemixToken } from "src/interfaces/IAlchemixToken.sol";
 
 abstract contract BaseTest is DSTestPlus {
@@ -18,6 +21,9 @@ abstract contract BaseTest is DSTestPlus {
     address account = address(0xbeef);
     address public alETHPool = 0xC4C319E2D4d66CcA4464C0c2B32c9Bd23ebe784e;
     address public alUSDPool = 0x9735F7d3Ea56b454b24fFD74C58E9bD85cfaD31B;
+    address public USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+
+    uint256 public mainnet = 1;
 
     // Values for the current epoch (emissions to be manually minted)
     uint256 public supply = 1793678e18;
@@ -34,7 +40,7 @@ abstract contract BaseTest is DSTestPlus {
     function mintAlcx(address _account, uint256 _amount) public {
         hevm.startPrank(admin);
 
-        alcx.grantRole(keccak256("MINTER"), address(admin));
+        alcx.grantRole(keccak256("MINTER"), admin);
         alcx.mint(_account, _amount);
 
         hevm.stopPrank();

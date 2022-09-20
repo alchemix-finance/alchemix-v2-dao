@@ -55,4 +55,6 @@ interface Hevm {
     // Calldata can either be strict or a partial match
     function expectCall(address, bytes calldata) external;
     function getCode(string calldata) external returns (bytes memory);
+    // When fuzzing, generate new inputs if conditional not met
+    function assume(bool) external;
 }

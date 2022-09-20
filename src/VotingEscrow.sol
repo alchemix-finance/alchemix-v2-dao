@@ -2,6 +2,7 @@
 pragma solidity ^0.8.15;
 
 import { IERC721, IERC721Metadata } from "openzeppelin-contracts/contracts/token/ERC721/extensions/IERC721Metadata.sol";
+import { IVotes } from "openzeppelin-contracts/contracts/governance/utils/IVotes.sol";
 import { IERC721Receiver } from "openzeppelin-contracts/contracts/token/ERC721/IERC721Receiver.sol";
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { IVotingEscrow } from "src/interfaces/IVotingEscrow.sol";
@@ -12,7 +13,7 @@ import { Base64 } from "src/libraries/Base64.sol";
 /// @notice veNFT implementation that escrows ERC-20 tokens in the form of an ERC-721 NFT
 /// @notice Votes have a weight depending on time, so that users are committed to the future of (whatever they are voting for)
 /// @dev Vote weight decays linearly over time. Lock time cannot be more than `MAXTIME` (4 years).
-contract VotingEscrow is IERC721, IERC721Metadata {
+contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     enum DepositType {
         DEPOSIT_FOR_TYPE,
         CREATE_LOCK_TYPE,
@@ -27,13 +28,20 @@ contract VotingEscrow is IERC721, IERC721Metadata {
         uint256 ts;
         uint256 blk; // block
     }
-    /* We cannot really do block numbers per se b/c slope is per time, not per block
-     * and per block could be fairly bad b/c Ethereum changes blocktimes.
-     * What we can do is to extrapolate ***At functions */
 
     struct LockedBalance {
         int128 amount;
         uint256 end;
+    }
+
+    /* We cannot really do block numbers per se b/c slope is per time, not per block
+     * and per block could be fairly bad b/c Ethereum changes blocktimes.
+     * What we can do is to extrapolate ***At functions */
+
+    /// @notice A checkpoint for marking delegated tokenIds from a given timestamp
+    struct Checkpoint {
+        uint256 timestamp;
+        uint256[] tokenIds;
     }
 
     event Deposit(
@@ -97,6 +105,27 @@ contract VotingEscrow is IERC721, IERC721Metadata {
 
     /// @dev Mapping of interface id to bool about whether or not it's supported
     mapping(bytes4 => bool) internal supportedInterfaces;
+
+    /// @notice A record of each accounts delegate
+    mapping(address => address) private _delegates;
+    uint256 public constant MAX_DELEGATES = 1024; // avoid too much gas
+
+    /// @notice A record of delegated token checkpoints for each account, by index
+    mapping(address => mapping(uint32 => Checkpoint)) public checkpoints;
+
+    /// @notice The number of checkpoints for each account
+    mapping(address => uint32) public numCheckpoints;
+
+    /// @notice A record of states for signing / validating signatures
+    mapping(address => uint256) public nonces;
+
+    /// @notice The EIP-712 typehash for the contract's domain
+    bytes32 public constant DOMAIN_TYPEHASH =
+        keccak256("EIP712Domain(string name,uint256 chainId,address verifyingContract)");
+
+    /// @notice The EIP-712 typehash for the delegation struct used by the contract
+    bytes32 public constant DELEGATION_TYPEHASH =
+        keccak256("Delegation(address delegatee,uint256 nonce,uint256 expiry)");
 
     /// @dev ERC165 interface ID of ERC165
     bytes4 internal constant ERC165_INTERFACE_ID = 0x01ffc9a7;
@@ -375,9 +404,11 @@ contract VotingEscrow is IERC721, IERC721Metadata {
 
         if (_isContract(_to)) {
             // Throws if transfer destination is a contract which does not implement 'onERC721Received'
-            try IERC721Receiver(_to).onERC721Received(msg.sender, _from, _tokenId, _data) returns (bytes4) {} catch (
-                bytes memory reason
-            ) {
+            try IERC721Receiver(_to).onERC721Received(msg.sender, _from, _tokenId, _data) returns (bytes4 response) {
+                if (response != IERC721Receiver(_to).onERC721Received.selector) {
+                    revert("ERC721: ERC721Receiver rejected tokens");
+                }
+            } catch (bytes memory reason) {
                 if (reason.length == 0) {
                     revert("ERC721: transfer to non ERC721Receiver implementer");
                 } else {
@@ -450,11 +481,234 @@ contract VotingEscrow is IERC721, IERC721Metadata {
     /// @return bool indication if the operation was successful.
     function _mint(address _to, uint256 _tokenId) internal returns (bool) {
         // Throws if `_to` is zero address
-        require(_to != address(0));
+        assert(_to != address(0));
+        // checkpoint for gov
+        _moveTokenDelegates(address(0), delegates(_to), _tokenId);
         // Add NFT. Throws if `_tokenId` is owned by someone
         _addTokenTo(_to, _tokenId);
         emit Transfer(address(0), _to, _tokenId);
         return true;
+    }
+
+    /**
+     * @notice Overrides the standard `Comp.sol` delegates mapping to return
+     * the delegator's own address if they haven't delegated.
+     * This avoids having to delegate to oneself.
+     */
+    function delegates(address delegator) public view returns (address) {
+        address current = _delegates[delegator];
+        return current == address(0) ? delegator : current;
+    }
+
+    /**
+     * @notice Gets the current votes balance for `account`
+     * @param account The address to get votes balance
+     * @return The number of current votes for `account`
+     */
+    function getVotes(address account) external view returns (uint256) {
+        uint32 nCheckpoints = numCheckpoints[account];
+        if (nCheckpoints == 0) {
+            return 0;
+        }
+        uint256[] storage _tokenIds = checkpoints[account][nCheckpoints - 1].tokenIds;
+        uint256 votes = 0;
+        for (uint256 i = 0; i < _tokenIds.length; i++) {
+            uint256 tId = _tokenIds[i];
+            votes = votes + _balanceOfNFT(tId, block.timestamp);
+        }
+        return votes;
+    }
+
+    function getPastVotesIndex(address account, uint256 timestamp) public view returns (uint32) {
+        uint32 nCheckpoints = numCheckpoints[account];
+        if (nCheckpoints == 0) {
+            return 0;
+        }
+        // First check most recent balance
+        if (checkpoints[account][nCheckpoints - 1].timestamp <= timestamp) {
+            return (nCheckpoints - 1);
+        }
+
+        // Next check implicit zero balance
+        if (checkpoints[account][0].timestamp > timestamp) {
+            return 0;
+        }
+
+        uint32 lower = 0;
+        uint32 upper = nCheckpoints - 1;
+        while (upper > lower) {
+            uint32 center = upper - (upper - lower) / 2; // ceil, avoiding overflow
+            Checkpoint storage cp = checkpoints[account][center];
+            if (cp.timestamp == timestamp) {
+                return center;
+            } else if (cp.timestamp < timestamp) {
+                lower = center;
+            } else {
+                upper = center - 1;
+            }
+        }
+        return lower;
+    }
+
+    function getPastVotes(address account, uint256 timestamp) public view returns (uint256) {
+        uint32 _checkIndex = getPastVotesIndex(account, timestamp);
+        // Sum votes
+        uint256[] storage _tokenIds = checkpoints[account][_checkIndex].tokenIds;
+        uint256 votes = 0;
+        for (uint256 i = 0; i < _tokenIds.length; i++) {
+            uint256 tId = _tokenIds[i];
+            // Use the provided input timestamp here to get the right decay
+            votes = votes + _balanceOfNFT(tId, timestamp);
+        }
+        return votes;
+    }
+
+    function getPastTotalSupply(uint256 timestamp) external view returns (uint256) {
+        return totalSupplyAtT(timestamp);
+    }
+
+    function _moveTokenDelegates(
+        address srcRep,
+        address dstRep,
+        uint256 _tokenId
+    ) internal {
+        if (srcRep != dstRep && _tokenId > 0) {
+            if (srcRep != address(0)) {
+                uint32 srcRepNum = numCheckpoints[srcRep];
+                uint256[] storage srcRepOld = srcRepNum > 0
+                    ? checkpoints[srcRep][srcRepNum - 1].tokenIds
+                    : checkpoints[srcRep][0].tokenIds;
+                uint32 nextSrcRepNum = _findWhatCheckpointToWrite(srcRep);
+                uint256[] storage srcRepNew = checkpoints[srcRep][nextSrcRepNum].tokenIds;
+                // All the same except _tokenId
+                for (uint256 i = 0; i < srcRepOld.length; i++) {
+                    uint256 tId = srcRepOld[i];
+                    if (tId != _tokenId) {
+                        srcRepNew.push(tId);
+                    }
+                }
+
+                numCheckpoints[srcRep] = srcRepNum + 1;
+            }
+
+            if (dstRep != address(0)) {
+                uint32 dstRepNum = numCheckpoints[dstRep];
+                uint256[] storage dstRepOld = dstRepNum > 0
+                    ? checkpoints[dstRep][dstRepNum - 1].tokenIds
+                    : checkpoints[dstRep][0].tokenIds;
+                uint32 nextDstRepNum = _findWhatCheckpointToWrite(dstRep);
+                uint256[] storage dstRepNew = checkpoints[dstRep][nextDstRepNum].tokenIds;
+                // All the same plus _tokenId
+                require(dstRepOld.length + 1 <= MAX_DELEGATES, "dstRep would have too many tokenIds");
+                for (uint256 i = 0; i < dstRepOld.length; i++) {
+                    uint256 tId = dstRepOld[i];
+                    dstRepNew.push(tId);
+                }
+                dstRepNew.push(_tokenId);
+
+                numCheckpoints[dstRep] = dstRepNum + 1;
+            }
+        }
+    }
+
+    function _findWhatCheckpointToWrite(address account) internal view returns (uint32) {
+        uint256 _timestamp = block.timestamp;
+        uint32 _nCheckPoints = numCheckpoints[account];
+
+        if (_nCheckPoints > 0 && checkpoints[account][_nCheckPoints - 1].timestamp == _timestamp) {
+            return _nCheckPoints - 1;
+        } else {
+            return _nCheckPoints;
+        }
+    }
+
+    function _moveAllDelegates(
+        address owner,
+        address srcRep,
+        address dstRep
+    ) internal {
+        // You can only redelegate what you own
+        if (srcRep != dstRep) {
+            if (srcRep != address(0)) {
+                uint32 srcRepNum = numCheckpoints[srcRep];
+                uint256[] storage srcRepOld = srcRepNum > 0
+                    ? checkpoints[srcRep][srcRepNum - 1].tokenIds
+                    : checkpoints[srcRep][0].tokenIds;
+                uint32 nextSrcRepNum = _findWhatCheckpointToWrite(srcRep);
+                uint256[] storage srcRepNew = checkpoints[srcRep][nextSrcRepNum].tokenIds;
+                // All the same except what owner owns
+                for (uint256 i = 0; i < srcRepOld.length; i++) {
+                    uint256 tId = srcRepOld[i];
+                    if (idToOwner[tId] != owner) {
+                        srcRepNew.push(tId);
+                    }
+                }
+
+                numCheckpoints[srcRep] = srcRepNum + 1;
+            }
+
+            if (dstRep != address(0)) {
+                uint32 dstRepNum = numCheckpoints[dstRep];
+                uint256[] storage dstRepOld = dstRepNum > 0
+                    ? checkpoints[dstRep][dstRepNum - 1].tokenIds
+                    : checkpoints[dstRep][0].tokenIds;
+                uint32 nextDstRepNum = _findWhatCheckpointToWrite(dstRep);
+                uint256[] storage dstRepNew = checkpoints[dstRep][nextDstRepNum].tokenIds;
+                uint256 ownerTokenCount = ownerToTokenCount[owner];
+                require(dstRepOld.length + ownerTokenCount <= MAX_DELEGATES, "dstRep would have too many tokenIds");
+                // All the same
+                for (uint256 i = 0; i < dstRepOld.length; i++) {
+                    uint256 tId = dstRepOld[i];
+                    dstRepNew.push(tId);
+                }
+                // Plus all that's owned
+                for (uint256 i = 0; i < ownerTokenCount; i++) {
+                    uint256 tId = ownerToTokenIdList[owner][i];
+                    dstRepNew.push(tId);
+                }
+
+                numCheckpoints[dstRep] = dstRepNum + 1;
+            }
+        }
+    }
+
+    function _delegate(address delegator, address delegatee) internal {
+        /// @notice differs from `_delegate()` in `Comp.sol` to use `delegates` override method to simulate auto-delegation
+        address currentDelegate = delegates(delegator);
+
+        _delegates[delegator] = delegatee;
+
+        emit DelegateChanged(delegator, currentDelegate, delegatee);
+        _moveAllDelegates(delegator, currentDelegate, delegatee);
+    }
+
+    /**
+     * @notice Delegate votes from `msg.sender` to `delegatee`
+     * @param delegatee The address to delegate votes to
+     */
+    function delegate(address delegatee) public {
+        if (delegatee == address(0)) delegatee = msg.sender;
+        return _delegate(msg.sender, delegatee);
+    }
+
+    function delegateBySig(
+        address delegatee,
+        uint256 nonce,
+        uint256 expiry,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) public {
+        bytes32 domainSeparator = keccak256(
+            abi.encode(DOMAIN_TYPEHASH, keccak256(bytes(name)), keccak256(bytes(version)), block.chainid, address(this))
+        );
+        bytes32 structHash = keccak256(abi.encode(DELEGATION_TYPEHASH, delegatee, nonce, expiry));
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
+        address signatory = ecrecover(digest, v, r, s);
+        require(signatory != address(0), "VotingEscrow::delegateBySig: invalid signature");
+        require(nonce == nonces[signatory]++, "VotingEscrow::delegateBySig: invalid nonce");
+        require(block.timestamp <= expiry, "VotingEscrow::delegateBySig: signature expired");
+        return _delegate(signatory, delegatee);
     }
 
     /// @notice Record global and per-user data to checkpoint

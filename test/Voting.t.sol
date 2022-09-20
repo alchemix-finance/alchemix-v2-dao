@@ -15,7 +15,7 @@ contract VotingTest is BaseTest {
     uint256 lockTime = 30 days;
 
     function setUp() public {
-        mintAlcx(admin, 1e18);
+        mintAlcx(admin, TOKEN_1);
 
         hevm.startPrank(admin);
 
@@ -28,8 +28,8 @@ contract VotingTest is BaseTest {
         tokens[0] = address(alcx);
         voter.initialize(tokens, admin);
 
-        alcx.approve(address(veALCX), 1e18);
-        veALCX.createLock(1e18, 4 * 365 * 86400);
+        alcx.approve(address(veALCX), TOKEN_1);
+        veALCX.createLock(TOKEN_1, 4 * 365 * 86400);
 
         distributor = new RewardsDistributor(address(veALCX));
         veALCX.setVoter(address(voter));
@@ -49,11 +49,11 @@ contract VotingTest is BaseTest {
 
         alcx.grantRole(keccak256("MINTER"), address(minter));
 
-        voter.createGauge(address(alETHPool), Voter.GaugeType.Staking);
+        voter.createGauge(alETHPool, Voter.GaugeType.Staking);
 
         hevm.roll(block.number + 1);
         assertGt(veALCX.balanceOfNFT(1), 995063075414519385);
-        assertEq(alcx.balanceOf(address(veALCX)), 1e18);
+        assertEq(alcx.balanceOf(address(veALCX)), TOKEN_1);
 
         address[] memory pools = new address[](1);
         pools[0] = alETHPool;
@@ -63,7 +63,7 @@ contract VotingTest is BaseTest {
 
         minter.initialize();
 
-        assertEq(veALCX.ownerOf(1), address(admin));
+        assertEq(veALCX.ownerOf(1), admin);
 
         hevm.roll(block.number + 1);
 
@@ -76,7 +76,8 @@ contract VotingTest is BaseTest {
         hevm.roll(block.number + 1);
 
         minter.updatePeriod();
-        assertGt(alcx.balanceOf(address(minter)), before);
+        assertGt(alcx.balanceOf(address(distributor)), before);
+        assertGt(alcx.balanceOf(address(voter)), before);
         hevm.stopPrank();
     }
 
@@ -125,7 +126,7 @@ contract VotingTest is BaseTest {
         hevm.warp(block.timestamp + 1 weeks);
 
         // New vote succeeds
-        pools[0] = address(alUSDPool);
+        pools[0] = alUSDPool;
         voter.vote(1, pools, weights);
 
         // Next epoch
