@@ -8,9 +8,11 @@ import "./interfaces/IGaugeFactory.sol";
 import "./interfaces/IERC20.sol";
 import "./interfaces/IMinter.sol";
 import "./interfaces/IVotingEscrow.sol";
+import { IERC20Mintable } from "./interfaces/IERC20Mintable.sol";
 
 contract Voter {
     address public immutable veALCX; // veALCX that governs these contracts
+    address public immutable MANA; // veALCX that governs these contracts
     address internal immutable base;
     address public immutable gaugefactory;
     address public immutable bribefactory;
@@ -57,9 +59,11 @@ contract Voter {
     constructor(
         address _ve,
         address _gauges,
-        address _bribes
+        address _bribes,
+        address _mana
     ) {
         veALCX = _ve;
+        MANA = _mana;
         base = IVotingEscrow(_ve).token();
         gaugefactory = _gauges;
         bribefactory = _bribes;
@@ -102,7 +106,8 @@ contract Voter {
     }
 
     function reset(uint256 _tokenId) external onlyNewEpoch(_tokenId) {
-        require(IVotingEscrow(veALCX).isApprovedOrOwner(msg.sender, _tokenId));
+        require(IVotingEscrow(veALCX).isApprovedOrOwner(msg.sender, _tokenId), "not approved or owner");
+
         lastVoted[_tokenId] = block.timestamp;
         _reset(_tokenId);
         IVotingEscrow(veALCX).abstain(_tokenId);
@@ -133,7 +138,7 @@ contract Voter {
         delete poolVote[_tokenId];
     }
 
-    function poke(uint256 _tokenId) external {
+    function poke(uint256 _tokenId, bool _boost) external {
         address[] memory _poolVote = poolVote[_tokenId];
         uint256 _poolCnt = _poolVote.length;
         uint256[] memory _weights = new uint256[](_poolCnt);
@@ -142,17 +147,21 @@ contract Voter {
             _weights[i] = votes[_tokenId][_poolVote[i]];
         }
 
-        _vote(_tokenId, _poolVote, _weights);
+        _vote(_tokenId, _poolVote, _weights, _boost);
     }
 
     function _vote(
         uint256 _tokenId,
         address[] memory _poolVote,
-        uint256[] memory _weights
+        uint256[] memory _weights,
+        bool _boost
     ) internal {
         _reset(_tokenId);
         uint256 _poolCnt = _poolVote.length;
-        uint256 _weight = IVotingEscrow(veALCX).balanceOfNFT(_tokenId);
+        // If vote is being boosted use veALCX + MANA weight
+        uint256 _weight = _boost
+            ? IVotingEscrow(veALCX).balanceOfNFT(_tokenId) + IVotingEscrow(veALCX).balanceOfMana(_tokenId)
+            : IVotingEscrow(veALCX).balanceOfNFT(_tokenId);
         uint256 _totalVoteWeight = 0;
         uint256 _totalWeight = 0;
         uint256 _usedWeight = 0;
@@ -184,17 +193,26 @@ contract Voter {
         if (_usedWeight > 0) IVotingEscrow(veALCX).voting(_tokenId);
         totalWeight += uint256(_totalWeight);
         usedWeights[_tokenId] = uint256(_usedWeight);
+
+        // If vote is not being boosted, mint unused MANA to veALCX owner
+        if (!_boost) {
+            IERC20Mintable(MANA).mint(
+                IVotingEscrow(veALCX).ownerOf(_tokenId),
+                IVotingEscrow(veALCX).balanceOfMana(_tokenId)
+            );
+        }
     }
 
     function vote(
         uint256 _tokenId,
         address[] calldata _poolVote,
-        uint256[] calldata _weights
+        uint256[] calldata _weights,
+        bool _boost
     ) external onlyNewEpoch(_tokenId) {
         require(IVotingEscrow(veALCX).isApprovedOrOwner(msg.sender, _tokenId));
         require(_poolVote.length == _weights.length);
         lastVoted[_tokenId] = block.timestamp;
-        _vote(_tokenId, _poolVote, _weights);
+        _vote(_tokenId, _poolVote, _weights, _boost);
     }
 
     function whitelist(address _token) public {

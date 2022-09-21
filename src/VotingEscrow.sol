@@ -62,6 +62,10 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
     address public immutable token;
     uint256 public supply;
+
+    uint256 public manaMultiplier;
+    address public admin; // the timelock executor
+
     mapping(uint256 => LockedBalance) public locked;
 
     mapping(uint256 => uint256) public ownershipChange;
@@ -152,6 +156,8 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     constructor(address _token) {
         token = _token;
         voter = msg.sender;
+        admin = msg.sender;
+        manaMultiplier = 10; // 10 bps = 0.01%
 
         pointHistory[0].blk = block.number;
         pointHistory[0].ts = block.timestamp;
@@ -918,6 +924,16 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         attachments[_tokenId] = attachments[_tokenId] - 1;
     }
 
+    function setManaMultiplier(uint256 _manaMultiplier) external {
+        require(msg.sender == admin, "not admin");
+        manaMultiplier = _manaMultiplier;
+    }
+
+    function setAdmin(address _admin) external {
+        require(msg.sender == admin, "not admin");
+        admin = _admin;
+    }
+
     function merge(uint256 _from, uint256 _to) external {
         require(attachments[_from] == 0 && !voted[_from], "attached");
         require(_from != _to);
@@ -1116,6 +1132,11 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
     function balanceOfNFTAt(uint256 _tokenId, uint256 _time) external view returns (uint256) {
         return _balanceOfNFT(_tokenId, _time);
+    }
+
+    function balanceOfMana(uint256 _tokenId) external view returns (uint256) {
+        uint256 votingPower = _balanceOfNFT(_tokenId, block.timestamp);
+        return votingPower * manaMultiplier;
     }
 
     /// @notice Measure voting power of `_tokenId` at block height `_block`

@@ -48,5 +48,7 @@ interface IVotingEscrow {
 
     function balanceOfNFT(uint256) external view returns (uint256);
 
+    function balanceOfMana(uint256) external view returns (uint256);
+
     function totalSupply() external view returns (uint256);
 }
