@@ -8,7 +8,7 @@ import "./interfaces/IGaugeFactory.sol";
 import "./interfaces/IERC20.sol";
 import "./interfaces/IMinter.sol";
 import "./interfaces/IVotingEscrow.sol";
-import { IERC20Mintable } from "./interfaces/IERC20Mintable.sol";
+import { IManaToken } from "./interfaces/IManaToken.sol";
 
 contract Voter {
     address public immutable veALCX; // veALCX that governs these contracts
@@ -111,6 +111,7 @@ contract Voter {
         lastVoted[_tokenId] = block.timestamp;
         _reset(_tokenId);
         IVotingEscrow(veALCX).abstain(_tokenId);
+        IVotingEscrow(veALCX).accrueUnclaimedMana(_tokenId);
     }
 
     function _reset(uint256 _tokenId) internal {
@@ -138,7 +139,19 @@ contract Voter {
         delete poolVote[_tokenId];
     }
 
-    function poke(uint256 _tokenId, bool _boost) external {
+    function claimMana(uint256 _tokenId, uint256 _amount) external lock {
+        require(
+            IVotingEscrow(veALCX).unclaimedManaBalance(_tokenId) >= _amount,
+            "amount greater than claimable balance"
+        );
+        IVotingEscrow(veALCX).claimMana(_tokenId, _amount);
+        IManaToken(MANA).mint(IVotingEscrow(veALCX).ownerOf(_tokenId), _amount);
+    }
+
+    // TODO determine if we need poke
+    function poke(uint256 _tokenId, uint256 _boost) external {
+        require(IVotingEscrow(veALCX).unclaimedManaBalance(_tokenId) >= _boost, "insufficient unclaimed MANA balance");
+
         address[] memory _poolVote = poolVote[_tokenId];
         uint256 _poolCnt = _poolVote.length;
         uint256[] memory _weights = new uint256[](_poolCnt);
@@ -154,14 +167,11 @@ contract Voter {
         uint256 _tokenId,
         address[] memory _poolVote,
         uint256[] memory _weights,
-        bool _boost
+        uint256 _boost
     ) internal {
         _reset(_tokenId);
         uint256 _poolCnt = _poolVote.length;
-        // If vote is being boosted use veALCX + MANA weight
-        uint256 _weight = _boost
-            ? IVotingEscrow(veALCX).balanceOfNFT(_tokenId) + IVotingEscrow(veALCX).balanceOfMana(_tokenId)
-            : IVotingEscrow(veALCX).balanceOfNFT(_tokenId);
+        uint256 _weight = IVotingEscrow(veALCX).balanceOfNFT(_tokenId) + _boost;
         uint256 _totalVoteWeight = 0;
         uint256 _totalWeight = 0;
         uint256 _usedWeight = 0;
@@ -194,23 +204,20 @@ contract Voter {
         totalWeight += uint256(_totalWeight);
         usedWeights[_tokenId] = uint256(_usedWeight);
 
-        // If vote is not being boosted, mint unused MANA to veALCX owner
-        if (!_boost) {
-            IERC20Mintable(MANA).mint(
-                IVotingEscrow(veALCX).ownerOf(_tokenId),
-                IVotingEscrow(veALCX).balanceOfMana(_tokenId)
-            );
-        }
+        // Adjust amount of claimable mana
+        if (_boost > 0) IVotingEscrow(veALCX).boostMana(_tokenId, _boost);
     }
 
     function vote(
         uint256 _tokenId,
         address[] calldata _poolVote,
         uint256[] calldata _weights,
-        bool _boost
+        uint256 _boost
     ) external onlyNewEpoch(_tokenId) {
         require(IVotingEscrow(veALCX).isApprovedOrOwner(msg.sender, _tokenId));
         require(_poolVote.length == _weights.length);
+        require(IVotingEscrow(veALCX).unclaimedManaBalance(_tokenId) >= _boost, "insufficient unclaimed MANA balance");
+
         lastVoted[_tokenId] = block.timestamp;
         _vote(_tokenId, _poolVote, _weights, _boost);
     }
