@@ -18,10 +18,10 @@ contract StakingGaugeTest is BaseTest {
 
         hevm.startPrank(admin);
 
-        veALCX = new VotingEscrow(address(alcx));
+        veALCX = new VotingEscrow(address(alcx), address(MANA));
         gaugeFactory = new GaugeFactory();
         bribeFactory = new BribeFactory();
-        voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory));
+        voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory), address(MANA));
 
         alcx.approve(address(veALCX), 2e25);
         veALCX.createLock(TOKEN_1, 4 * 365 * 86400);

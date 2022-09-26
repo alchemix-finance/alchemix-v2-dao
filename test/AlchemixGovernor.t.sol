@@ -21,7 +21,7 @@ contract AlchemixGovernorTest is BaseTest {
 
         hevm.startPrank(admin);
 
-        veALCX = new VotingEscrow(address(alcx));
+        veALCX = new VotingEscrow(address(alcx), address(MANA));
         alcx.approve(address(veALCX), 97 * TOKEN_1);
         veALCX.createLock(97 * TOKEN_1, 4 * 365 * 86400);
         hevm.roll(block.number + 1);
@@ -39,7 +39,7 @@ contract AlchemixGovernorTest is BaseTest {
 
         gaugeFactory = new GaugeFactory();
         bribeFactory = new BribeFactory();
-        voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory));
+        voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory), address(MANA));
 
         veALCX.setVoter(address(voter));
 

@@ -171,7 +171,6 @@ contract Voter {
     ) internal {
         _reset(_tokenId);
         uint256 _poolCnt = _poolVote.length;
-        uint256 _weight = IVotingEscrow(veALCX).balanceOfNFT(_tokenId) + _boost;
         uint256 _totalVoteWeight = 0;
         uint256 _totalWeight = 0;
         uint256 _usedWeight = 0;
@@ -185,7 +184,8 @@ contract Voter {
             address _gauge = gauges[_pool];
 
             if (isGauge[_gauge]) {
-                uint256 _poolWeight = (_weights[i] * _weight) / _totalVoteWeight;
+                uint256 _poolWeight = (_weights[i] * (IVotingEscrow(veALCX).balanceOfNFT(_tokenId) + _boost)) /
+                    _totalVoteWeight;
                 require(votes[_tokenId][_pool] == 0);
                 require(_poolWeight != 0);
                 _updateFor(_gauge);

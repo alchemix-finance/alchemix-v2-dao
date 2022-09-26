@@ -20,10 +20,10 @@ contract MinterTest is BaseTest {
 
         hevm.startPrank(admin);
 
-        veALCX = new VotingEscrow(address(alcx));
+        veALCX = new VotingEscrow(address(alcx), address(MANA));
         gaugeFactory = new GaugeFactory();
         bribeFactory = new BribeFactory();
-        voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory));
+        voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory), address(MANA));
 
         address[] memory tokens = new address[](1);
         tokens[0] = address(alcx);
@@ -60,7 +60,7 @@ contract MinterTest is BaseTest {
         pools[0] = alETHPool;
         uint256[] memory weights = new uint256[](1);
         weights[0] = 5000;
-        voter.vote(1, pools, weights);
+        voter.vote(1, pools, weights, 0);
 
         minter.initialize();
 

@@ -19,10 +19,10 @@ contract VotingTest is BaseTest {
 
         hevm.startPrank(admin);
 
-        veALCX = new VotingEscrow(address(alcx));
+        veALCX = new VotingEscrow(address(alcx), address(MANA));
         gaugeFactory = new GaugeFactory();
         bribeFactory = new BribeFactory();
-        voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory));
+        voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory), address(MANA));
 
         address[] memory tokens = new address[](1);
         tokens[0] = address(alcx);
@@ -59,7 +59,7 @@ contract VotingTest is BaseTest {
         pools[0] = alETHPool;
         uint256[] memory weights = new uint256[](1);
         weights[0] = 5000;
-        voter.vote(1, pools, weights);
+        voter.vote(1, pools, weights, 0);
 
         minter.initialize();
 
@@ -93,7 +93,7 @@ contract VotingTest is BaseTest {
         pools[0] = alETHPool;
         uint256[] memory weights = new uint256[](1);
         weights[0] = 5000;
-        voter.vote(1, pools, weights);
+        voter.vote(1, pools, weights, 0);
 
         // Move forward half epoch relative to period
         hevm.warp(period + 1 weeks / 2);
@@ -101,7 +101,7 @@ contract VotingTest is BaseTest {
         // Voting again fails
         pools[0] = alUSDPool;
         hevm.expectRevert(abi.encodePacked("TOKEN_ALREADY_VOTED_THIS_EPOCH"));
-        voter.vote(1, pools, weights);
+        voter.vote(1, pools, weights, 0);
 
         // Resetting fails
         hevm.expectRevert(abi.encodePacked("TOKEN_ALREADY_VOTED_THIS_EPOCH"));
@@ -120,14 +120,14 @@ contract VotingTest is BaseTest {
         uint256[] memory weights = new uint256[](1);
         weights[0] = 5000;
 
-        voter.vote(1, pools, weights);
+        voter.vote(1, pools, weights, 0);
 
         // Next epoch
         hevm.warp(block.timestamp + 1 weeks);
 
         // New vote succeeds
         pools[0] = alUSDPool;
-        voter.vote(1, pools, weights);
+        voter.vote(1, pools, weights, 0);
 
         // Next epoch
         hevm.warp(block.timestamp + 1 weeks);
