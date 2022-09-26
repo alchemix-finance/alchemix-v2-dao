@@ -23,6 +23,10 @@ contract ManaToken is ERC20("Mana", "MANA") {
         _;
     }
 
+    function setMinter(address _minter) external onlyMinter {
+        minter = _minter;
+    }
+
     /// @dev Mints tokens to a recipient.
     ///
     /// This function reverts if the caller does not have the minter role.

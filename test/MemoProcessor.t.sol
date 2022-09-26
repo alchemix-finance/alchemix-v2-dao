@@ -4,7 +4,6 @@ pragma solidity ^0.8.15;
 import { MemoProcessor } from "src/MemoProcessor.sol";
 import { VotingEscrow } from "src/VotingEscrow.sol";
 
-import "forge-std/console2.sol";
 import { DSTest } from "ds-test/test.sol";
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 

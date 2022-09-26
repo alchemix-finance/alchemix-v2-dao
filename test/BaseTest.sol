@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.15;
 
 import "forge-std/console2.sol";
@@ -26,6 +27,7 @@ abstract contract BaseTest is DSTestPlus {
     address public alUSDPool = 0x9735F7d3Ea56b454b24fFD74C58E9bD85cfaD31B;
     address public USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     ManaToken public MANA = new ManaToken(admin);
+    VotingEscrow veALCX = new VotingEscrow(address(alcx), address(MANA));
 
     uint256 public mainnet = 1;
 

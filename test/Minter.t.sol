@@ -4,7 +4,6 @@ pragma solidity ^0.8.15;
 import "./BaseTest.sol";
 
 contract MinterTest is BaseTest {
-    VotingEscrow veALCX;
     Voter voter;
     GaugeFactory gaugeFactory;
     BribeFactory bribeFactory;
@@ -17,10 +16,10 @@ contract MinterTest is BaseTest {
 
     function setUp() public {
         mintAlcx(admin, 1e25);
+        veALCX.setVoter(admin);
 
         hevm.startPrank(admin);
 
-        veALCX = new VotingEscrow(address(alcx), address(MANA));
         gaugeFactory = new GaugeFactory();
         bribeFactory = new BribeFactory();
         voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory), address(MANA));

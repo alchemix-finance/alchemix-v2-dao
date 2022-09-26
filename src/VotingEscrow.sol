@@ -906,7 +906,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     }
 
     function setVoter(address _voter) external {
-        require(msg.sender == voter);
+        require(msg.sender == voter, "not voter");
         voter = _voter;
     }
 

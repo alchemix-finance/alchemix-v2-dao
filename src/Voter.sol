@@ -139,15 +139,6 @@ contract Voter {
         delete poolVote[_tokenId];
     }
 
-    function claimMana(uint256 _tokenId, uint256 _amount) external lock {
-        require(
-            IVotingEscrow(veALCX).unclaimedManaBalance(_tokenId) >= _amount,
-            "amount greater than claimable balance"
-        );
-        IVotingEscrow(veALCX).claimMana(_tokenId, _amount);
-        IManaToken(MANA).mint(IVotingEscrow(veALCX).ownerOf(_tokenId), _amount);
-    }
-
     // TODO determine if we need poke
     function poke(uint256 _tokenId, uint256 _boost) external {
         require(IVotingEscrow(veALCX).unclaimedManaBalance(_tokenId) >= _boost, "insufficient unclaimed MANA balance");

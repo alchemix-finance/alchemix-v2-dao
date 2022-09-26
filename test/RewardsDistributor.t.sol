@@ -9,7 +9,6 @@ import "./BaseTest.sol";
 /// @dev asserts are (actual, expected)
 contract RewardsDistributorTest is BaseTest {
     address holder = 0x000000000000000000000000000000000000dEaD;
-    VotingEscrow veALCX;
     RewardsDistributor distributor;
 
     uint256 depositAmount = 999 ether;
@@ -17,7 +16,6 @@ contract RewardsDistributorTest is BaseTest {
 
     /// @dev Deploy the contract
     function setUp() public {
-        veALCX = new VotingEscrow(address(alcx), address(MANA));
         distributor = new RewardsDistributor(address(veALCX));
     }
 

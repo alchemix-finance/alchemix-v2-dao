@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.15;
 
 interface IVotingEscrow {
@@ -50,9 +51,9 @@ interface IVotingEscrow {
 
     function claimableMana(uint256 tokenId) external view returns (uint256);
 
-    function unclaimedManaBalance(uint256 tokenId) external view returns (uint256);
-
     function accrueUnclaimedMana(uint256 tokenId) external;
+
+    function unclaimedManaBalance(uint256 tokenId) external view returns (uint256);
 
     function boostMana(uint256 tokenId, uint256 amount) external;
 

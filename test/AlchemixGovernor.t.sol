@@ -3,7 +3,6 @@ pragma solidity ^0.8.15;
 import "./BaseTest.sol";
 
 contract AlchemixGovernorTest is BaseTest {
-    VotingEscrow veALCX;
     Voter voter;
     GaugeFactory gaugeFactory;
     BribeFactory bribeFactory;
@@ -18,10 +17,10 @@ contract AlchemixGovernorTest is BaseTest {
         mintAlcx(admin, 2e25);
         mintAlcx(address(0xbeef), 1e25);
         mintAlcx(address(0xdead), 1e25);
+        veALCX.setVoter(admin);
 
         hevm.startPrank(admin);
 
-        veALCX = new VotingEscrow(address(alcx), address(MANA));
         alcx.approve(address(veALCX), 97 * TOKEN_1);
         veALCX.createLock(97 * TOKEN_1, 4 * 365 * 86400);
         hevm.roll(block.number + 1);
