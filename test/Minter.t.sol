@@ -20,6 +20,8 @@ contract MinterTest is BaseTest {
 
         hevm.startPrank(admin);
 
+        ManaToken(MANA).setMinter(address(veALCX));
+
         gaugeFactory = new GaugeFactory();
         bribeFactory = new BribeFactory();
         voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory), address(MANA));
