@@ -1151,19 +1151,19 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         tokenToUnclaimedMana[_tokenId] += amount;
     }
 
-    function unclaimedManaBalance(uint256 _tokenId) external view returns (uint256) {
+    function unclaimedManaBalance(uint256 _tokenId) public view returns (uint256) {
         return tokenToUnclaimedMana[_tokenId];
     }
 
     function boostMana(uint256 _tokenId, uint256 _amount) external {
         require(msg.sender == voter);
-        require(claimableMana(_tokenId) >= _amount, "amount greater than claimable balance");
+        require(unclaimedManaBalance(_tokenId) >= _amount, "amount greater than unclaimed balance");
 
         tokenToUnclaimedMana[_tokenId] -= _amount;
     }
 
     function claimMana(uint256 _tokenId, uint256 _amount) external {
-        require(claimableMana(_tokenId) >= _amount, "amount greater than claimable balance");
+        require(unclaimedManaBalance(_tokenId) >= _amount, "amount greater than unclaimed balance");
 
         tokenToUnclaimedMana[_tokenId] -= _amount;
 

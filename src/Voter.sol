@@ -154,6 +154,10 @@ contract Voter {
         _vote(_tokenId, _poolVote, _weights, _boost);
     }
 
+    function getUsedWeights(uint256 _tokenId) public view returns (uint256) {
+        return usedWeights[_tokenId];
+    }
+
     function _vote(
         uint256 _tokenId,
         address[] memory _poolVote,
@@ -197,6 +201,9 @@ contract Voter {
 
         // Adjust amount of claimable mana
         if (_boost > 0) IVotingEscrow(veALCX).boostMana(_tokenId, _boost);
+
+        // Accrue MANA for the epoch
+        IVotingEscrow(veALCX).accrueUnclaimedMana(_tokenId);
     }
 
     function vote(
@@ -306,7 +313,9 @@ contract Voter {
 
     function notifyRewardAmount(uint256 amount) external {
         _safeTransferFrom(base, msg.sender, address(this), amount); // transfer the distro in
-        uint256 _ratio = (amount * 1e18) / totalWeight; // 1e18 adjustment is removed during claim
+
+        // Handle case if totalWeight is 0
+        uint256 _ratio = totalWeight > 0 ? (amount * 1e18) / totalWeight : (amount * 1e18); // 1e18 adjustment is removed during claim
         if (_ratio > 0) {
             index += _ratio;
         }
