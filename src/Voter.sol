@@ -111,7 +111,7 @@ contract Voter {
         lastVoted[_tokenId] = block.timestamp;
         _reset(_tokenId);
         IVotingEscrow(veALCX).abstain(_tokenId);
-        IVotingEscrow(veALCX).accrueUnclaimedMana(_tokenId);
+        IVotingEscrow(veALCX).claimMana(_tokenId, IVotingEscrow(veALCX).claimableMana(_tokenId));
     }
 
     function _reset(uint256 _tokenId) internal {
@@ -139,9 +139,8 @@ contract Voter {
         delete poolVote[_tokenId];
     }
 
-    // TODO determine if we need poke
     function poke(uint256 _tokenId, uint256 _boost) external {
-        require(IVotingEscrow(veALCX).unclaimedManaBalance(_tokenId) >= _boost, "insufficient unclaimed MANA balance");
+        require(IVotingEscrow(veALCX).claimableMana(_tokenId) >= _boost, "insufficient claimable MANA balance");
 
         address[] memory _poolVote = poolVote[_tokenId];
         uint256 _poolCnt = _poolVote.length;
@@ -152,10 +151,6 @@ contract Voter {
         }
 
         _vote(_tokenId, _poolVote, _weights, _boost);
-    }
-
-    function getUsedWeights(uint256 _tokenId) public view returns (uint256) {
-        return usedWeights[_tokenId];
     }
 
     function _vote(
@@ -199,11 +194,9 @@ contract Voter {
         totalWeight += uint256(_totalWeight);
         usedWeights[_tokenId] = uint256(_usedWeight);
 
-        // Adjust amount of claimable mana
-        if (_boost > 0) IVotingEscrow(veALCX).boostMana(_tokenId, _boost);
-
-        // Accrue MANA for the epoch
-        IVotingEscrow(veALCX).accrueUnclaimedMana(_tokenId);
+        // Claim any mana not used for vote boost
+        if (IVotingEscrow(veALCX).claimableMana(_tokenId) > _boost)
+            IVotingEscrow(veALCX).claimMana(_tokenId, IVotingEscrow(veALCX).claimableMana(_tokenId) - _boost);
     }
 
     function vote(
@@ -214,7 +207,7 @@ contract Voter {
     ) external onlyNewEpoch(_tokenId) {
         require(IVotingEscrow(veALCX).isApprovedOrOwner(msg.sender, _tokenId));
         require(_poolVote.length == _weights.length);
-        require(IVotingEscrow(veALCX).unclaimedManaBalance(_tokenId) >= _boost, "insufficient unclaimed MANA balance");
+        require(IVotingEscrow(veALCX).claimableMana(_tokenId) >= _boost, "insufficient claimable MANA balance");
 
         lastVoted[_tokenId] = block.timestamp;
         _vote(_tokenId, _poolVote, _weights, _boost);

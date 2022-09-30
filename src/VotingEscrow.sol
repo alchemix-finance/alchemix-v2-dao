@@ -107,7 +107,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     mapping(uint256 => uint256) internal tokenToOwnerIndex;
 
     /// @dev Mapping from NFT ID to amount of unclaimed MANA
-    mapping(uint256 => uint256) internal tokenToUnclaimedMana;
+    // mapping(uint256 => uint256) internal tokenToUnclaimedMana;
 
     /// @dev Mapping from owner address to mapping of operator addresses.
     mapping(address => mapping(address => bool)) internal ownerToOperators;
@@ -1145,27 +1145,9 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         return votingPower * manaMultiplier;
     }
 
-    function accrueUnclaimedMana(uint256 _tokenId) external {
-        require(msg.sender == voter);
-        uint256 amount = claimableMana(_tokenId);
-        tokenToUnclaimedMana[_tokenId] += amount;
-    }
-
-    function unclaimedManaBalance(uint256 _tokenId) public view returns (uint256) {
-        return tokenToUnclaimedMana[_tokenId];
-    }
-
-    function boostMana(uint256 _tokenId, uint256 _amount) external {
-        require(msg.sender == voter);
-        require(unclaimedManaBalance(_tokenId) >= _amount, "amount greater than unclaimed balance");
-
-        tokenToUnclaimedMana[_tokenId] -= _amount;
-    }
-
     function claimMana(uint256 _tokenId, uint256 _amount) external {
-        require(unclaimedManaBalance(_tokenId) >= _amount, "amount greater than unclaimed balance");
-
-        tokenToUnclaimedMana[_tokenId] -= _amount;
+        require(msg.sender == voter);
+        require(claimableMana(_tokenId) >= _amount, "amount greater than unclaimed balance");
 
         // MANA is minted to the veALCX owner's address
         IManaToken(MANA).mint(ownerOf(_tokenId), _amount);

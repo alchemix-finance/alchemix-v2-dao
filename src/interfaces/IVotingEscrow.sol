@@ -51,12 +51,6 @@ interface IVotingEscrow {
 
     function claimableMana(uint256 tokenId) external view returns (uint256);
 
-    function accrueUnclaimedMana(uint256 tokenId) external;
-
-    function unclaimedManaBalance(uint256 tokenId) external view returns (uint256);
-
-    function boostMana(uint256 tokenId, uint256 amount) external;
-
     function claimMana(uint256 tokenId, uint256 amount) external;
 
     function totalSupply() external view returns (uint256);
