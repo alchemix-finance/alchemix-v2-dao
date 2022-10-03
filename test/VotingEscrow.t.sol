@@ -4,13 +4,10 @@ pragma solidity ^0.8.15;
 import "./BaseTest.sol";
 
 contract VotingEscrowTest is BaseTest {
-    VotingEscrow veALCX;
     uint256 lockDuration = 1 weeks;
     uint256 depositAmount = 1e21;
 
     function setUp() public {
-        veALCX = new VotingEscrow(address(alcx));
-
         mintAlcx(account, depositAmount);
         approveAmount(account, address(veALCX), depositAmount);
     }

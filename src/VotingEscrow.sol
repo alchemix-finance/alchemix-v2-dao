@@ -6,6 +6,7 @@ import { IVotes } from "openzeppelin-contracts/contracts/governance/utils/IVotes
 import { IERC721Receiver } from "openzeppelin-contracts/contracts/token/ERC721/IERC721Receiver.sol";
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { IVotingEscrow } from "src/interfaces/IVotingEscrow.sol";
+import { IManaToken } from "./interfaces/IManaToken.sol";
 
 import { Base64 } from "src/libraries/Base64.sol";
 
@@ -62,6 +63,11 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
     address public immutable token;
     uint256 public supply;
+
+    address public MANA;
+    uint256 public manaMultiplier;
+    address public admin; // the timelock executor
+
     mapping(uint256 => LockedBalance) public locked;
 
     mapping(uint256 => uint256) public ownershipChange;
@@ -99,6 +105,9 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
     /// @dev Mapping from NFT ID to index of owner
     mapping(uint256 => uint256) internal tokenToOwnerIndex;
+
+    /// @dev Mapping from NFT ID to amount of unclaimed MANA
+    // mapping(uint256 => uint256) internal tokenToUnclaimedMana;
 
     /// @dev Mapping from owner address to mapping of operator addresses.
     mapping(address => mapping(address => bool)) internal ownerToOperators;
@@ -149,9 +158,12 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
     /// @notice Contract constructor
     /// @param _token `ALCX` token address
-    constructor(address _token) {
+    constructor(address _token, address _mana) {
         token = _token;
         voter = msg.sender;
+        admin = msg.sender;
+        MANA = _mana;
+        manaMultiplier = 10; // 10 bps = 0.01%
 
         pointHistory[0].blk = block.number;
         pointHistory[0].ts = block.timestamp;
@@ -894,7 +906,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     }
 
     function setVoter(address _voter) external {
-        require(msg.sender == voter);
+        require(msg.sender == voter, "not voter");
         voter = _voter;
     }
 
@@ -916,6 +928,16 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     function detach(uint256 _tokenId) external {
         require(msg.sender == voter);
         attachments[_tokenId] = attachments[_tokenId] - 1;
+    }
+
+    function setManaMultiplier(uint256 _manaMultiplier) external {
+        require(msg.sender == admin, "not admin");
+        manaMultiplier = _manaMultiplier;
+    }
+
+    function setAdmin(address _admin) external {
+        require(msg.sender == admin, "not admin");
+        admin = _admin;
     }
 
     function merge(uint256 _from, uint256 _to) external {
@@ -1116,6 +1138,19 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
     function balanceOfNFTAt(uint256 _tokenId, uint256 _time) external view returns (uint256) {
         return _balanceOfNFT(_tokenId, _time);
+    }
+
+    function claimableMana(uint256 _tokenId) public view returns (uint256) {
+        uint256 votingPower = _balanceOfNFT(_tokenId, block.timestamp);
+        return votingPower * manaMultiplier;
+    }
+
+    function claimMana(uint256 _tokenId, uint256 _amount) external {
+        require(msg.sender == voter);
+        require(claimableMana(_tokenId) >= _amount, "amount greater than unclaimed balance");
+
+        // MANA is minted to the veALCX owner's address
+        IManaToken(MANA).mint(ownerOf(_tokenId), _amount);
     }
 
     /// @notice Measure voting power of `_tokenId` at block height `_block`

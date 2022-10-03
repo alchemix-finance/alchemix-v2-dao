@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.15;
 
 interface IVotingEscrow {
@@ -46,7 +47,11 @@ interface IVotingEscrow {
         address
     ) external returns (uint256);
 
-    function balanceOfNFT(uint256) external view returns (uint256);
+    function balanceOfNFT(uint256 tokenId) external view returns (uint256);
+
+    function claimableMana(uint256 tokenId) external view returns (uint256);
+
+    function claimMana(uint256 tokenId, uint256 amount) external;
 
     function totalSupply() external view returns (uint256);
 }

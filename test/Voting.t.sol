@@ -4,7 +4,6 @@ pragma solidity ^0.8.15;
 import "./BaseTest.sol";
 
 contract VotingTest is BaseTest {
-    VotingEscrow veALCX;
     Voter voter;
     GaugeFactory gaugeFactory;
     BribeFactory bribeFactory;
@@ -16,13 +15,15 @@ contract VotingTest is BaseTest {
 
     function setUp() public {
         mintAlcx(admin, TOKEN_1);
+        veALCX.setVoter(admin);
 
         hevm.startPrank(admin);
 
-        veALCX = new VotingEscrow(address(alcx));
+        ManaToken(MANA).setMinter(address(veALCX));
+
         gaugeFactory = new GaugeFactory();
         bribeFactory = new BribeFactory();
-        voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory));
+        voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory), address(MANA));
 
         address[] memory tokens = new address[](1);
         tokens[0] = address(alcx);
@@ -55,12 +56,6 @@ contract VotingTest is BaseTest {
         assertGt(veALCX.balanceOfNFT(1), 995063075414519385);
         assertEq(alcx.balanceOf(address(veALCX)), TOKEN_1);
 
-        address[] memory pools = new address[](1);
-        pools[0] = alETHPool;
-        uint256[] memory weights = new uint256[](1);
-        weights[0] = 5000;
-        voter.vote(1, pools, weights);
-
         minter.initialize();
 
         assertEq(veALCX.ownerOf(1), admin);
@@ -68,7 +63,7 @@ contract VotingTest is BaseTest {
         hevm.roll(block.number + 1);
 
         // TODO once we determine how to distribute rewards, add tests
-        // to check veALCX holder balances increasing over an epoch
+        // to check veALCX holder ALCX balances increasing over an epoch
         uint256 before = alcx.balanceOf(address(minter));
         assertEq(before, 0);
 
@@ -93,7 +88,7 @@ contract VotingTest is BaseTest {
         pools[0] = alETHPool;
         uint256[] memory weights = new uint256[](1);
         weights[0] = 5000;
-        voter.vote(1, pools, weights);
+        voter.vote(1, pools, weights, 0);
 
         // Move forward half epoch relative to period
         hevm.warp(period + 1 weeks / 2);
@@ -101,7 +96,7 @@ contract VotingTest is BaseTest {
         // Voting again fails
         pools[0] = alUSDPool;
         hevm.expectRevert(abi.encodePacked("TOKEN_ALREADY_VOTED_THIS_EPOCH"));
-        voter.vote(1, pools, weights);
+        voter.vote(1, pools, weights, 0);
 
         // Resetting fails
         hevm.expectRevert(abi.encodePacked("TOKEN_ALREADY_VOTED_THIS_EPOCH"));
@@ -120,20 +115,88 @@ contract VotingTest is BaseTest {
         uint256[] memory weights = new uint256[](1);
         weights[0] = 5000;
 
-        voter.vote(1, pools, weights);
+        voter.vote(1, pools, weights, 0);
 
         // Next epoch
         hevm.warp(block.timestamp + 1 weeks);
 
         // New vote succeeds
         pools[0] = alUSDPool;
-        voter.vote(1, pools, weights);
+        voter.vote(1, pools, weights, 0);
 
         // Next epoch
         hevm.warp(block.timestamp + 1 weeks);
 
         // Resetting succeeds
         voter.reset(1);
+
+        hevm.stopPrank();
+    }
+
+    // veALCX holders should be able to claim their unclaimed mana
+    function testClaimMana() public {
+        hevm.startPrank(admin);
+
+        uint256 claimedBalance = MANA.balanceOf(admin);
+
+        assertEq(claimedBalance, 0);
+
+        voter.reset(1);
+
+        claimedBalance = MANA.balanceOf(admin);
+
+        // Claimed balance is equal to the amount able to be claimed
+        assertEq(claimedBalance, veALCX.claimableMana(1));
+
+        hevm.stopPrank();
+    }
+
+    // veALCX holders can boost their vote with unclaimed MANA
+    function testBoostVoteWithMana() public {
+        hevm.startPrank(admin);
+
+        hevm.warp(block.timestamp + 1 weeks);
+
+        address[] memory pools = new address[](1);
+        pools[0] = alETHPool;
+        uint256[] memory weights = new uint256[](1);
+        weights[0] = 5000;
+
+        uint256 claimableMana = veALCX.claimableMana(1);
+        uint256 votingWeight = veALCX.balanceOfNFT(1);
+
+        // Vote with half of claimable MANA
+        voter.vote(1, pools, weights, claimableMana / 2);
+
+        // Get weight used from boosting with MANA
+        uint256 usedWeight = voter.usedWeights(1);
+
+        // Used weight should be greater when boosting with unused MANA
+        assertGt(usedWeight, votingWeight);
+
+        uint256 manaBalance = MANA.balanceOf(admin);
+        // MANA balance should be remainaing MANA not used to boost
+        assertEq(manaBalance, claimableMana / 2);
+
+        hevm.stopPrank();
+    }
+
+    // Votes cannot be boosted with insufficient claimable MANA balance
+    function testCannotBoostVote() public {
+        hevm.startPrank(admin);
+
+        hevm.warp(block.timestamp + 1 weeks);
+
+        address[] memory pools = new address[](1);
+        pools[0] = alETHPool;
+        uint256[] memory weights = new uint256[](1);
+        weights[0] = 5000;
+
+        uint256 claimableMana = veALCX.claimableMana(1);
+
+        // Vote with insufficient claimable MANA balance
+        hevm.expectRevert(abi.encodePacked("insufficient claimable MANA balance"));
+        voter.vote(1, pools, weights, claimableMana + 1);
 
         hevm.stopPrank();
     }

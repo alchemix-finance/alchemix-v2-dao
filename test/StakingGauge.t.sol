@@ -4,7 +4,6 @@ pragma solidity ^0.8.15;
 import "./BaseTest.sol";
 
 contract StakingGaugeTest is BaseTest {
-    VotingEscrow veALCX;
     GaugeFactory gaugeFactory;
     BribeFactory bribeFactory;
     Voter voter;
@@ -15,13 +14,13 @@ contract StakingGaugeTest is BaseTest {
 
     function setUp() public {
         mintAlcx(admin, 1e25);
+        veALCX.setVoter(admin);
 
         hevm.startPrank(admin);
 
-        veALCX = new VotingEscrow(address(alcx));
         gaugeFactory = new GaugeFactory();
         bribeFactory = new BribeFactory();
-        voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory));
+        voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory), address(MANA));
 
         alcx.approve(address(veALCX), 2e25);
         veALCX.createLock(TOKEN_1, 4 * 365 * 86400);
