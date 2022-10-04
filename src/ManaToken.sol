@@ -37,12 +37,14 @@ contract ManaToken is ERC20("Mana", "MANA") {
         _mint(_recipient, _amount);
     }
 
-    /**
-     * @dev Destroys `amount` tokens from the caller.
-     *
-     * See {ERC20-_burn}.
-     */
-    function burn(uint256 amount) public virtual {
-        _burn(_msgSender(), amount);
+    /// @dev Burns `amount` tokens from `account`, deducting from the caller's allowance.
+    ///
+    /// @param _account The address the burn tokens from.
+    /// @param _amount  The amount of tokens to burn.
+    function burnFrom(address _account, uint256 _amount) external {
+        uint256 newAllowance = allowance(_account, msg.sender) - _amount;
+
+        _approve(_account, msg.sender, newAllowance);
+        _burn(_account, _amount);
     }
 }
