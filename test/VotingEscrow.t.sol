@@ -122,16 +122,26 @@ contract VotingEscrowTest is BaseTest {
 
         uint256 tokenId = veALCX.createLock(depositAmount, lockDuration);
 
+        // Show that veALCX is not expired
+        hevm.expectRevert(abi.encodePacked("The lock didn't expire"));
+        veALCX.withdraw(tokenId);
+
+        // Account doesn't have enough MANA
+        hevm.expectRevert(abi.encodePacked("insufficient MANA balance"));
+        veALCX.ragequit(tokenId, 1e21);
+
         hevm.stopPrank();
 
+        uint256 ragequitAmount = veALCX.amountToRagequit(tokenId);
+
         // Mint the necessary amount of MANA to ragequit
-        mintMana(account, veALCX.balanceOfNFT(tokenId));
+        mintMana(account, ragequitAmount);
 
         hevm.startPrank(account);
 
-        hevm.expectRevert(abi.encodePacked("The lock didn't expire"));
-
-        veALCX.withdraw(tokenId);
+        // Revert if amount of MANA provided is not enough to ragequit
+        hevm.expectRevert(abi.encodePacked("not enough MANA to unlock"));
+        veALCX.ragequit(tokenId, 100);
 
         veALCX.ragequit(tokenId, MANA.balanceOf(account));
 

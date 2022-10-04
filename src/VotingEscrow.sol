@@ -1100,6 +1100,11 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         emit Ragequit(msg.sender, _tokenId, block.timestamp);
     }
 
+    // Amount of MANA required to ragequit for a given token
+    function amountToRagequit(uint256 _tokenId) public view returns (uint256) {
+        return _balanceOfNFT(_tokenId, block.timestamp) / MANA_UNLOCK;
+    }
+
     // The following ERC20/minime-compatible methods are not real balanceOf and supply!
     // They measure the weights for the purpose of voting, so they don't represent
     // real coins.
