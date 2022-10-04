@@ -10,6 +10,8 @@ import { IManaToken } from "./interfaces/IManaToken.sol";
 
 import { Base64 } from "src/libraries/Base64.sol";
 
+import "forge-std/console2.sol";
+
 /// @title Voting Escrow
 /// @notice veNFT implementation that escrows ERC-20 tokens in the form of an ERC-721 NFT
 /// @notice Votes have a weight depending on time, so that users are committed to the future of (whatever they are voting for)
@@ -55,6 +57,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     );
     event Withdraw(address indexed provider, uint256 tokenId, uint256 value, uint256 ts);
     event Supply(uint256 prevSupply, uint256 supply);
+    event Ragequit(address indexed provider, uint256 tokenId, uint256 ts);
 
     uint256 internal constant WEEK = 1 weeks;
     uint256 internal constant MAXTIME = 4 * 365 days;
@@ -66,6 +69,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
     address public MANA;
     uint256 public manaMultiplier;
+    uint256 public MANA_UNLOCK;
     address public admin; // the timelock executor
 
     mapping(uint256 => LockedBalance) public locked;
@@ -164,6 +168,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         admin = msg.sender;
         MANA = _mana;
         manaMultiplier = 10; // 10 bps = 0.01%
+        MANA_UNLOCK = 5; // determine initial value
 
         pointHistory[0].blk = block.number;
         pointHistory[0].ts = block.timestamp;
@@ -940,6 +945,11 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         admin = _admin;
     }
 
+    function setManaUnlock(uint256 _amount) external {
+        require(msg.sender == admin, "not admin");
+        MANA_UNLOCK = _amount;
+    }
+
     function merge(uint256 _from, uint256 _to) external {
         require(attachments[_from] == 0 && !voted[_from], "attached");
         require(_from != _to);
@@ -1050,7 +1060,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
     /// @notice Withdraw all tokens for `_tokenId`
     /// @dev Only possible if the lock has expired
-    function withdraw(uint256 _tokenId) external nonreentrant {
+    function withdraw(uint256 _tokenId) public nonreentrant {
         require(_isApprovedOrOwner(msg.sender, _tokenId));
         require(attachments[_tokenId] == 0 && !voted[_tokenId], "attached");
 
@@ -1074,6 +1084,20 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
         emit Withdraw(msg.sender, _tokenId, value, block.timestamp);
         emit Supply(supplyBefore, supplyBefore - value);
+    }
+
+    function ragequit(uint256 _tokenId, uint256 _amount) external {
+        require(_isApprovedOrOwner(msg.sender, _tokenId));
+        require(IManaToken(MANA).balanceOf(msg.sender) >= _amount, "insufficient MANA balance");
+        require((_balanceOfNFT(_tokenId, block.timestamp) / _amount) <= MANA_UNLOCK, "not enough MANA to unlock");
+
+        IManaToken(MANA).burn(msg.sender, _amount);
+
+        locked[_tokenId].end = 0;
+
+        withdraw(_tokenId);
+
+        emit Ragequit(msg.sender, _tokenId, block.timestamp);
     }
 
     // The following ERC20/minime-compatible methods are not real balanceOf and supply!

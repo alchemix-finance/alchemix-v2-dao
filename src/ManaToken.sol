@@ -42,7 +42,7 @@ contract ManaToken is ERC20("Mana", "MANA") {
      *
      * See {ERC20-_burn}.
      */
-    function burn(uint256 amount) public virtual {
-        _burn(_msgSender(), amount);
+    function burn(address _address, uint256 _amount) public virtual {
+        _burn(_address, _amount);
     }
 }

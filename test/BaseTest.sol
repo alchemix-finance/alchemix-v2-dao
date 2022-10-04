@@ -52,6 +52,14 @@ abstract contract BaseTest is DSTestPlus {
         hevm.stopPrank();
     }
 
+    function mintMana(address _account, uint256 _amount) public {
+        hevm.startPrank(admin);
+
+        MANA.mint(_account, _amount);
+
+        hevm.stopPrank();
+    }
+
     function approveAmount(
         address _account,
         address _spender,

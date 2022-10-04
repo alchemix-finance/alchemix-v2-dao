@@ -116,4 +116,31 @@ contract VotingEscrowTest is BaseTest {
         bytes4 ERC721_FAKE = 0x780e9d61;
         assertFalse(veALCX.supportsInterface(ERC721_FAKE));
     }
+
+    function testRagequit() public {
+        hevm.startPrank(account);
+
+        uint256 tokenId = veALCX.createLock(depositAmount, lockDuration);
+
+        hevm.stopPrank();
+
+        // Mint the necessary amount of MANA to ragequit
+        mintMana(account, veALCX.balanceOfNFT(tokenId));
+
+        hevm.startPrank(account);
+
+        hevm.expectRevert(abi.encodePacked("The lock didn't expire"));
+
+        veALCX.withdraw(tokenId);
+
+        veALCX.ragequit(tokenId, MANA.balanceOf(account));
+
+        assertEq(alcx.balanceOf(address(account)), 1e21);
+
+        // Check that the NFT is burnt
+        assertEq(veALCX.balanceOfNFT(tokenId), 0);
+        assertEq(veALCX.ownerOf(tokenId), address(0));
+
+        hevm.stopPrank();
+    }
 }
