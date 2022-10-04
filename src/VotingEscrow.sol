@@ -10,8 +10,6 @@ import { IManaToken } from "./interfaces/IManaToken.sol";
 
 import { Base64 } from "src/libraries/Base64.sol";
 
-import "forge-std/console2.sol";
-
 /// @title Voting Escrow
 /// @notice veNFT implementation that escrows ERC-20 tokens in the form of an ERC-721 NFT
 /// @notice Votes have a weight depending on time, so that users are committed to the future of (whatever they are voting for)
@@ -69,7 +67,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
     address public MANA;
     uint256 public manaMultiplier;
-    uint256 public MANA_PER_VEALCX;
+    uint256 public manaPerVeALCX;
     address public admin; // the timelock executor
 
     mapping(uint256 => LockedBalance) public locked;
@@ -168,7 +166,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         admin = msg.sender;
         MANA = _mana;
         manaMultiplier = 10; // 10 bps = 0.01%
-        MANA_PER_VEALCX = 1e18; // determine initial value
+        manaPerVeALCX = 1e18; // determine initial value
 
         pointHistory[0].blk = block.number;
         pointHistory[0].ts = block.timestamp;
@@ -945,9 +943,9 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         admin = _admin;
     }
 
-    function setManaUnlock(uint256 _amount) external {
+    function setManaPerVeALCX(uint256 _manaPerVeALCX) external {
         require(msg.sender == admin, "not admin");
-        MANA_PER_VEALCX = _amount;
+        manaPerVeALCX = _manaPerVeALCX;
     }
 
     function merge(uint256 _from, uint256 _to) external {
@@ -1086,14 +1084,16 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         emit Supply(supplyBefore, supplyBefore - value);
     }
 
-    function ragequit(uint256 _tokenId, uint256 _amount) external {
+    function ragequit(uint256 _tokenId) external {
         require(_isApprovedOrOwner(msg.sender, _tokenId));
-        require(IManaToken(MANA).balanceOf(msg.sender) >= _amount, "insufficient MANA balance");
-        require((_balanceOfNFT(_tokenId, block.timestamp) * _amount) >= MANA_PER_VEALCX, "not enough MANA to unlock");
+
+        uint256 manaToRagequit = amountToRagequit(_tokenId);
+
+        require(IManaToken(MANA).balanceOf(msg.sender) >= manaToRagequit, "insufficient MANA balance");
 
         locked[_tokenId].end = 0;
 
-        IManaToken(MANA).burnFrom(msg.sender, _amount);
+        IManaToken(MANA).burnFrom(msg.sender, manaToRagequit);
 
         withdraw(_tokenId);
 
@@ -1102,7 +1102,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
     // Amount of MANA required to ragequit for a given token
     function amountToRagequit(uint256 _tokenId) public view returns (uint256) {
-        return _balanceOfNFT(_tokenId, block.timestamp) * MANA_PER_VEALCX;
+        return _balanceOfNFT(_tokenId, block.timestamp) * manaPerVeALCX;
     }
 
     // The following ERC20/minime-compatible methods are not real balanceOf and supply!
