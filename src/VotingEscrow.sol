@@ -69,7 +69,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
     address public MANA;
     uint256 public manaMultiplier;
-    uint256 public MANA_UNLOCK;
+    uint256 public MANA_PER_VEALCX;
     address public admin; // the timelock executor
 
     mapping(uint256 => LockedBalance) public locked;
@@ -168,7 +168,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         admin = msg.sender;
         MANA = _mana;
         manaMultiplier = 10; // 10 bps = 0.01%
-        MANA_UNLOCK = 5; // determine initial value
+        MANA_PER_VEALCX = 1e18; // determine initial value
 
         pointHistory[0].blk = block.number;
         pointHistory[0].ts = block.timestamp;
@@ -947,7 +947,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
     function setManaUnlock(uint256 _amount) external {
         require(msg.sender == admin, "not admin");
-        MANA_UNLOCK = _amount;
+        MANA_PER_VEALCX = _amount;
     }
 
     function merge(uint256 _from, uint256 _to) external {
@@ -1089,11 +1089,11 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     function ragequit(uint256 _tokenId, uint256 _amount) external {
         require(_isApprovedOrOwner(msg.sender, _tokenId));
         require(IManaToken(MANA).balanceOf(msg.sender) >= _amount, "insufficient MANA balance");
-        require((_balanceOfNFT(_tokenId, block.timestamp) / _amount) <= MANA_UNLOCK, "not enough MANA to unlock");
-
-        IManaToken(MANA).burn(msg.sender, _amount);
+        require((_balanceOfNFT(_tokenId, block.timestamp) * _amount) >= MANA_PER_VEALCX, "not enough MANA to unlock");
 
         locked[_tokenId].end = 0;
+
+        IManaToken(MANA).burnFrom(msg.sender, _amount);
 
         withdraw(_tokenId);
 
@@ -1102,7 +1102,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
     // Amount of MANA required to ragequit for a given token
     function amountToRagequit(uint256 _tokenId) public view returns (uint256) {
-        return _balanceOfNFT(_tokenId, block.timestamp) / MANA_UNLOCK;
+        return _balanceOfNFT(_tokenId, block.timestamp) * MANA_PER_VEALCX;
     }
 
     // The following ERC20/minime-compatible methods are not real balanceOf and supply!

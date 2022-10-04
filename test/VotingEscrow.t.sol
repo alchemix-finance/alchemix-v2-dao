@@ -141,9 +141,11 @@ contract VotingEscrowTest is BaseTest {
 
         // Revert if amount of MANA provided is not enough to ragequit
         hevm.expectRevert(abi.encodePacked("not enough MANA to unlock"));
-        veALCX.ragequit(tokenId, 100);
+        veALCX.ragequit(tokenId, 1);
 
-        veALCX.ragequit(tokenId, MANA.balanceOf(account));
+        MANA.approve(address(veALCX), ragequitAmount);
+
+        veALCX.ragequit(tokenId, ragequitAmount);
 
         assertEq(alcx.balanceOf(address(account)), 1e21);
 
