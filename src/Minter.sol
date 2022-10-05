@@ -41,6 +41,9 @@ contract Minter is IMinter {
     uint256 public rewards;
     uint256 public supply;
 
+    // bps of emissions going to veALCX holders
+    uint256 public veAlcxEmissionsRate;
+
     event Mint(address indexed sender, uint256 epoch, uint256 circulatingSupply, uint256 circulatingEmissions);
 
     constructor(InitializationParams memory params) {
@@ -53,6 +56,7 @@ contract Minter is IMinter {
         ve = IVotingEscrow(params.ve);
         rewardsDistributor = IRewardsDistributor(params.rewardsDistributor);
         activePeriod = ((block.timestamp + WEEK) / WEEK) * WEEK;
+        veAlcxEmissionsRate = 5000; // 50%
     }
 
     // Remove if contract is not upgradeable
@@ -73,6 +77,11 @@ contract Minter is IMinter {
         admin = pendingAdmin;
     }
 
+    function setVeAlcxEmissionsRate(uint256 _veAlcxEmissionsRate) external {
+        require(msg.sender == admin, "not admin");
+        veAlcxEmissionsRate = _veAlcxEmissionsRate;
+    }
+
     // Circulating supply is total token supply - locked supply
     function circulatingAlcxSupply() public view returns (uint256) {
         return alcx.totalSupply() - ve.totalSupply();
@@ -87,12 +96,9 @@ contract Minter is IMinter {
         return supply;
     }
 
-    // TODO determine how to handle distribution of newly minted alcx
-    // Calculate inflation and adjust ve balances accordingly
+    // Governance-defined portion of emissions sent to veALCX stakers
     function calculateGrowth(uint256 _minted) public view returns (uint256) {
-        uint256 veTotal = ve.totalSupply();
-        uint256 alcxTotal = alcx.totalSupply();
-        return (((((_minted * veTotal) / alcxTotal) * veTotal) / alcxTotal) * veTotal) / alcxTotal / 2;
+        return _minted * veAlcxEmissionsRate;
     }
 
     // Update period can only be called once per epoch (1 week)
@@ -105,8 +111,8 @@ contract Minter is IMinter {
             activePeriod = period;
             epochEmissions = epochEmission();
 
-            uint256 growth = calculateGrowth(epochEmissions);
-            uint256 required = growth + epochEmissions;
+            uint256 veAlcxEmissions = calculateGrowth(epochEmissions);
+            uint256 required = veAlcxEmissions + epochEmissions;
             uint256 balanceOf = alcx.balanceOf(address(this));
 
             if (balanceOf < required) {
@@ -125,8 +131,8 @@ contract Minter is IMinter {
             }
 
             // Logic to distrubte minted tokens
-            alcx.approve(address(rewardsDistributor), growth);
-            require(alcx.transfer(address(rewardsDistributor), growth));
+            alcx.approve(address(rewardsDistributor), veAlcxEmissions);
+            require(alcx.transfer(address(rewardsDistributor), veAlcxEmissions));
             rewardsDistributor.checkpointToken(); // Checkpoint token balance that was just minted in rewards distributor
             rewardsDistributor.checkpointTotalSupply(); // Checkpoint supply
 

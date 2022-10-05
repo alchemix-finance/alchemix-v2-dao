@@ -33,6 +33,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     struct LockedBalance {
         int128 amount;
         uint256 end;
+        uint256 emissions;
     }
 
     /* We cannot really do block numbers per se b/c slope is per time, not per block
@@ -108,9 +109,6 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     /// @dev Mapping from NFT ID to index of owner
     mapping(uint256 => uint256) internal tokenToOwnerIndex;
 
-    /// @dev Mapping from NFT ID to amount of unclaimed MANA
-    // mapping(uint256 => uint256) internal tokenToUnclaimedMana;
-
     /// @dev Mapping from owner address to mapping of operator addresses.
     mapping(address => mapping(address => bool)) internal ownerToOperators;
 
@@ -165,7 +163,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         voter = msg.sender;
         admin = msg.sender;
         MANA = _mana;
-        manaMultiplier = 10; // 10 bps = 0.01%
+        manaMultiplier = 10; // 10 bps = 0.1%
         manaPerVeALCX = 1e18; // determine initial value
 
         pointHistory[0].blk = block.number;
@@ -958,16 +956,18 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         LockedBalance memory _locked1 = locked[_to];
         uint256 value0 = uint256(int256(_locked0.amount));
         uint256 end = _locked0.end >= _locked1.end ? _locked0.end : _locked1.end;
+        // Combine emissions earned
+        _locked1.emissions += _locked0.emissions;
 
-        locked[_from] = LockedBalance(0, 0);
-        _checkpoint(_from, _locked0, LockedBalance(0, 0));
+        locked[_from] = LockedBalance(0, 0, 0);
+        _checkpoint(_from, _locked0, LockedBalance(0, 0, 0));
         _burn(_from);
         _depositFor(_to, value0, end, _locked1, DepositType.MERGE_TYPE);
     }
 
     /// @notice Record global data to checkpoint
     function checkpoint() external {
-        _checkpoint(0, LockedBalance(0, 0), LockedBalance(0, 0));
+        _checkpoint(0, LockedBalance(0, 0, 0), LockedBalance(0, 0, 0));
     }
 
     /// @notice Deposit `_value` tokens for `_tokenId` and add to the lock
@@ -1066,14 +1066,14 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         require(block.timestamp >= _locked.end, "The lock didn't expire");
         uint256 value = uint256(int256(_locked.amount));
 
-        locked[_tokenId] = LockedBalance(0, 0);
+        locked[_tokenId] = LockedBalance(0, 0, 0);
         uint256 supplyBefore = supply;
         supply = supplyBefore - value;
 
         // oldLocked can have either expired <= timestamp or zero end
         // _locked has only 0 end
         // Both can have >= 0 amount
-        _checkpoint(_tokenId, _locked, LockedBalance(0, 0));
+        _checkpoint(_tokenId, _locked, LockedBalance(0, 0, 0));
 
         require(IERC20(token).transfer(msg.sender, value));
 

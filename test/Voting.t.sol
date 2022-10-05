@@ -62,7 +62,7 @@ contract VotingTest is BaseTest {
 
         hevm.roll(block.number + 1);
 
-        // TODO once we determine how to distribute rewards, add tests
+        // TODO once we determine how to distribute emissions, add tests
         // to check veALCX holder ALCX balances increasing over an epoch
         uint256 before = alcx.balanceOf(address(minter));
         assertEq(before, 0);
