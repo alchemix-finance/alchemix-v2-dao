@@ -115,9 +115,8 @@ contract Minter is IMinter {
 
             uint256 veAlcxEmissions = calculateGrowth(epochEmissions);
             uint256 balanceOf = alcx.balanceOf(address(this));
-            uint256 mintAmount = epochEmissions - balanceOf;
 
-            if (balanceOf < mintAmount) alcx.mint(address(this), mintAmount);
+            if (balanceOf < epochEmissions) alcx.mint(address(this), epochEmissions - balanceOf);
 
             // Set rewards for next epoch
             rewards -= stepdown;
