@@ -24,6 +24,8 @@ contract Minter is IMinter {
     // Tail emissions rate
     uint256 public constant TAIL_EMISSIONS_RATE = 2194e18;
 
+    uint256 public constant BPS = 10000;
+
     IAlchemixToken public alcx = IAlchemixToken(0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF);
     IVoter public immutable voter;
     IVotingEscrow public immutable ve;
@@ -98,7 +100,7 @@ contract Minter is IMinter {
 
     // Governance-defined portion of emissions sent to veALCX stakers
     function calculateGrowth(uint256 _minted) public view returns (uint256) {
-        return (_minted * veAlcxEmissionsRate) / 10000;
+        return (_minted * veAlcxEmissionsRate) / BPS;
     }
 
     // Update period can only be called once per epoch (1 week)
@@ -113,8 +115,9 @@ contract Minter is IMinter {
 
             uint256 veAlcxEmissions = calculateGrowth(epochEmissions);
             uint256 balanceOf = alcx.balanceOf(address(this));
+            uint256 mintAmount = epochEmissions - balanceOf;
 
-            alcx.mint(address(this), epochEmissions - balanceOf);
+            if (balanceOf < mintAmount) alcx.mint(address(this), mintAmount);
 
             // Set rewards for next epoch
             rewards -= stepdown;
