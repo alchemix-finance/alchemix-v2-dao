@@ -136,7 +136,6 @@ contract Minter is IMinter {
             rewardsDistributor.checkpointToken(); // Checkpoint token balance that was just minted in rewards distributor
             rewardsDistributor.checkpointTotalSupply(); // Checkpoint supply
 
-            // Assuming epoch emissions > veALCX emissions
             alcx.approve(address(voter), epochEmissions - veAlcxEmissions);
             voter.notifyRewardAmount(epochEmissions - veAlcxEmissions);
 
