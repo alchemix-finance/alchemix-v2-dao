@@ -1,22 +1,21 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.15;
 
-import "forge-std/console2.sol";
+import "lib/forge-std/src/console2.sol";
 import { DSTest } from "ds-test/test.sol";
 import { DSTestPlus } from "./utils/DSTestPlus.sol";
 import { VotingEscrow } from "src/VotingEscrow.sol";
 import { AlchemixGovernor } from "src/AlchemixGovernor.sol";
 import { ManaToken } from "src/ManaToken.sol";
-import "src/governance/TimelockExecutor.sol";
 import { Voter } from "src/Voter.sol";
 import { GaugeFactory } from "src/factories/GaugeFactory.sol";
 import { BribeFactory } from "src/factories/BribeFactory.sol";
 import { Minter, InitializationParams } from "src/Minter.sol";
+import { IAlchemixToken } from "src/interfaces/IAlchemixToken.sol";
+import "src/governance/TimelockExecutor.sol";
 import "src/StakingGauge.sol";
 import "src/RewardsDistributor.sol";
 import "src/Bribe.sol";
-import { IAlchemixToken } from "src/interfaces/IAlchemixToken.sol";
-import { IManaToken } from "src/interfaces/IManaToken.sol";
 
 abstract contract BaseTest is DSTestPlus {
     IAlchemixToken public alcx = IAlchemixToken(0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF);
