@@ -79,9 +79,13 @@ contract MinterTest is BaseTest {
         // Mint emissions for epoch
         minter.updatePeriod();
 
+        uint256 distributorBalance = alcx.balanceOf(address(distributor));
+        uint256 voterBalance = alcx.balanceOf(address(voter));
+
         uint256 totalAfterEpoch = minter.circulatingEmissionsSupply();
         emit log_named_uint("emissions after one epoch (ether)", totalAfterEpoch / TOKEN_1);
 
+        assertEq(epochEmissions, voterBalance + distributorBalance);
         assertEq(totalAfterEpoch, currentTotalEmissions + epochEmissions);
     }
 
