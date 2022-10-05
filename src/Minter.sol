@@ -98,7 +98,7 @@ contract Minter is IMinter {
 
     // Governance-defined portion of emissions sent to veALCX stakers
     function calculateGrowth(uint256 _minted) public view returns (uint256) {
-        return _minted * veAlcxEmissionsRate;
+        return (_minted * veAlcxEmissionsRate) / 10000;
     }
 
     // Update period can only be called once per epoch (1 week)
@@ -112,12 +112,9 @@ contract Minter is IMinter {
             epochEmissions = epochEmission();
 
             uint256 veAlcxEmissions = calculateGrowth(epochEmissions);
-            uint256 required = veAlcxEmissions + epochEmissions;
             uint256 balanceOf = alcx.balanceOf(address(this));
 
-            if (balanceOf < required) {
-                alcx.mint(address(this), required - balanceOf);
-            }
+            alcx.mint(address(this), epochEmissions - balanceOf);
 
             // Set rewards for next epoch
             rewards -= stepdown;
@@ -137,8 +134,8 @@ contract Minter is IMinter {
             rewardsDistributor.checkpointTotalSupply(); // Checkpoint supply
 
             // Assuming epoch emissions > veALCX emissions
-            alcx.approve(address(voter), epochEmissions);
-            voter.notifyRewardAmount(epochEmissions);
+            alcx.approve(address(voter), epochEmissions - veAlcxEmissions);
+            voter.notifyRewardAmount(epochEmissions - veAlcxEmissions);
 
             emit Mint(msg.sender, epochEmissions, circulatingAlcxSupply(), circulatingEmissionsSupply());
         }
