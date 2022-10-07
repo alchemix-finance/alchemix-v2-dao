@@ -30,7 +30,7 @@ contract VotingTest is BaseTest {
         voter.initialize(tokens, admin);
 
         alcx.approve(address(veALCX), TOKEN_1);
-        veALCX.createLock(TOKEN_1, 4 * 365 * 86400, false);
+        veALCX.createLock(TOKEN_1, 365 days, false);
 
         uint256 maxVotingPower = getMaxVotingPower(TOKEN_1, veALCX.lockEnd(1));
 
@@ -219,7 +219,7 @@ contract VotingTest is BaseTest {
 
         assertEq(votingPower1, maxVotingPower);
 
-        hevm.warp(block.timestamp + 52 weeks);
+        hevm.warp(block.timestamp + 5 weeks);
 
         minter.updatePeriod();
 
@@ -231,7 +231,7 @@ contract VotingTest is BaseTest {
         // Disable max lock
         veALCX.updateUnlockTime(2, 0, false);
 
-        hevm.warp(block.timestamp + 52 weeks);
+        hevm.warp(block.timestamp + 5 weeks);
 
         uint256 votingPower3 = veALCX.balanceOfNFT(2);
 

@@ -22,14 +22,14 @@ contract AlchemixGovernorTest is BaseTest {
         hevm.startPrank(admin);
 
         alcx.approve(address(veALCX), 97 * TOKEN_1);
-        veALCX.createLock(97 * TOKEN_1, 4 * 365 * 86400, false);
+        veALCX.createLock(97 * TOKEN_1, 365 days, false);
         hevm.roll(block.number + 1);
 
         hevm.stopPrank();
 
         hevm.startPrank(address(0xbeef));
         alcx.approve(address(veALCX), 3 * TOKEN_1);
-        veALCX.createLock(3 * TOKEN_1, 4 * 365 * 86400, false);
+        veALCX.createLock(3 * TOKEN_1, 365 days, false);
         hevm.roll(block.number + 1);
 
         hevm.stopPrank();
@@ -91,7 +91,7 @@ contract AlchemixGovernorTest is BaseTest {
         hevm.startPrank(address(0xdead));
 
         alcx.approve(address(veALCX), 3 * TOKEN_1);
-        veALCX.createLock(3 * TOKEN_1, 4 * 365 * 86400, false);
+        veALCX.createLock(3 * TOKEN_1, 365 days, false);
 
         hevm.roll(block.number + 1);
 
@@ -116,7 +116,7 @@ contract AlchemixGovernorTest is BaseTest {
         assertApproxEq(
             pre2 + pre3,
             post2,
-            4 * 365 * 86400 // merge rounds down time lock
+            365 days // merge rounds down time lock
         );
     }
 

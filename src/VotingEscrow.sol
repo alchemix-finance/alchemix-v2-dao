@@ -13,7 +13,7 @@ import { Base64 } from "src/libraries/Base64.sol";
 /// @title Voting Escrow
 /// @notice veNFT implementation that escrows ERC-20 tokens in the form of an ERC-721 NFT
 /// @notice Votes have a weight depending on time, so that users are committed to the future of (whatever they are voting for)
-/// @dev Vote weight decays linearly over time. Lock time cannot be more than `MAXTIME` (4 years).
+/// @dev Vote weight decays linearly over time. Lock time cannot be more than `MAXTIME` (1 year).
 contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     enum DepositType {
         DEPOSIT_FOR_TYPE,
@@ -60,8 +60,8 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     event Ragequit(address indexed provider, uint256 tokenId, uint256 ts);
 
     uint256 internal constant WEEK = 1 weeks;
-    uint256 internal constant MAXTIME = 4 * 365 days;
-    int128 internal constant iMAXTIME = 4 * 365 days;
+    uint256 internal constant MAXTIME = 365 days;
+    int128 internal constant iMAXTIME = 365 days;
     uint256 internal constant MULTIPLIER = 1 ether;
 
     address public immutable token;
@@ -1023,7 +1023,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
         require(_value > 0); // dev: need non-zero value
         require(unlockTime > block.timestamp, "Can only lock until time in the future");
-        require(unlockTime <= block.timestamp + MAXTIME, "Voting lock can be 4 years max");
+        require(unlockTime <= block.timestamp + MAXTIME, "Voting lock can be 1 year max");
 
         ++tokenId;
         uint256 _tokenId = tokenId;
@@ -1095,7 +1095,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         require(_locked.end > block.timestamp, "Lock expired");
         require(_locked.amount > 0, "Nothing is locked");
         require(unlockTime >= _locked.end, "Can only increase lock duration");
-        require(unlockTime <= block.timestamp + MAXTIME, "Voting lock can be 4 years max");
+        require(unlockTime <= block.timestamp + MAXTIME, "Voting lock can be 1 year max");
 
         _depositFor(_tokenId, 0, unlockTime, _maxLockEnabled, _locked, DepositType.INCREASE_UNLOCK_TIME);
     }

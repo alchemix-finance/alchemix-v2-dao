@@ -12,7 +12,7 @@ contract MinterTest is BaseTest {
 
     uint256 nextEpoch = 86400 * 14;
     uint256 epochsUntilTail = 80;
-    uint256 internal constant LOCK = 86400 * 7 * 52 * 4;
+    uint256 internal constant LOCK = 365 days;
 
     function setUp() public {
         mintAlcx(admin, 1e25);
@@ -31,7 +31,7 @@ contract MinterTest is BaseTest {
         voter.initialize(tokens, admin);
 
         alcx.approve(address(veALCX), 2e25);
-        veALCX.createLock(TOKEN_1, 4 * 365 * 86400, false);
+        veALCX.createLock(TOKEN_1, 365 days, false);
 
         distributor = new RewardsDistributor(address(veALCX));
         veALCX.setVoter(address(voter));

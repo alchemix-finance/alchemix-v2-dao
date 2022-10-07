@@ -6,8 +6,8 @@ import "./BaseTest.sol";
 contract VotingEscrowTest is BaseTest {
     uint256 internal constant ONE_WEEK = 1 weeks;
     uint256 depositAmount = 1e21;
-    uint256 internal constant FOUR_YEARS = 4 * 365 days;
-    uint256 maxDuration = ((block.timestamp + FOUR_YEARS) / ONE_WEEK) * ONE_WEEK;
+    uint256 internal constant ONE_YEAR = 365 days;
+    uint256 maxDuration = ((block.timestamp + ONE_YEAR) / ONE_WEEK) * ONE_WEEK;
 
     function setUp() public {
         mintAlcx(account, depositAmount);
@@ -53,16 +53,16 @@ contract VotingEscrowTest is BaseTest {
         assertEq(lockEnd, maxDuration);
 
         // Now that max lock is disabled lock duration can be set again
-        hevm.expectRevert(abi.encodePacked("Voting lock can be 4 years max"));
+        hevm.expectRevert(abi.encodePacked("Voting lock can be 1 year max"));
 
-        veALCX.updateUnlockTime(1, FOUR_YEARS + ONE_WEEK, false);
+        veALCX.updateUnlockTime(1, ONE_YEAR + ONE_WEEK, false);
 
-        hevm.warp(block.timestamp + 365 days);
+        hevm.warp(block.timestamp + 360 days);
 
         lockEnd = veALCX.lockEnd(1);
 
         // Able to increase lock end now that previous lock end is closer
-        veALCX.updateUnlockTime(1, 4 * 300 days, false);
+        veALCX.updateUnlockTime(1, 300 days, false);
 
         // Updated lock end should be greater than previous lockEnd
         assertGt(veALCX.lockEnd(1), lockEnd);
@@ -74,9 +74,9 @@ contract VotingEscrowTest is BaseTest {
     function testInvalidLock() public {
         hevm.startPrank(account);
 
-        hevm.expectRevert(abi.encodePacked("Voting lock can be 4 years max"));
+        hevm.expectRevert(abi.encodePacked("Voting lock can be 1 year max"));
 
-        veALCX.createLock(depositAmount, ONE_WEEK + FOUR_YEARS, false);
+        veALCX.createLock(depositAmount, ONE_YEAR + ONE_WEEK, false);
 
         hevm.stopPrank();
     }
