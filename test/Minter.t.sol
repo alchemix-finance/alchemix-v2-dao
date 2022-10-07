@@ -31,7 +31,7 @@ contract MinterTest is BaseTest {
         voter.initialize(tokens, admin);
 
         alcx.approve(address(veALCX), 2e25);
-        veALCX.createLock(TOKEN_1, 4 * 365 * 86400);
+        veALCX.createLock(TOKEN_1, 4 * 365 * 86400, false);
 
         distributor = new RewardsDistributor(address(veALCX));
         veALCX.setVoter(address(voter));
@@ -123,7 +123,7 @@ contract MinterTest is BaseTest {
         hevm.startPrank(admin);
 
         for (uint256 i = 0; i < claimants.length; i++) {
-            veALCX.createLockFor(amounts[i], LOCK, claimants[i]);
+            veALCX.createLockFor(amounts[i], LOCK, false, claimants[i]);
         }
 
         assertEq(veALCX.ownerOf(2), admin);

@@ -30,7 +30,7 @@ contract VotingTest is BaseTest {
         voter.initialize(tokens, admin);
 
         alcx.approve(address(veALCX), TOKEN_1);
-        veALCX.createLock(TOKEN_1, 4 * 365 * 86400);
+        veALCX.createLock(TOKEN_1, 4 * 365 * 86400, false);
 
         distributor = new RewardsDistributor(address(veALCX));
         veALCX.setVoter(address(voter));
@@ -197,6 +197,40 @@ contract VotingTest is BaseTest {
         // Vote with insufficient claimable MANA balance
         hevm.expectRevert(abi.encodePacked("insufficient claimable MANA balance"));
         voter.vote(1, pools, weights, claimableMana + 1);
+
+        hevm.stopPrank();
+    }
+
+    // veALCX holder with max lock enabled should have constant max voting power
+    function testMaxLockVotingPower() public {
+        mintAlcx(account, TOKEN_1);
+
+        hevm.startPrank(account);
+
+        alcx.approve(address(veALCX), TOKEN_1);
+        veALCX.createLock(TOKEN_1, 0, true);
+
+        uint256 votingPower1 = veALCX.balanceOfNFT(2);
+
+        assertGt(votingPower1, 995063075414519385);
+
+        hevm.warp(block.timestamp + 52 weeks);
+
+        minter.updatePeriod();
+
+        uint256 votingPower2 = veALCX.balanceOfNFT(2);
+
+        // Voting power should remain the same with max lock enabled
+        assertEq(votingPower1, votingPower2);
+
+        veALCX.updateUnlockTime(2, 0, false);
+
+        hevm.warp(block.timestamp + 52 weeks);
+
+        uint256 votingPower3 = veALCX.balanceOfNFT(2);
+
+        // Disabling max lock should start the voting power decay
+        assertLt(votingPower3, votingPower2);
 
         hevm.stopPrank();
     }
