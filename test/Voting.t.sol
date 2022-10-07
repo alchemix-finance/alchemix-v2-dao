@@ -30,7 +30,9 @@ contract VotingTest is BaseTest {
         voter.initialize(tokens, admin);
 
         alcx.approve(address(veALCX), TOKEN_1);
-        veALCX.createLock(TOKEN_1, 4 * 365 * 86400);
+        veALCX.createLock(TOKEN_1, 365 days, false);
+
+        uint256 maxVotingPower = getMaxVotingPower(TOKEN_1, veALCX.lockEnd(1));
 
         distributor = new RewardsDistributor(address(veALCX));
         veALCX.setVoter(address(voter));
@@ -53,7 +55,8 @@ contract VotingTest is BaseTest {
         voter.createGauge(alETHPool, Voter.GaugeType.Staking);
 
         hevm.roll(block.number + 1);
-        assertGt(veALCX.balanceOfNFT(1), 995063075414519385);
+
+        assertEq(veALCX.balanceOfNFT(1), maxVotingPower);
         assertEq(alcx.balanceOf(address(veALCX)), TOKEN_1);
 
         minter.initialize();
@@ -197,6 +200,43 @@ contract VotingTest is BaseTest {
         // Vote with insufficient claimable MANA balance
         hevm.expectRevert(abi.encodePacked("insufficient claimable MANA balance"));
         voter.vote(1, pools, weights, claimableMana + 1);
+
+        hevm.stopPrank();
+    }
+
+    // veALCX holder with max lock enabled should have constant max voting power
+    function testMaxLockVotingPower() public {
+        mintAlcx(account, TOKEN_1);
+
+        hevm.startPrank(account);
+
+        alcx.approve(address(veALCX), TOKEN_1);
+        veALCX.createLock(TOKEN_1, 0, true);
+
+        uint256 maxVotingPower = getMaxVotingPower(TOKEN_1, veALCX.lockEnd(2));
+
+        uint256 votingPower1 = veALCX.balanceOfNFT(2);
+
+        assertEq(votingPower1, maxVotingPower);
+
+        hevm.warp(block.timestamp + 5 weeks);
+
+        minter.updatePeriod();
+
+        uint256 votingPower2 = veALCX.balanceOfNFT(2);
+
+        // Voting power should remain the same with max lock enabled
+        assertEq(votingPower1, votingPower2);
+
+        // Disable max lock
+        veALCX.updateUnlockTime(2, 0, false);
+
+        hevm.warp(block.timestamp + 5 weeks);
+
+        uint256 votingPower3 = veALCX.balanceOfNFT(2);
+
+        // Disabling max lock should start the voting power decay
+        assertLt(votingPower3, votingPower2);
 
         hevm.stopPrank();
     }

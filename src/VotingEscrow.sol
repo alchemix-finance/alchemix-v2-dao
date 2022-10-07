@@ -13,7 +13,7 @@ import { Base64 } from "src/libraries/Base64.sol";
 /// @title Voting Escrow
 /// @notice veNFT implementation that escrows ERC-20 tokens in the form of an ERC-721 NFT
 /// @notice Votes have a weight depending on time, so that users are committed to the future of (whatever they are voting for)
-/// @dev Vote weight decays linearly over time. Lock time cannot be more than `MAXTIME` (4 years).
+/// @dev Vote weight decays linearly over time. Lock time cannot be more than `MAXTIME` (1 year).
 contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     enum DepositType {
         DEPOSIT_FOR_TYPE,
@@ -33,7 +33,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     struct LockedBalance {
         int128 amount;
         uint256 end;
-        uint256 emissions;
+        bool maxLockEnabled;
     }
 
     /* We cannot really do block numbers per se b/c slope is per time, not per block
@@ -51,6 +51,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         uint256 tokenId,
         uint256 value,
         uint256 indexed locktime,
+        bool maxLockEnabled,
         DepositType depositType,
         uint256 ts
     );
@@ -59,8 +60,8 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     event Ragequit(address indexed provider, uint256 tokenId, uint256 ts);
 
     uint256 internal constant WEEK = 1 weeks;
-    uint256 internal constant MAXTIME = 4 * 365 days;
-    int128 internal constant iMAXTIME = 4 * 365 days;
+    uint256 internal constant MAXTIME = 365 days;
+    int128 internal constant iMAXTIME = 365 days;
     uint256 internal constant MULTIPLIER = 1 ether;
 
     address public immutable token;
@@ -739,6 +740,9 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         int128 newDslope = 0;
         uint256 _epoch = epoch;
 
+        if (oldLocked.maxLockEnabled) oldLocked.end = ((block.timestamp + MAXTIME) / WEEK) * WEEK;
+        if (newLocked.maxLockEnabled) newLocked.end = ((block.timestamp + MAXTIME) / WEEK) * WEEK;
+
         if (_tokenId != 0) {
             // Calculate slopes and biases
             // Kept at zero when they have to
@@ -746,6 +750,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
                 oldPoint.slope = oldLocked.amount / iMAXTIME;
                 oldPoint.bias = oldPoint.slope * int128(int256(oldLocked.end - block.timestamp));
             }
+
             if (newLocked.end > block.timestamp && newLocked.amount > 0) {
                 newPoint.slope = newLocked.amount / iMAXTIME;
                 newPoint.bias = newPoint.slope * int128(int256(newLocked.end - block.timestamp));
@@ -753,8 +758,9 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
             // Read values of scheduled changes in the slope
             // oldLocked.end can be in the past and in the future
-            // newLocked.end can ONLY by in the FUTURE unless everything expired: than zeros
+            // newLocked.end can ONLY by in the FUTURE unless everything expired: then zeros
             oldDslope = slopeChanges[oldLocked.end];
+
             if (newLocked.end != 0) {
                 if (newLocked.end == oldLocked.end) {
                     newDslope = oldDslope;
@@ -825,10 +831,10 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
             lastPoint.slope += (newPoint.slope - oldPoint.slope);
             lastPoint.bias += (newPoint.bias - oldPoint.bias);
             if (lastPoint.slope < 0) {
-                lastPoint.slope = 0;
+                lastPoint.slope = 1; // decay to 1
             }
             if (lastPoint.bias < 0) {
-                lastPoint.bias = 0;
+                lastPoint.bias = 1; // decay to 1
             }
         }
 
@@ -875,6 +881,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         uint256 _tokenId,
         uint256 _value,
         uint256 unlockTime,
+        bool _maxLockEnabled,
         LockedBalance memory lockedBalance,
         DepositType depositType
     ) internal {
@@ -883,12 +890,20 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
         supply = supplyBefore + _value;
         LockedBalance memory oldLocked;
-        (oldLocked.amount, oldLocked.end) = (_locked.amount, _locked.end);
+        (oldLocked.amount, oldLocked.end, oldLocked.maxLockEnabled) = (
+            _locked.amount,
+            _locked.end,
+            _locked.maxLockEnabled
+        );
         // Adding to existing lock, or if a lock is expired - creating a new one
         _locked.amount += int128(int256(_value));
-        if (unlockTime != 0) {
-            _locked.end = unlockTime;
+
+        _locked.maxLockEnabled = _maxLockEnabled;
+
+        if (unlockTime != 0 || _locked.maxLockEnabled) {
+            _locked.end = _locked.maxLockEnabled ? ((block.timestamp + MAXTIME) / WEEK) * WEEK : unlockTime;
         }
+
         locked[_tokenId] = _locked;
 
         // Possibilities:
@@ -902,7 +917,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
             require(IERC20(token).transferFrom(from, address(this), _value));
         }
 
-        emit Deposit(from, _tokenId, _value, _locked.end, depositType, block.timestamp);
+        emit Deposit(from, _tokenId, _value, _locked.end, _locked.maxLockEnabled, depositType, block.timestamp);
         emit Supply(supplyBefore, supplyBefore + _value);
     }
 
@@ -955,19 +970,26 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         LockedBalance memory _locked0 = locked[_from];
         LockedBalance memory _locked1 = locked[_to];
         uint256 value0 = uint256(int256(_locked0.amount));
-        uint256 end = _locked0.end >= _locked1.end ? _locked0.end : _locked1.end;
-        // Combine emissions earned
-        _locked1.emissions += _locked0.emissions;
 
-        locked[_from] = LockedBalance(0, 0, 0);
-        _checkpoint(_from, _locked0, LockedBalance(0, 0, 0));
+        // If max lock is enabled retain the max lock
+        _locked1.maxLockEnabled = _locked0.maxLockEnabled ? _locked0.maxLockEnabled : _locked1.maxLockEnabled;
+
+        // If max lock is enabled end is the max lock time, otherwise it is the greater of the two end times
+        uint256 end = _locked1.maxLockEnabled
+            ? ((block.timestamp + MAXTIME) / WEEK) * WEEK
+            : _locked0.end >= _locked1.end
+            ? _locked0.end
+            : _locked1.end;
+
+        locked[_from] = LockedBalance(0, 0, false);
+        _checkpoint(_from, _locked0, LockedBalance(0, 0, false));
         _burn(_from);
-        _depositFor(_to, value0, end, _locked1, DepositType.MERGE_TYPE);
+        _depositFor(_to, value0, end, _locked1.maxLockEnabled, _locked1, DepositType.MERGE_TYPE);
     }
 
     /// @notice Record global data to checkpoint
     function checkpoint() external {
-        _checkpoint(0, LockedBalance(0, 0, 0), LockedBalance(0, 0, 0));
+        _checkpoint(0, LockedBalance(0, 0, false), LockedBalance(0, 0, false));
     }
 
     /// @notice Deposit `_value` tokens for `_tokenId` and add to the lock
@@ -981,7 +1003,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         require(_value > 0); // dev: need non-zero value
         require(_locked.amount > 0, "No existing lock found");
         require(_locked.end > block.timestamp, "Cannot add to expired lock. Withdraw");
-        _depositFor(_tokenId, _value, 0, _locked, DepositType.DEPOSIT_FOR_TYPE);
+        _depositFor(_tokenId, _value, 0, _locked.maxLockEnabled, _locked, DepositType.DEPOSIT_FOR_TYPE);
     }
 
     /// @notice Deposit `_value` tokens for `_to` and lock for `_lockDuration`
@@ -991,39 +1013,50 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     function _createLock(
         uint256 _value,
         uint256 _lockDuration,
+        bool _maxLockEnabled,
         address _to
     ) internal returns (uint256) {
-        uint256 unlockTime = ((block.timestamp + _lockDuration) / WEEK) * WEEK; // Locktime is rounded down to weeks
+        // Locktime rounded down to weeks
+        uint256 unlockTime = _maxLockEnabled
+            ? ((block.timestamp + MAXTIME) / WEEK) * WEEK
+            : ((block.timestamp + _lockDuration) / WEEK) * WEEK;
 
         require(_value > 0); // dev: need non-zero value
         require(unlockTime > block.timestamp, "Can only lock until time in the future");
-        require(unlockTime <= block.timestamp + MAXTIME, "Voting lock can be 4 years max");
+        require(unlockTime <= block.timestamp + MAXTIME, "Voting lock can be 1 year max");
 
         ++tokenId;
         uint256 _tokenId = tokenId;
         _mint(_to, _tokenId);
 
-        _depositFor(_tokenId, _value, unlockTime, locked[_tokenId], DepositType.CREATE_LOCK_TYPE);
+        _depositFor(_tokenId, _value, unlockTime, _maxLockEnabled, locked[_tokenId], DepositType.CREATE_LOCK_TYPE);
         return _tokenId;
     }
 
     /// @notice Deposit `_value` tokens for `_to` and lock for `_lockDuration`
     /// @param _value Amount to deposit
     /// @param _lockDuration Number of seconds to lock tokens for (rounded down to nearest week)
+    /// @param _maxLockEnabled Is max lock enabled
     /// @param _to Address to deposit
     function createLockFor(
         uint256 _value,
         uint256 _lockDuration,
+        bool _maxLockEnabled,
         address _to
     ) external nonreentrant returns (uint256) {
-        return _createLock(_value, _lockDuration, _to);
+        return _createLock(_value, _lockDuration, _maxLockEnabled, _to);
     }
 
     /// @notice Deposit `_value` tokens for `msg.sender` and lock for `_lockDuration`
     /// @param _value Amount to deposit
     /// @param _lockDuration Number of seconds to lock tokens for (rounded down to nearest week)
-    function createLock(uint256 _value, uint256 _lockDuration) external nonreentrant returns (uint256) {
-        return _createLock(_value, _lockDuration, msg.sender);
+    /// @param _maxLockEnabled Is max lock enabled
+    function createLock(
+        uint256 _value,
+        uint256 _lockDuration,
+        bool _maxLockEnabled
+    ) external nonreentrant returns (uint256) {
+        return _createLock(_value, _lockDuration, _maxLockEnabled, msg.sender);
     }
 
     /// @notice Deposit `_value` additional tokens for `_tokenId` without modifying the unlock time
@@ -1037,23 +1070,34 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         require(_locked.amount > 0, "No existing lock found");
         require(_locked.end > block.timestamp, "Cannot add to expired lock. Withdraw");
 
-        _depositFor(_tokenId, _value, 0, _locked, DepositType.INCREASE_LOCK_AMOUNT);
+        _depositFor(_tokenId, _value, 0, _locked.maxLockEnabled, _locked, DepositType.INCREASE_LOCK_AMOUNT);
     }
 
     /// @notice Extend the unlock time for `_tokenId`
     /// @param _lockDuration New number of seconds until tokens unlock
-    function increaseUnlockTime(uint256 _tokenId, uint256 _lockDuration) external nonreentrant {
+    /// @param _maxLockEnabled Is max lock being enabled
+    function updateUnlockTime(
+        uint256 _tokenId,
+        uint256 _lockDuration,
+        bool _maxLockEnabled
+    ) external nonreentrant {
         require(_isApprovedOrOwner(msg.sender, _tokenId));
 
         LockedBalance memory _locked = locked[_tokenId];
-        uint256 unlockTime = ((block.timestamp + _lockDuration) / WEEK) * WEEK; // Locktime is rounded down to weeks
+
+        // If max lock is enabled set to max time
+        // If max lock is being disabled start decay from max time
+        // If max lock is disabled and not being enabled, add unlock time to current end
+        uint256 unlockTime = _maxLockEnabled ? ((block.timestamp + MAXTIME) / WEEK) * WEEK : _locked.maxLockEnabled
+            ? ((block.timestamp + MAXTIME) / WEEK) * WEEK
+            : ((block.timestamp + _lockDuration) / WEEK) * WEEK;
 
         require(_locked.end > block.timestamp, "Lock expired");
         require(_locked.amount > 0, "Nothing is locked");
-        require(unlockTime > _locked.end, "Can only increase lock duration");
-        require(unlockTime <= block.timestamp + MAXTIME, "Voting lock can be 4 years max");
+        require(unlockTime >= _locked.end, "Can only increase lock duration");
+        require(unlockTime <= block.timestamp + MAXTIME, "Voting lock can be 1 year max");
 
-        _depositFor(_tokenId, 0, unlockTime, _locked, DepositType.INCREASE_UNLOCK_TIME);
+        _depositFor(_tokenId, 0, unlockTime, _maxLockEnabled, _locked, DepositType.INCREASE_UNLOCK_TIME);
     }
 
     /// @notice Withdraw all tokens for `_tokenId`
@@ -1066,14 +1110,14 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         require(block.timestamp >= _locked.end, "The lock didn't expire");
         uint256 value = uint256(int256(_locked.amount));
 
-        locked[_tokenId] = LockedBalance(0, 0, 0);
+        locked[_tokenId] = LockedBalance(0, 0, false);
         uint256 supplyBefore = supply;
         supply = supplyBefore - value;
 
         // oldLocked can have either expired <= timestamp or zero end
         // _locked has only 0 end
         // Both can have >= 0 amount
-        _checkpoint(_tokenId, _locked, LockedBalance(0, 0, 0));
+        _checkpoint(_tokenId, _locked, LockedBalance(0, 0, false));
 
         require(IERC20(token).transfer(msg.sender, value));
 
@@ -1139,11 +1183,17 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     /// @return User voting power
     function _balanceOfNFT(uint256 _tokenId, uint256 _time) internal view returns (uint256) {
         uint256 _epoch = userPointEpoch[_tokenId];
+
         if (_epoch == 0) {
             return 0;
         } else {
             Point memory lastPoint = userPointHistory[_tokenId][_epoch];
-            lastPoint.bias -= lastPoint.slope * int128(int256(_time) - int256(lastPoint.ts));
+
+            // If max lock is enabled bias is unchanged
+            lastPoint.bias -= locked[_tokenId].maxLockEnabled
+                ? int128(int256(0))
+                : lastPoint.slope * int128(int256(_time) - int256(lastPoint.ts));
+
             if (lastPoint.bias < 0) {
                 lastPoint.bias = 0;
             }

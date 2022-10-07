@@ -4,8 +4,10 @@ pragma solidity ^0.8.15;
 import "./BaseTest.sol";
 
 contract VotingEscrowTest is BaseTest {
-    uint256 lockDuration = 1 weeks;
+    uint256 internal constant ONE_WEEK = 1 weeks;
     uint256 depositAmount = 1e21;
+    uint256 internal constant ONE_YEAR = 365 days;
+    uint256 maxDuration = ((block.timestamp + ONE_YEAR) / ONE_WEEK) * ONE_WEEK;
 
     function setUp() public {
         mintAlcx(account, depositAmount);
@@ -18,10 +20,52 @@ contract VotingEscrowTest is BaseTest {
 
         assertEq(veALCX.balanceOf(account), 0);
 
-        veALCX.createLock(depositAmount, lockDuration);
+        veALCX.createLock(depositAmount, ONE_WEEK, false);
 
         assertEq(veALCX.ownerOf(1), account);
         assertEq(veALCX.balanceOf(account), 1);
+
+        hevm.stopPrank();
+    }
+
+    function testUpdateLockDuration() public {
+        hevm.startPrank(account);
+
+        veALCX.createLock(depositAmount, 5 weeks, true);
+
+        uint256 lockEnd = veALCX.lockEnd(1);
+
+        // Lock end should be max time when max lock is enabled
+        assertEq(lockEnd, maxDuration);
+
+        veALCX.updateUnlockTime(1, 1 days, true);
+
+        lockEnd = veALCX.lockEnd(1);
+
+        // Lock duration should be unchanged
+        assertEq(lockEnd, maxDuration);
+
+        veALCX.updateUnlockTime(1, 1 days, false);
+
+        lockEnd = veALCX.lockEnd(1);
+
+        // Lock duration should be unchanged
+        assertEq(lockEnd, maxDuration);
+
+        // Now that max lock is disabled lock duration can be set again
+        hevm.expectRevert(abi.encodePacked("Voting lock can be 1 year max"));
+
+        veALCX.updateUnlockTime(1, ONE_YEAR + ONE_WEEK, false);
+
+        hevm.warp(block.timestamp + 360 days);
+
+        lockEnd = veALCX.lockEnd(1);
+
+        // Able to increase lock end now that previous lock end is closer
+        veALCX.updateUnlockTime(1, 300 days, false);
+
+        // Updated lock end should be greater than previous lockEnd
+        assertGt(veALCX.lockEnd(1), lockEnd);
 
         hevm.stopPrank();
     }
@@ -30,9 +74,9 @@ contract VotingEscrowTest is BaseTest {
     function testInvalidLock() public {
         hevm.startPrank(account);
 
-        hevm.expectRevert(abi.encodePacked("Voting lock can be 4 years max"));
+        hevm.expectRevert(abi.encodePacked("Voting lock can be 1 year max"));
 
-        veALCX.createLock(depositAmount, lockDuration + 209 weeks);
+        veALCX.createLock(depositAmount, ONE_YEAR + ONE_WEEK, false);
 
         hevm.stopPrank();
     }
@@ -41,7 +85,7 @@ contract VotingEscrowTest is BaseTest {
     function testVotes() public {
         hevm.startPrank(account);
 
-        uint256 tokenId = veALCX.createLock(depositAmount, lockDuration);
+        uint256 tokenId = veALCX.createLock(depositAmount, ONE_WEEK, false);
 
         uint256 votes = veALCX.balanceOfAtNFT(tokenId, block.number);
         uint256 totalVotes = veALCX.totalSupply();
@@ -55,13 +99,13 @@ contract VotingEscrowTest is BaseTest {
     function testWithdraw() public {
         hevm.startPrank(account);
 
-        uint256 tokenId = veALCX.createLock(depositAmount, lockDuration);
+        uint256 tokenId = veALCX.createLock(depositAmount, ONE_WEEK, false);
 
         hevm.expectRevert(abi.encodePacked("The lock didn't expire"));
 
         veALCX.withdraw(tokenId);
 
-        hevm.warp(block.timestamp + lockDuration);
+        hevm.warp(block.timestamp + ONE_WEEK);
         hevm.roll(block.number + 1);
         veALCX.withdraw(tokenId);
 
@@ -78,13 +122,13 @@ contract VotingEscrowTest is BaseTest {
     function testTokenURICalls() public {
         hevm.startPrank(account);
 
-        veALCX.createLock(depositAmount, lockDuration);
+        veALCX.createLock(depositAmount, ONE_WEEK, false);
 
         hevm.expectRevert(abi.encodePacked("Query for nonexistent token"));
         veALCX.tokenURI(999);
 
         uint256 tokenId = 1;
-        hevm.warp(block.timestamp + lockDuration);
+        hevm.warp(block.timestamp + ONE_WEEK);
         hevm.roll(block.number + 1);
 
         // Check that new token doesn't revert
@@ -120,7 +164,7 @@ contract VotingEscrowTest is BaseTest {
     function testRagequit() public {
         hevm.startPrank(account);
 
-        uint256 tokenId = veALCX.createLock(depositAmount, lockDuration);
+        uint256 tokenId = veALCX.createLock(depositAmount, ONE_WEEK, false);
 
         // Show that veALCX is not expired
         hevm.expectRevert(abi.encodePacked("The lock didn't expire"));

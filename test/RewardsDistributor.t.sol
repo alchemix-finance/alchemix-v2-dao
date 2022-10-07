@@ -30,7 +30,7 @@ contract RewardsDistributorTest is BaseTest {
     //     assertGt(alcxBalance, depositAmount, "Not enough alcx");
 
     //     alcx.approve(address(veALCX), depositAmount);
-    //     uint256 tokenId = veALCX.createLock(depositAmount, lockTime);
+    //     uint256 tokenId = veALCX.createLock(depositAmount, lockTime, false);
 
     //     // Check that veNFT was created
     //     address owner = veALCX.ownerOf(tokenId);

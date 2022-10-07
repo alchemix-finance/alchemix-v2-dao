@@ -12,7 +12,7 @@ contract MinterTest is BaseTest {
 
     uint256 nextEpoch = 86400 * 14;
     uint256 epochsUntilTail = 80;
-    uint256 internal constant LOCK = 86400 * 7 * 52 * 4;
+    uint256 internal constant LOCK = 365 days;
 
     function setUp() public {
         mintAlcx(admin, 1e25);
@@ -31,7 +31,7 @@ contract MinterTest is BaseTest {
         voter.initialize(tokens, admin);
 
         alcx.approve(address(veALCX), 2e25);
-        veALCX.createLock(TOKEN_1, 4 * 365 * 86400);
+        veALCX.createLock(TOKEN_1, 365 days, false);
 
         distributor = new RewardsDistributor(address(veALCX));
         veALCX.setVoter(address(voter));
@@ -54,7 +54,10 @@ contract MinterTest is BaseTest {
         voter.createGauge(alETHPool, Voter.GaugeType.Staking);
 
         hevm.roll(block.number + 1);
-        assertGt(veALCX.balanceOfNFT(1), 995063075414519385);
+
+        uint256 maxVotingPower = getMaxVotingPower(TOKEN_1, veALCX.lockEnd(1));
+
+        assertEq(veALCX.balanceOfNFT(1), maxVotingPower);
         assertEq(alcx.balanceOf(address(veALCX)), TOKEN_1);
 
         address[] memory pools = new address[](1);
@@ -123,7 +126,7 @@ contract MinterTest is BaseTest {
         hevm.startPrank(admin);
 
         for (uint256 i = 0; i < claimants.length; i++) {
-            veALCX.createLockFor(amounts[i], LOCK, claimants[i]);
+            veALCX.createLockFor(amounts[i], LOCK, false, claimants[i]);
         }
 
         assertEq(veALCX.ownerOf(2), admin);

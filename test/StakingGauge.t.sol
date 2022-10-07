@@ -23,7 +23,7 @@ contract StakingGaugeTest is BaseTest {
         voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory), address(MANA));
 
         alcx.approve(address(veALCX), 2e25);
-        veALCX.createLock(TOKEN_1, 4 * 365 * 86400);
+        veALCX.createLock(TOKEN_1, 365 days, false);
 
         distributor = new RewardsDistributor(address(veALCX));
         veALCX.setVoter(address(voter));
