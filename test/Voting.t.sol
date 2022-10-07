@@ -32,6 +32,8 @@ contract VotingTest is BaseTest {
         alcx.approve(address(veALCX), TOKEN_1);
         veALCX.createLock(TOKEN_1, 4 * 365 * 86400, false);
 
+        uint256 maxVotingPower = getMaxVotingPower(TOKEN_1, veALCX.lockEnd(1));
+
         distributor = new RewardsDistributor(address(veALCX));
         veALCX.setVoter(address(voter));
 
@@ -53,7 +55,8 @@ contract VotingTest is BaseTest {
         voter.createGauge(alETHPool, Voter.GaugeType.Staking);
 
         hevm.roll(block.number + 1);
-        assertGt(veALCX.balanceOfNFT(1), 995063075414519385);
+
+        assertEq(veALCX.balanceOfNFT(1), maxVotingPower);
         assertEq(alcx.balanceOf(address(veALCX)), TOKEN_1);
 
         minter.initialize();
@@ -210,9 +213,11 @@ contract VotingTest is BaseTest {
         alcx.approve(address(veALCX), TOKEN_1);
         veALCX.createLock(TOKEN_1, 0, true);
 
+        uint256 maxVotingPower = getMaxVotingPower(TOKEN_1, veALCX.lockEnd(2));
+
         uint256 votingPower1 = veALCX.balanceOfNFT(2);
 
-        assertGt(votingPower1, 995063075414519385);
+        assertEq(votingPower1, maxVotingPower);
 
         hevm.warp(block.timestamp + 52 weeks);
 

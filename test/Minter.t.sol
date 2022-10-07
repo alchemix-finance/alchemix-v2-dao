@@ -54,7 +54,10 @@ contract MinterTest is BaseTest {
         voter.createGauge(alETHPool, Voter.GaugeType.Staking);
 
         hevm.roll(block.number + 1);
-        assertGt(veALCX.balanceOfNFT(1), 995063075414519385);
+
+        uint256 maxVotingPower = getMaxVotingPower(TOKEN_1, veALCX.lockEnd(1));
+
+        assertEq(veALCX.balanceOfNFT(1), maxVotingPower);
         assertEq(alcx.balanceOf(address(veALCX)), TOKEN_1);
 
         address[] memory pools = new address[](1);

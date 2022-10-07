@@ -1090,7 +1090,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         // If max lock is disabled and not being enabled, add unlock time to current end
         uint256 unlockTime = _maxLockEnabled ? ((block.timestamp + MAXTIME) / WEEK) * WEEK : _locked.maxLockEnabled
             ? ((block.timestamp + MAXTIME) / WEEK) * WEEK
-            : ((_locked.end + _lockDuration) / WEEK) * WEEK;
+            : ((block.timestamp + _lockDuration) / WEEK) * WEEK;
 
         require(_locked.end > block.timestamp, "Lock expired");
         require(_locked.amount > 0, "Nothing is locked");

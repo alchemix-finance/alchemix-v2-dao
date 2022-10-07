@@ -78,4 +78,11 @@ abstract contract BaseTest is DSTestPlus {
 
         hevm.stopPrank();
     }
+
+    // Returns the max voting power given a deposit amount and length
+    function getMaxVotingPower(uint256 _amount, uint256 _end) public returns (uint256) {
+        uint256 slope = _amount / (4 * 365 days);
+        uint256 bias = slope * (_end - block.timestamp);
+        return bias;
+    }
 }

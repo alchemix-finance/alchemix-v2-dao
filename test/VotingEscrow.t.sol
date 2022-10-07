@@ -55,19 +55,17 @@ contract VotingEscrowTest is BaseTest {
         // Now that max lock is disabled lock duration can be set again
         hevm.expectRevert(abi.encodePacked("Voting lock can be 4 years max"));
 
-        veALCX.updateUnlockTime(1, FOUR_YEARS, false);
+        veALCX.updateUnlockTime(1, FOUR_YEARS + ONE_WEEK, false);
 
         hevm.warp(block.timestamp + 365 days);
 
         lockEnd = veALCX.lockEnd(1);
 
-        // Increase lock duration after time has passed
-        veALCX.updateUnlockTime(1, 10 weeks, false);
+        // Able to increase lock end now that previous lock end is closer
+        veALCX.updateUnlockTime(1, 4 * 300 days, false);
 
-        lockEnd = veALCX.lockEnd(1);
-
-        // New lock end should be less than the max lock time
-        assertGt(lockEnd, maxDuration);
+        // Updated lock end should be greater than previous lockEnd
+        assertGt(veALCX.lockEnd(1), lockEnd);
 
         hevm.stopPrank();
     }
