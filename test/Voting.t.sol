@@ -223,6 +223,7 @@ contract VotingTest is BaseTest {
         // Voting power should remain the same with max lock enabled
         assertEq(votingPower1, votingPower2);
 
+        // Disable max lock
         veALCX.updateUnlockTime(2, 0, false);
 
         hevm.warp(block.timestamp + 52 weeks);

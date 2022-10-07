@@ -57,7 +57,6 @@ contract VotingEscrowTest is BaseTest {
 
         veALCX.updateUnlockTime(1, FOUR_YEARS, false);
 
-        hevm.roll(block.number + 1);
         hevm.warp(block.timestamp + 365 days);
 
         lockEnd = veALCX.lockEnd(1);
