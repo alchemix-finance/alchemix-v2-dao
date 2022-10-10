@@ -80,7 +80,7 @@ abstract contract BaseTest is DSTestPlus {
     }
 
     // Returns the max voting power given a deposit amount and length
-    function getMaxVotingPower(uint256 _amount, uint256 _end) public returns (uint256) {
+    function getMaxVotingPower(uint256 _amount, uint256 _end) public view returns (uint256) {
         uint256 slope = _amount / (365 days);
         uint256 bias = slope * (_end - block.timestamp);
         return bias;

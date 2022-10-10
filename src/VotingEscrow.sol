@@ -62,7 +62,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     uint256 internal constant WEEK = 1 weeks;
     uint256 internal constant MAXTIME = 365 days;
     int128 internal constant iMAXTIME = 365 days;
-    uint256 internal constant MULTIPLIER = 1 ether;
+    uint256 internal constant MULTIPLIER = 26 ether;
 
     address public immutable token;
     uint256 public supply;
@@ -803,11 +803,11 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
                 lastPoint.slope += dSlope;
                 if (lastPoint.bias < 0) {
                     // This can happen
-                    lastPoint.bias = 0;
+                    lastPoint.bias = 1;
                 }
                 if (lastPoint.slope < 0) {
                     // This cannot happen - just in case
-                    lastPoint.slope = 0;
+                    lastPoint.slope = 1;
                 }
                 lastCheckpoint = _time;
                 lastPoint.ts = _time;
@@ -1195,7 +1195,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
                 : lastPoint.slope * int128(int256(_time) - int256(lastPoint.ts));
 
             if (lastPoint.bias < 0) {
-                lastPoint.bias = 0;
+                lastPoint.bias = 1;
             }
             return uint256(int256(lastPoint.bias));
         }
@@ -1313,7 +1313,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         }
 
         if (lastPoint.bias < 0) {
-            lastPoint.bias = 0;
+            lastPoint.bias = 1;
         }
         return uint256(uint128(lastPoint.bias));
     }

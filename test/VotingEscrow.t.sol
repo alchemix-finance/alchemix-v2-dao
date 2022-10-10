@@ -57,12 +57,12 @@ contract VotingEscrowTest is BaseTest {
 
         veALCX.updateUnlockTime(1, ONE_YEAR + ONE_WEEK, false);
 
-        hevm.warp(block.timestamp + 360 days);
+        hevm.warp(block.timestamp + 260 days);
 
         lockEnd = veALCX.lockEnd(1);
 
         // Able to increase lock end now that previous lock end is closer
-        veALCX.updateUnlockTime(1, 300 days, false);
+        veALCX.updateUnlockTime(1, 200 days, false);
 
         // Updated lock end should be greater than previous lockEnd
         assertGt(veALCX.lockEnd(1), lockEnd);

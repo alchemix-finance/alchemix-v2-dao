@@ -240,4 +240,25 @@ contract VotingTest is BaseTest {
 
         hevm.stopPrank();
     }
+
+    // veALCX voting power should decay to 1
+    function testVotingPowerDecay() public {
+        mintAlcx(account, TOKEN_1);
+
+        hevm.startPrank(account);
+
+        alcx.approve(address(veALCX), TOKEN_1);
+        veALCX.createLock(TOKEN_1, 1 weeks, false);
+
+        hevm.warp(block.timestamp + 2 weeks);
+
+        uint256 balance = veALCX.balanceOfNFT(2);
+
+        // Voting power remains at 1 when lock is expired
+        hevm.expectRevert(abi.encodePacked("Cannot add to expired lock. Withdraw"));
+        veALCX.increaseAmount(2, TOKEN_1);
+        assertEq(balance, 1);
+
+        hevm.stopPrank();
+    }
 }
