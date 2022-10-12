@@ -23,7 +23,7 @@ contract RewardsDistributorTest is BaseTest {
         console2.log(address(distributor));
     }
 
-    // /// @dev Deposit ALCX into a veALCX NFT and read parameters
+    // /// @dev Deposit ALCX into a veALCX token and read parameters
     // function testVEALCXBasic() public {
     //     hevm.startPrank(holder);
     //     uint256 alcxBalance = alcx.balanceOf(holder);
@@ -32,11 +32,11 @@ contract RewardsDistributorTest is BaseTest {
     //     alcx.approve(address(veALCX), depositAmount);
     //     uint256 tokenId = veALCX.createLock(depositAmount, lockTime, false);
 
-    //     // Check that veNFT was created
+    //     // Check that veALCX was created
     //     address owner = veALCX.ownerOf(tokenId);
     //     assertEq(owner, holder);
 
-    //     // Check veNFT parameters
+    //     // Check veALCX parameters
     //     // LockedBalance memory bal = veALCX.locked(tokenId);
     //     (int128 amount, uint256 end) = veALCX.locked(tokenId);
     //     assertEq(uint256(uint128(amount)), depositAmount, "depositAmount doesn't match");

@@ -11,7 +11,7 @@ import { IManaToken } from "./interfaces/IManaToken.sol";
 import { Base64 } from "src/libraries/Base64.sol";
 
 /// @title Voting Escrow
-/// @notice veNFT implementation that escrows ERC-20 tokens in the form of an ERC-721 NFT
+/// @notice veALCX implementation that escrows ERC-20 tokens in the form of an ERC-721 token
 /// @notice Votes have a weight depending on time, so that users are committed to the future of (whatever they are voting for)
 /// @dev Vote weight decays linearly over time. Lock time cannot be more than `MAXTIME` (1 year).
 contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
@@ -34,6 +34,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         int128 amount;
         uint256 end;
         bool maxLockEnabled;
+        uint256 cooldown;
     }
 
     /* We cannot really do block numbers per se b/c slope is per time, not per block
@@ -58,6 +59,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     event Withdraw(address indexed provider, uint256 tokenId, uint256 value, uint256 ts);
     event Supply(uint256 prevSupply, uint256 supply);
     event Ragequit(address indexed provider, uint256 tokenId, uint256 ts);
+    event CooldownStarted(address indexed provider, uint256 tokenId, uint256 ts);
 
     uint256 internal constant WEEK = 1 weeks;
     uint256 internal constant MAXTIME = 365 days;
@@ -95,10 +97,10 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     /// @dev Current count of token
     uint256 internal tokenId;
 
-    /// @dev Mapping from NFT ID to the address that owns it.
+    /// @dev Mapping from token ID to the address that owns it.
     mapping(uint256 => address) internal idToOwner;
 
-    /// @dev Mapping from NFT ID to approved address.
+    /// @dev Mapping from token ID to approved address.
     mapping(uint256 => address) internal idToApprovals;
 
     /// @dev Mapping from owner address to count of his tokens.
@@ -107,7 +109,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     /// @dev Mapping from owner address to mapping of index to tokenIds
     mapping(address => mapping(uint256 => uint256)) internal ownerToTokenIdList;
 
-    /// @dev Mapping from NFT ID to index of owner
+    /// @dev Mapping from token ID to index of owner
     mapping(uint256 => uint256) internal tokenToOwnerIndex;
 
     /// @dev Mapping from owner address to mapping of operator addresses.
@@ -187,7 +189,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     }
 
     /// @notice Get the most recently recorded rate of voting power decrease for `_tokenId`
-    /// @param _tokenId token of the NFT
+    /// @param _tokenId ID of the token
     /// @return Value of the slope
     function getLastUserSlope(uint256 _tokenId) external view returns (int128) {
         uint256 userEpoch = userPointEpoch[_tokenId];
@@ -195,7 +197,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     }
 
     /// @notice Get the timestamp for checkpoint `_idx` for `_tokenId`
-    /// @param _tokenId token of the NFT
+    /// @param _tokenId ID of the token
     /// @param _idx User epoch number
     /// @return Epoch time of the checkpoint
     function userPointHistoryTimestamp(uint256 _tokenId, uint256 _idx) external view returns (uint256) {
@@ -203,40 +205,47 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     }
 
     /// @notice Get timestamp when `_tokenId`'s lock finishes
-    /// @param _tokenId User NFT
+    /// @param _tokenId ID of the token
     /// @return Epoch time of the lock end
     function lockEnd(uint256 _tokenId) external view returns (uint256) {
         return locked[_tokenId].end;
     }
 
-    /// @dev Returns the number of NFTs owned by `_owner`.
-    ///      Throws if `_owner` is the zero address. NFTs assigned to the zero address are considered invalid.
+    /// @notice Get timestamp when `_tokenId`'s cooldown finishes
+    /// @param _tokenId ID of the token
+    /// @return Epoch time of the cooldown end
+    function cooldownEnd(uint256 _tokenId) external view returns (uint256) {
+        return locked[_tokenId].cooldown;
+    }
+
+    /// @dev Returns the number of tokens owned by `_owner`.
+    ///      Throws if `_owner` is the zero address. tokens assigned to the zero address are considered invalid.
     /// @param _owner Address for whom to query the balance.
     function _balance(address _owner) internal view returns (uint256) {
         return ownerToTokenCount[_owner];
     }
 
-    /// @dev Returns the number of NFTs owned by `_owner`.
-    ///      Throws if `_owner` is the zero address. NFTs assigned to the zero address are considered invalid.
+    /// @dev Returns the number of tokens owned by `_owner`.
+    ///      Throws if `_owner` is the zero address. tokens assigned to the zero address are considered invalid.
     /// @param _owner Address for whom to query the balance.
     function balanceOf(address _owner) external view returns (uint256) {
         return _balance(_owner);
     }
 
-    /// @dev Returns the address of the owner of the NFT.
-    /// @param _tokenId The identifier for an NFT.
+    /// @dev Returns the address of the owner of the token.
+    /// @param _tokenId ID of the token.
     function ownerOf(uint256 _tokenId) public view returns (address) {
         return idToOwner[_tokenId];
     }
 
-    /// @dev Get the approved address for a single NFT.
-    /// @param _tokenId ID of the NFT to query the approval of.
+    /// @dev Get the approved address for a single token.
+    /// @param _tokenId ID of the token to query the approval of.
     function getApproved(uint256 _tokenId) external view returns (address) {
         return idToApprovals[_tokenId];
     }
 
     /// @dev Checks if `_operator` is an approved operator for `_owner`.
-    /// @param _owner The address that owns the NFTs.
+    /// @param _owner The address that owns the tokens.
     /// @param _operator The address that acts on behalf of the owner.
     function isApprovedForAll(address _owner, address _operator) external view returns (bool) {
         return (ownerToOperators[_owner])[_operator];
@@ -249,7 +258,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
     /// @dev Returns whether the given spender can transfer a given token ID
     /// @param _spender address of the spender to query
-    /// @param _tokenId uint256 ID of the token to be transferred
+    /// @param _tokenId ID of the token to be transferred
     /// @return bool whether the msg.sender is approved for the given token ID, is an operator of the owner, or is the owner of the token
     function _isApprovedOrOwner(address _spender, uint256 _tokenId) internal view returns (bool) {
         address owner = idToOwner[_tokenId];
@@ -263,9 +272,9 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         return _isApprovedOrOwner(_spender, _tokenId);
     }
 
-    /// @dev Add a NFT to an index mapping to a given address
+    /// @dev Add a token to an index mapping to a given address
     /// @param _to address of the receiver
-    /// @param _tokenId uint256 ID of the token to be added
+    /// @param _tokenId ID of the token to be added
     function _addTokenToOwnerList(address _to, uint256 _tokenId) internal {
         uint256 currentCount = _balance(_to);
 
@@ -273,9 +282,9 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         tokenToOwnerIndex[_tokenId] = currentCount;
     }
 
-    /// @dev Remove a NFT from an index mapping to a given address
+    /// @dev Remove a token from an index mapping to a given address
     /// @param _from address of the sender
-    /// @param _tokenId uint256 ID of the token to be removed
+    /// @param _tokenId ID of the token to be removed
     function _removeTokenFromOwnerList(address _from, uint256 _tokenId) internal {
         // Delete
         uint256 currentCount = _balance(_from) - 1;
@@ -303,7 +312,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         }
     }
 
-    /// @dev Add a NFT to a given address
+    /// @dev Add a token to a given address
     ///      Throws if `_tokenId` is owned by someone.
     function _addTokenTo(address _to, uint256 _tokenId) internal {
         // Throws if `_tokenId` is owned by someone
@@ -316,7 +325,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         ownerToTokenCount[_to] += 1;
     }
 
-    /// @dev Remove a NFT from a given address
+    /// @dev Remove a token from a given address
     ///      Throws if `_from` is not the current owner.
     function _removeTokenFrom(address _from, uint256 _tokenId) internal {
         // Throws if `_from` is not the current owner
@@ -340,12 +349,12 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         }
     }
 
-    /// @dev Exeute transfer of a NFT.
+    /// @dev Exeute transfer of a token.
     ///      Throws unless `msg.sender` is the current owner, an authorized operator, or the approved
-    ///      address for this NFT. (NOTE: `msg.sender` not allowed in internal function so pass `_sender`.)
+    ///      address for this token. (NOTE: `msg.sender` not allowed in internal function so pass `_sender`.)
     ///      Throws if `_to` is the zero address.
     ///      Throws if `_from` is not the current owner.
-    ///      Throws if `_tokenId` is not a valid NFT.
+    ///      Throws if `_tokenId` is not a valid token.
     function _transferFrom(
         address _from,
         address _to,
@@ -357,26 +366,26 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         require(_isApprovedOrOwner(_sender, _tokenId));
         // Clear approval. Throws if `_from` is not the current owner
         _clearApproval(_from, _tokenId);
-        // Remove NFT. Throws if `_tokenId` is not a valid NFT
+        // Remove token. Throws if `_tokenId` is not a valid token
         _removeTokenFrom(_from, _tokenId);
-        // Add NFT
+        // Add token
         _addTokenTo(_to, _tokenId);
-        // Set the block of ownership transfer (for Flash NFT protection)
+        // Set the block of ownership transfer (for Flash token protection)
         ownershipChange[_tokenId] = block.number;
         // Log the transfer
         emit Transfer(_from, _to, _tokenId);
     }
 
     /* TRANSFER FUNCTIONS */
-    /// @dev Throws unless `msg.sender` is the current owner, an authorized operator, or the approved address for this NFT.
+    /// @dev Throws unless `msg.sender` is the current owner, an authorized operator, or the approved address for this token.
     ///      Throws if `_from` is not the current owner.
     ///      Throws if `_to` is the zero address.
-    ///      Throws if `_tokenId` is not a valid NFT.
-    /// @notice The caller is responsible to confirm that `_to` is capable of receiving NFTs or else
+    ///      Throws if `_tokenId` is not a valid token.
+    /// @notice The caller is responsible to confirm that `_to` is capable of receiving tokens or else
     ///        they maybe be permanently lost.
-    /// @param _from The current owner of the NFT.
+    /// @param _from The current owner of the token.
     /// @param _to The new owner.
-    /// @param _tokenId The NFT to transfer.
+    /// @param _tokenId ID of the token to transfer.
     function transferFrom(
         address _from,
         address _to,
@@ -396,17 +405,17 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         return size > 0;
     }
 
-    /// @dev Transfers the ownership of an NFT from one address to another address.
+    /// @dev Transfers the ownership of an token from one address to another address.
     ///      Throws unless `msg.sender` is the current owner, an authorized operator, or the
-    ///      approved address for this NFT.
+    ///      approved address for this token.
     ///      Throws if `_from` is not the current owner.
     ///      Throws if `_to` is the zero address.
-    ///      Throws if `_tokenId` is not a valid NFT.
+    ///      Throws if `_tokenId` is not a valid token.
     ///      If `_to` is a smart contract, it calls `onERC721Received` on `_to` and throws if
     ///      the return value is not `bytes4(keccak256("onERC721Received(address,address,uint256,bytes)"))`.
-    /// @param _from The current owner of the NFT.
+    /// @param _from The current owner of the token.
     /// @param _to The new owner.
-    /// @param _tokenId The NFT to transfer.
+    /// @param _tokenId ID of the token to transfer.
     /// @param _data Additional data with no specified format, sent in call to `_to`.
     function safeTransferFrom(
         address _from,
@@ -434,17 +443,17 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         }
     }
 
-    /// @dev Transfers the ownership of an NFT from one address to another address.
+    /// @dev Transfers the ownership of an token from one address to another address.
     ///      Throws unless `msg.sender` is the current owner, an authorized operator, or the
-    ///      approved address for this NFT.
+    ///      approved address for this token.
     ///      Throws if `_from` is not the current owner.
     ///      Throws if `_to` is the zero address.
-    ///      Throws if `_tokenId` is not a valid NFT.
+    ///      Throws if `_tokenId` is not a valid token.
     ///      If `_to` is a smart contract, it calls `onERC721Received` on `_to` and throws if
     ///      the return value is not `bytes4(keccak256("onERC721Received(address,address,uint256,bytes)"))`.
-    /// @param _from The current owner of the NFT.
+    /// @param _from The current owner of the token.
     /// @param _to The new owner.
-    /// @param _tokenId The NFT to transfer.
+    /// @param _tokenId ID of the token to transfer.
     function safeTransferFrom(
         address _from,
         address _to,
@@ -453,15 +462,15 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         safeTransferFrom(_from, _to, _tokenId, "");
     }
 
-    /// @dev Set or reaffirm the approved address for an NFT. The zero address indicates there is no approved address.
-    ///      Throws unless `msg.sender` is the current NFT owner, or an authorized operator of the current owner.
-    ///      Throws if `_tokenId` is not a valid NFT. (NOTE: This is not written the EIP)
+    /// @dev Set or reaffirm the approved address for an token. The zero address indicates there is no approved address.
+    ///      Throws unless `msg.sender` is the current token owner, or an authorized operator of the current owner.
+    ///      Throws if `_tokenId` is not a valid token. (NOTE: This is not written the EIP)
     ///      Throws if `_approved` is the current owner. (NOTE: This is not written the EIP)
-    /// @param _approved Address to be approved for the given NFT ID.
+    /// @param _approved Address to be approved for the given token ID.
     /// @param _tokenId ID of the token to be approved.
     function approve(address _approved, uint256 _tokenId) public {
         address owner = idToOwner[_tokenId];
-        // Throws if `_tokenId` is not a valid NFT
+        // Throws if `_tokenId` is not a valid token
         require(owner != address(0));
         // Throws if `_approved` is the current owner
         require(_approved != owner);
@@ -491,14 +500,14 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     ///      Throws if `_to` is zero address.
     ///      Throws if `_tokenId` is owned by someone.
     /// @param _to The address that will receive the minted tokens.
-    /// @param _tokenId The token id to mint.
+    /// @param _tokenId ID of the token to mint.
     /// @return bool indication if the operation was successful.
     function _mint(address _to, uint256 _tokenId) internal returns (bool) {
         // Throws if `_to` is zero address
         assert(_to != address(0));
         // checkpoint for gov
         _moveTokenDelegates(address(0), delegates(_to), _tokenId);
-        // Add NFT. Throws if `_tokenId` is owned by someone
+        // Add token. Throws if `_tokenId` is owned by someone
         _addTokenTo(_to, _tokenId);
         emit Transfer(address(0), _to, _tokenId);
         return true;
@@ -528,7 +537,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         uint256 votes = 0;
         for (uint256 i = 0; i < _tokenIds.length; i++) {
             uint256 tId = _tokenIds[i];
-            votes = votes + _balanceOfNFT(tId, block.timestamp);
+            votes = votes + _balanceOfToken(tId, block.timestamp);
         }
         return votes;
     }
@@ -572,7 +581,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         for (uint256 i = 0; i < _tokenIds.length; i++) {
             uint256 tId = _tokenIds[i];
             // Use the provided input timestamp here to get the right decay
-            votes = votes + _balanceOfNFT(tId, timestamp);
+            votes = votes + _balanceOfToken(tId, timestamp);
         }
         return votes;
     }
@@ -726,7 +735,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     }
 
     /// @notice Record global and per-user data to checkpoint
-    /// @param _tokenId NFT token ID. No user checkpoint if 0
+    /// @param _tokenId ID of the token. No user checkpoint if 0
     /// @param oldLocked Pevious locked amount / end lock time for the user
     /// @param newLocked New locked amount / end lock time for the user
     function _checkpoint(
@@ -872,7 +881,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     }
 
     /// @notice Deposit and lock tokens for a user
-    /// @param _tokenId NFT that holds lock
+    /// @param _tokenId ID of the token that holds lock
     /// @param _value Amount to deposit
     /// @param unlockTime New time when to unlock the tokens, or 0 if unchanged
     /// @param lockedBalance Previous locked amount / timestamp
@@ -981,21 +990,21 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
             ? _locked0.end
             : _locked1.end;
 
-        locked[_from] = LockedBalance(0, 0, false);
-        _checkpoint(_from, _locked0, LockedBalance(0, 0, false));
+        locked[_from] = LockedBalance(0, 0, false, 0);
+        _checkpoint(_from, _locked0, LockedBalance(0, 0, false, 0));
         _burn(_from);
         _depositFor(_to, value0, end, _locked1.maxLockEnabled, _locked1, DepositType.MERGE_TYPE);
     }
 
     /// @notice Record global data to checkpoint
     function checkpoint() external {
-        _checkpoint(0, LockedBalance(0, 0, false), LockedBalance(0, 0, false));
+        _checkpoint(0, LockedBalance(0, 0, false, 0), LockedBalance(0, 0, false, 0));
     }
 
     /// @notice Deposit `_value` tokens for `_tokenId` and add to the lock
     /// @dev Anyone (even a smart contract) can deposit for someone else, but
     ///      cannot extend their locktime and deposit for a brand new user
-    /// @param _tokenId lock NFT
+    /// @param _tokenId ID of the token to deposit for
     /// @param _value Amount to add to user's lock
     function depositFor(uint256 _tokenId, uint256 _value) external nonreentrant {
         LockedBalance memory _locked = locked[_tokenId];
@@ -1107,46 +1116,33 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         require(attachments[_tokenId] == 0 && !voted[_tokenId], "attached");
 
         LockedBalance memory _locked = locked[_tokenId];
-        require(block.timestamp >= _locked.end, "The lock didn't expire");
+
+        require(_locked.cooldown > 0, "Cooldown period has not started");
+        require(block.timestamp >= _locked.cooldown, "Cooldown period in progress");
+
         uint256 value = uint256(int256(_locked.amount));
 
-        locked[_tokenId] = LockedBalance(0, 0, false);
+        locked[_tokenId] = LockedBalance(0, 0, false, 0);
         uint256 supplyBefore = supply;
         supply = supplyBefore - value;
 
         // oldLocked can have either expired <= timestamp or zero end
         // _locked has only 0 end
         // Both can have >= 0 amount
-        _checkpoint(_tokenId, _locked, LockedBalance(0, 0, false));
+        _checkpoint(_tokenId, _locked, LockedBalance(0, 0, false, 0));
 
         require(IERC20(token).transfer(msg.sender, value));
 
-        // Burn the NFT
+        // Burn the token
         _burn(_tokenId);
 
         emit Withdraw(msg.sender, _tokenId, value, block.timestamp);
         emit Supply(supplyBefore, supplyBefore - value);
     }
 
-    function ragequit(uint256 _tokenId) external {
-        require(_isApprovedOrOwner(msg.sender, _tokenId));
-
-        uint256 manaToRagequit = amountToRagequit(_tokenId);
-
-        require(IManaToken(MANA).balanceOf(msg.sender) >= manaToRagequit, "insufficient MANA balance");
-
-        locked[_tokenId].end = 0;
-
-        IManaToken(MANA).burnFrom(msg.sender, manaToRagequit);
-
-        withdraw(_tokenId);
-
-        emit Ragequit(msg.sender, _tokenId, block.timestamp);
-    }
-
     // Amount of MANA required to ragequit for a given token
     function amountToRagequit(uint256 _tokenId) public view returns (uint256) {
-        return _balanceOfNFT(_tokenId, block.timestamp) * manaPerVeALCX;
+        return _balanceOfToken(_tokenId, block.timestamp) * manaPerVeALCX;
     }
 
     // The following ERC20/minime-compatible methods are not real balanceOf and supply!
@@ -1178,10 +1174,10 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
     /// @notice Get the current voting power for `_tokenId`
     /// @dev Adheres to the ERC20 `balanceOf` interface for Aragon compatibility
-    /// @param _tokenId NFT for lock
+    /// @param _tokenId ID of the token
     /// @param _time Epoch time to return voting power at
     /// @return User voting power
-    function _balanceOfNFT(uint256 _tokenId, uint256 _time) internal view returns (uint256) {
+    function _balanceOfToken(uint256 _tokenId, uint256 _time) internal view returns (uint256) {
         uint256 _epoch = userPointEpoch[_tokenId];
 
         if (_epoch == 0) {
@@ -1202,25 +1198,30 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     }
 
     /// @dev Returns current token URI metadata
-    /// @param _tokenId Token ID to fetch URI for.
+    /// @param _tokenId ID of the token to fetch URI for.
     function tokenURI(uint256 _tokenId) external view returns (string memory) {
         require(idToOwner[_tokenId] != address(0), "Query for nonexistent token");
         LockedBalance memory _locked = locked[_tokenId];
         return
-            _tokenURI(_tokenId, _balanceOfNFT(_tokenId, block.timestamp), _locked.end, uint256(int256(_locked.amount)));
+            _tokenURI(
+                _tokenId,
+                _balanceOfToken(_tokenId, block.timestamp),
+                _locked.end,
+                uint256(int256(_locked.amount))
+            );
     }
 
-    function balanceOfNFT(uint256 _tokenId) external view returns (uint256) {
+    function balanceOfToken(uint256 _tokenId) external view returns (uint256) {
         if (ownershipChange[_tokenId] == block.number) return 0;
-        return _balanceOfNFT(_tokenId, block.timestamp);
+        return _balanceOfToken(_tokenId, block.timestamp);
     }
 
-    function balanceOfNFTAt(uint256 _tokenId, uint256 _time) external view returns (uint256) {
-        return _balanceOfNFT(_tokenId, _time);
+    function balanceOfTokenAt(uint256 _tokenId, uint256 _time) external view returns (uint256) {
+        return _balanceOfToken(_tokenId, _time);
     }
 
     function claimableMana(uint256 _tokenId) public view returns (uint256) {
-        uint256 votingPower = _balanceOfNFT(_tokenId, block.timestamp);
+        uint256 votingPower = _balanceOfToken(_tokenId, block.timestamp);
         return votingPower * manaMultiplier;
     }
 
@@ -1232,12 +1233,48 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         IManaToken(MANA).mint(ownerOf(_tokenId), _amount);
     }
 
+    /// @notice Starts the cooldown for `_tokenId`
+    /// @dev If lock is not expired cooldown can only be started by burning MANA
+    /// @param _tokenId ID of the token to start cooldown for
+    function startCooldown(uint256 _tokenId) external {
+        require(_isApprovedOrOwner(msg.sender, _tokenId));
+        require(attachments[_tokenId] == 0 && !voted[_tokenId], "attached");
+
+        LockedBalance memory _locked = locked[_tokenId];
+
+        // Can only start cooldown period once
+        require(_locked.cooldown == 0, "Cooldown period in progress");
+
+        // Can only start cooldown with max lock disabled
+        require(_locked.maxLockEnabled == false, "Max lock must be disabled");
+
+        // If lock is not expired, cooldown can only be started by burning MANA
+        if (block.timestamp < _locked.end) {
+            // Amount of MANA required to ragequit
+            uint256 manaToRagequit = amountToRagequit(_tokenId);
+
+            require(IManaToken(MANA).balanceOf(msg.sender) >= manaToRagequit, "insufficient MANA balance");
+
+            _locked.end = 0;
+
+            IManaToken(MANA).burnFrom(msg.sender, manaToRagequit);
+
+            emit Ragequit(msg.sender, _tokenId, block.timestamp);
+        }
+
+        _locked.cooldown = block.timestamp + WEEK;
+
+        locked[_tokenId] = _locked;
+
+        emit CooldownStarted(msg.sender, _tokenId, _locked.cooldown);
+    }
+
     /// @notice Measure voting power of `_tokenId` at block height `_block`
     /// @dev Adheres to MiniMe `balanceOfAt` interface: https://github.com/Giveth/minime
-    /// @param _tokenId User's wallet NFT
+    /// @param _tokenId ID of the token
     /// @param _block Block to calculate the voting power at
     /// @return Voting power
-    function _balanceOfAtNFT(uint256 _tokenId, uint256 _block) internal view returns (uint256) {
+    function _balanceOfAtToken(uint256 _tokenId, uint256 _block) internal view returns (uint256) {
         // totalSupply code because Vyper cannot pass by reference yet
         require(_block <= block.number);
 
@@ -1285,8 +1322,8 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         }
     }
 
-    function balanceOfAtNFT(uint256 _tokenId, uint256 _block) external view returns (uint256) {
-        return _balanceOfAtNFT(_tokenId, _block);
+    function balanceOfAtToken(uint256 _tokenId, uint256 _block) external view returns (uint256) {
+        return _balanceOfAtToken(_tokenId, _block);
     }
 
     /// @notice Calculate total voting power at some point in the past

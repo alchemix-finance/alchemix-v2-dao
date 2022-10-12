@@ -47,7 +47,7 @@ interface IVotingEscrow {
         address
     ) external returns (uint256);
 
-    function balanceOfNFT(uint256 tokenId) external view returns (uint256);
+    function balanceOfToken(uint256 tokenId) external view returns (uint256);
 
     function claimableMana(uint256 tokenId) external view returns (uint256);
 

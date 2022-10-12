@@ -35,10 +35,10 @@ contract Voter {
     mapping(address => address) public poolForGauge; // gauge => pool
     mapping(address => address) public bribes; // gauge => bribe
     mapping(address => uint256) public weights; // pool => weight
-    mapping(uint256 => mapping(address => uint256)) public votes; // nft => pool => votes
-    mapping(uint256 => address[]) public poolVote; // nft => pools
-    mapping(uint256 => uint256) public usedWeights; // nft => total voting weight of user
-    mapping(uint256 => uint256) public lastVoted; // nft => timestamp of last vote, to ensure one vote per epoch
+    mapping(uint256 => mapping(address => uint256)) public votes; // token => pool => votes
+    mapping(uint256 => address[]) public poolVote; // token => pools
+    mapping(uint256 => uint256) public usedWeights; // token => total voting weight of user
+    mapping(uint256 => uint256) public lastVoted; // token => timestamp of last vote, to ensure one vote per epoch
     mapping(address => bool) public isGauge;
     mapping(address => bool) public isWhitelisted;
     mapping(address => bool) public isAlive;
@@ -174,7 +174,7 @@ contract Voter {
             address _gauge = gauges[_pool];
 
             if (isGauge[_gauge]) {
-                uint256 _poolWeight = (_weights[i] * (IVotingEscrow(veALCX).balanceOfNFT(_tokenId) + _boost)) /
+                uint256 _poolWeight = (_weights[i] * (IVotingEscrow(veALCX).balanceOfToken(_tokenId) + _boost)) /
                     _totalVoteWeight;
                 require(votes[_tokenId][_pool] == 0);
                 require(_poolWeight != 0);

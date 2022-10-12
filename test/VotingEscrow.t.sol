@@ -54,7 +54,6 @@ contract VotingEscrowTest is BaseTest {
 
         // Now that max lock is disabled lock duration can be set again
         hevm.expectRevert(abi.encodePacked("Voting lock can be 1 year max"));
-
         veALCX.updateUnlockTime(1, ONE_YEAR + ONE_WEEK, false);
 
         hevm.warp(block.timestamp + 260 days);
@@ -75,7 +74,6 @@ contract VotingEscrowTest is BaseTest {
         hevm.startPrank(account);
 
         hevm.expectRevert(abi.encodePacked("Voting lock can be 1 year max"));
-
         veALCX.createLock(depositAmount, ONE_YEAR + ONE_WEEK, false);
 
         hevm.stopPrank();
@@ -87,7 +85,7 @@ contract VotingEscrowTest is BaseTest {
 
         uint256 tokenId = veALCX.createLock(depositAmount, ONE_WEEK, false);
 
-        uint256 votes = veALCX.balanceOfAtNFT(tokenId, block.number);
+        uint256 votes = veALCX.balanceOfAtToken(tokenId, block.number);
         uint256 totalVotes = veALCX.totalSupply();
 
         assertEq(totalVotes, votes, "votes doesn't match total");
@@ -101,8 +99,15 @@ contract VotingEscrowTest is BaseTest {
 
         uint256 tokenId = veALCX.createLock(depositAmount, ONE_WEEK, false);
 
-        hevm.expectRevert(abi.encodePacked("The lock didn't expire"));
+        hevm.expectRevert(abi.encodePacked("Cooldown period has not started"));
+        veALCX.withdraw(tokenId);
 
+        hevm.warp(block.timestamp + ONE_WEEK);
+
+        // Start cooldown once lock is expired
+        veALCX.startCooldown(tokenId);
+
+        hevm.expectRevert(abi.encodePacked("Cooldown period in progress"));
         veALCX.withdraw(tokenId);
 
         hevm.warp(block.timestamp + ONE_WEEK);
@@ -111,8 +116,8 @@ contract VotingEscrowTest is BaseTest {
 
         assertEq(alcx.balanceOf(address(account)), 1e21);
 
-        // Check that the NFT is burnt
-        assertEq(veALCX.balanceOfNFT(tokenId), 0);
+        // Check that the token is burnt
+        assertEq(veALCX.balanceOfToken(tokenId), 0);
         assertEq(veALCX.ownerOf(tokenId), address(0));
 
         hevm.stopPrank();
@@ -134,10 +139,14 @@ contract VotingEscrowTest is BaseTest {
         // Check that new token doesn't revert
         veALCX.tokenURI(tokenId);
 
-        // Withdraw, which destroys the NFT
+        veALCX.startCooldown(tokenId);
+
+        hevm.warp(block.timestamp + ONE_WEEK);
+
+        // Withdraw, which destroys the token
         veALCX.withdraw(tokenId);
 
-        // tokenURI should not work for this anymore as the NFT is burnt
+        // tokenURI should not work for this anymore as the token is burnt
         hevm.expectRevert(abi.encodePacked("Query for nonexistent token"));
         veALCX.tokenURI(tokenId);
 
@@ -167,12 +176,12 @@ contract VotingEscrowTest is BaseTest {
         uint256 tokenId = veALCX.createLock(depositAmount, ONE_WEEK, false);
 
         // Show that veALCX is not expired
-        hevm.expectRevert(abi.encodePacked("The lock didn't expire"));
+        hevm.expectRevert(abi.encodePacked("Cooldown period has not started"));
         veALCX.withdraw(tokenId);
 
         // Account doesn't have enough MANA
         hevm.expectRevert(abi.encodePacked("insufficient MANA balance"));
-        veALCX.ragequit(tokenId);
+        veALCX.startCooldown(tokenId);
 
         hevm.stopPrank();
 
@@ -185,12 +194,23 @@ contract VotingEscrowTest is BaseTest {
 
         MANA.approve(address(veALCX), ragequitAmount);
 
-        veALCX.ragequit(tokenId);
+        veALCX.startCooldown(tokenId);
+
+        hevm.roll(block.number + 1);
+
+        hevm.expectRevert(abi.encodePacked("Cooldown period in progress"));
+        veALCX.withdraw(tokenId);
+
+        assertEq(veALCX.cooldownEnd(tokenId), block.timestamp + ONE_WEEK);
+
+        hevm.warp(block.timestamp + ONE_WEEK + 1 days);
+
+        veALCX.withdraw(tokenId);
 
         assertEq(alcx.balanceOf(address(account)), 1e21);
 
-        // Check that the NFT is burnt
-        assertEq(veALCX.balanceOfNFT(tokenId), 0);
+        // Check that the token is burnt
+        assertEq(veALCX.balanceOfToken(tokenId), 0);
         assertEq(veALCX.ownerOf(tokenId), address(0));
 
         hevm.stopPrank();
