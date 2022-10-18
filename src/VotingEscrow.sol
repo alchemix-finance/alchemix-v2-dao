@@ -1194,7 +1194,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
                 ? int128(int256(0))
                 : lastPoint.slope * int128(int256(_time) - int256(lastPoint.ts));
 
-            if (lastPoint.bias < 0) {
+            if (lastPoint.bias < 1) {
                 lastPoint.bias = 1;
             }
             return uint256(int256(lastPoint.bias));
@@ -1312,7 +1312,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
             lastPoint.ts = _time;
         }
 
-        if (lastPoint.bias < 0) {
+        if (lastPoint.bias < 1) {
             lastPoint.bias = 1;
         }
         return uint256(uint128(lastPoint.bias));

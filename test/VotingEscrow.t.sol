@@ -112,7 +112,7 @@ contract VotingEscrowTest is BaseTest {
         assertEq(alcx.balanceOf(address(account)), 1e21);
 
         // Check that the NFT is burnt
-        assertEq(veALCX.balanceOfNFT(tokenId), 0);
+        assertEq(veALCX.balanceOfNFT(tokenId), 1);
         assertEq(veALCX.ownerOf(tokenId), address(0));
 
         hevm.stopPrank();
@@ -190,7 +190,7 @@ contract VotingEscrowTest is BaseTest {
         assertEq(alcx.balanceOf(address(account)), 1e21);
 
         // Check that the NFT is burnt
-        assertEq(veALCX.balanceOfNFT(tokenId), 0);
+        assertEq(veALCX.balanceOfNFT(tokenId), 1);
         assertEq(veALCX.ownerOf(tokenId), address(0));
 
         hevm.stopPrank();
