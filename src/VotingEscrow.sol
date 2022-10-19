@@ -1248,6 +1248,8 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         // Can only start cooldown with max lock disabled
         require(_locked.maxLockEnabled == false, "Max lock must be disabled");
 
+        locked[_tokenId].cooldown = block.timestamp + WEEK;
+
         // If lock is not expired, cooldown can only be started by burning MANA
         if (block.timestamp < _locked.end) {
             // Amount of MANA required to ragequit
@@ -1255,16 +1257,12 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
             require(IManaToken(MANA).balanceOf(msg.sender) >= manaToRagequit, "insufficient MANA balance");
 
-            _locked.end = 0;
+            locked[_tokenId].end = 0;
 
             IManaToken(MANA).burnFrom(msg.sender, manaToRagequit);
 
             emit Ragequit(msg.sender, _tokenId, block.timestamp);
         }
-
-        _locked.cooldown = block.timestamp + WEEK;
-
-        locked[_tokenId] = _locked;
 
         emit CooldownStarted(msg.sender, _tokenId, _locked.cooldown);
     }
