@@ -6,8 +6,7 @@ import "./BaseTest.sol";
 contract VotingEscrowTest is BaseTest {
     uint256 internal constant ONE_WEEK = 1 weeks;
     uint256 depositAmount = 1e21;
-    uint256 internal constant ONE_YEAR = 365 days;
-    uint256 maxDuration = ((block.timestamp + ONE_YEAR) / ONE_WEEK) * ONE_WEEK;
+    uint256 maxDuration = ((block.timestamp + MAXTIME) / ONE_WEEK) * ONE_WEEK;
 
     function setUp() public {
         mintAlcx(account, depositAmount);
@@ -55,7 +54,7 @@ contract VotingEscrowTest is BaseTest {
         // Now that max lock is disabled lock duration can be set again
         hevm.expectRevert(abi.encodePacked("Voting lock can be 1 year max"));
 
-        veALCX.updateUnlockTime(1, ONE_YEAR + ONE_WEEK, false);
+        veALCX.updateUnlockTime(1, MAXTIME + ONE_WEEK, false);
 
         hevm.warp(block.timestamp + 260 days);
 
@@ -76,7 +75,7 @@ contract VotingEscrowTest is BaseTest {
 
         hevm.expectRevert(abi.encodePacked("Voting lock can be 1 year max"));
 
-        veALCX.createLock(depositAmount, ONE_YEAR + ONE_WEEK, false);
+        veALCX.createLock(depositAmount, MAXTIME + ONE_WEEK, false);
 
         hevm.stopPrank();
     }
@@ -87,10 +86,11 @@ contract VotingEscrowTest is BaseTest {
 
         uint256 tokenId = veALCX.createLock(depositAmount, ONE_WEEK, false);
 
-        uint256 votes = veALCX.balanceOfAtNFT(tokenId, block.number);
+        // uint256 votes = veALCX.balanceOfAtNFT(tokenId, block.number);
+        uint256 maxVotingPower = getMaxVotingPower(depositAmount, veALCX.lockEnd(tokenId));
         uint256 totalVotes = veALCX.totalSupply();
 
-        assertEq(totalVotes, votes, "votes doesn't match total");
+        assertEq(totalVotes, maxVotingPower, "votes doesn't match total");
 
         hevm.stopPrank();
     }
@@ -112,7 +112,7 @@ contract VotingEscrowTest is BaseTest {
         assertEq(alcx.balanceOf(address(account)), 1e21);
 
         // Check that the NFT is burnt
-        assertEq(veALCX.balanceOfNFT(tokenId), 1);
+        assertEq(veALCX.balanceOfNFT(tokenId), 0);
         assertEq(veALCX.ownerOf(tokenId), address(0));
 
         hevm.stopPrank();
@@ -190,7 +190,7 @@ contract VotingEscrowTest is BaseTest {
         assertEq(alcx.balanceOf(address(account)), 1e21);
 
         // Check that the NFT is burnt
-        assertEq(veALCX.balanceOfNFT(tokenId), 1);
+        assertEq(veALCX.balanceOfNFT(tokenId), 0);
         assertEq(veALCX.ownerOf(tokenId), address(0));
 
         hevm.stopPrank();

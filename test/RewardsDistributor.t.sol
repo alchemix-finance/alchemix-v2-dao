@@ -38,8 +38,8 @@ contract RewardsDistributorTest is BaseTest {
 
     //     // Check veNFT parameters
     //     // LockedBalance memory bal = veALCX.locked(tokenId);
-    //     (int128 amount, uint256 end) = veALCX.locked(tokenId);
-    //     assertEq(uint256(uint128(amount)), depositAmount, "depositAmount doesn't match");
+    //     (int256 amount, uint256 end) = veALCX.locked(tokenId);
+    //     assertEq(uint256(amount), depositAmount, "depositAmount doesn't match");
     //     assertLe(end, block.timestamp + lockTime, "lockTime doesn't match"); // Rounds to nearest week
     // }
 }

@@ -124,7 +124,7 @@ contract RewardsDistributor {
         uint256 maxUserEpoch = IVotingEscrow(ve).userPointEpoch(_tokenId);
         uint256 epoch = _findTimestampUserEpoch(ve, _tokenId, _timestamp, maxUserEpoch);
         IVotingEscrow.Point memory pt = IVotingEscrow(ve).userPointHistory(_tokenId, epoch);
-        return Math.max(uint256(int256(pt.bias - pt.slope * (int128(int256(_timestamp - pt.ts))))), 0);
+        return Math.max(uint256(pt.bias - pt.slope * (int256(_timestamp - pt.ts))), 0);
     }
 
     function _checkpointTotalSupply() internal {
@@ -139,11 +139,11 @@ contract RewardsDistributor {
             } else {
                 uint256 epoch = _findTimestampEpoch(ve, t);
                 IVotingEscrow.Point memory pt = IVotingEscrow(ve).pointHistory(epoch);
-                int128 dt = 0;
+                int256 dt = 0;
                 if (t > pt.ts) {
-                    dt = int128(int256(t - pt.ts));
+                    dt = int256(t - pt.ts);
                 }
-                veSupply[t] = Math.max(uint256(int256(pt.bias - pt.slope * dt)), 0);
+                veSupply[t] = Math.max(uint256(pt.bias - pt.slope * dt), 0);
             }
             t += WEEK;
         }
@@ -196,8 +196,8 @@ contract RewardsDistributor {
                     userPoint = IVotingEscrow(ve).userPointHistory(_tokenId, userEpoch);
                 }
             } else {
-                int128 dt = int128(int256(weekCursor - oldUserPoint.ts));
-                uint256 balanceOf = Math.max(uint256(int256(oldUserPoint.bias - dt * oldUserPoint.slope)), 0);
+                int256 dt = int256(weekCursor - oldUserPoint.ts);
+                uint256 balanceOf = Math.max(uint256(oldUserPoint.bias - dt * oldUserPoint.slope), 0);
                 if (balanceOf == 0 && userEpoch > maxUserEpoch) break;
                 if (balanceOf != 0) {
                     toDistribute += (balanceOf * tokensPerWeek[weekCursor]) / veSupply[weekCursor];
@@ -257,8 +257,8 @@ contract RewardsDistributor {
                     userPoint = IVotingEscrow(ve).userPointHistory(_tokenId, userEpoch);
                 }
             } else {
-                int128 dt = int128(int256(weekCursor - oldUserPoint.ts));
-                uint256 balanceOf = Math.max(uint256(int256(oldUserPoint.bias - dt * oldUserPoint.slope)), 0);
+                int256 dt = int256(weekCursor - oldUserPoint.ts);
+                uint256 balanceOf = Math.max(uint256(oldUserPoint.bias - dt * oldUserPoint.slope), 0);
                 if (balanceOf == 0 && userEpoch > maxUserEpoch) break;
                 if (balanceOf != 0) {
                     toDistribute += (balanceOf * tokensPerWeek[weekCursor]) / veSupply[weekCursor];

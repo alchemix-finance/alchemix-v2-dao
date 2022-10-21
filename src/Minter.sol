@@ -86,7 +86,8 @@ contract Minter is IMinter {
 
     // Circulating supply is total token supply - locked supply
     function circulatingAlcxSupply() public view returns (uint256) {
-        return alcx.totalSupply() - ve.totalSupply();
+        // TODO determine if we should calculate amount of veALCX locked in BPT positions
+        return alcx.totalSupply();
     }
 
     // Amount of emission for the current epoch

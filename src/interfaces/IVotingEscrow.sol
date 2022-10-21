@@ -3,8 +3,8 @@ pragma solidity ^0.8.15;
 
 interface IVotingEscrow {
     struct Point {
-        int128 bias;
-        int128 slope; // # -dweight / dt
+        int256 bias;
+        int256 slope; // # -dweight / dt
         uint256 ts;
         uint256 blk; // block
     }
