@@ -33,7 +33,6 @@ contract VotingTest is BaseTest {
         veALCX.createLock(TOKEN_1, MAXTIME, false);
 
         uint256 maxVotingPower = getMaxVotingPower(TOKEN_1, veALCX.lockEnd(1));
-        uint256 totalPower = veALCX.totalSupply();
 
         distributor = new RewardsDistributor(address(veALCX));
         veALCX.setVoter(address(voter));
@@ -57,7 +56,7 @@ contract VotingTest is BaseTest {
 
         hevm.roll(block.number + 1);
 
-        assertEq(totalPower, maxVotingPower);
+        assertEq(veALCX.balanceOfNFT(1), maxVotingPower);
         assertEq(alcx.balanceOf(address(veALCX)), TOKEN_1);
 
         minter.initialize();

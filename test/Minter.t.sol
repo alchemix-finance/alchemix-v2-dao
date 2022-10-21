@@ -56,9 +56,8 @@ contract MinterTest is BaseTest {
         hevm.roll(block.number + 1);
 
         uint256 maxVotingPower = getMaxVotingPower(TOKEN_1, veALCX.lockEnd(1));
-        uint256 totalPower = veALCX.totalSupply();
 
-        assertEq(totalPower, maxVotingPower);
+        assertEq(veALCX.balanceOfNFT(1), maxVotingPower);
         assertEq(alcx.balanceOf(address(veALCX)), TOKEN_1);
 
         address[] memory pools = new address[](1);
