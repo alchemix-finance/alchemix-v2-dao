@@ -93,7 +93,7 @@ contract VotingEscrowTest is BaseTest {
 
         uint256 totalVotes = veALCX.totalSupply();
 
-        uint256 votingPower = veALCX.balanceOfNFT(tokenId1) + veALCX.balanceOfNFT(tokenId2);
+        uint256 votingPower = veALCX.balanceOfToken(tokenId1) + veALCX.balanceOfToken(tokenId2);
 
         assertEq(votingPower, totalVotes, "votes doesn't match total");
 
@@ -108,8 +108,15 @@ contract VotingEscrowTest is BaseTest {
 
         uint256 tokenId = veALCX.createLock(depositAmount, ONE_WEEK, false);
 
-        hevm.expectRevert(abi.encodePacked("The lock didn't expire"));
+        hevm.expectRevert(abi.encodePacked("Cooldown period has not started"));
+        veALCX.withdraw(tokenId);
 
+        hevm.warp(block.timestamp + ONE_WEEK);
+
+        // Start cooldown once lock is expired
+        veALCX.startCooldown(tokenId);
+
+        hevm.expectRevert(abi.encodePacked("Cooldown period in progress"));
         veALCX.withdraw(tokenId);
 
         hevm.warp(block.timestamp + ONE_WEEK);
@@ -118,8 +125,8 @@ contract VotingEscrowTest is BaseTest {
 
         assertEq(alcx.balanceOf(address(account)), depositAmount);
 
-        // Check that the NFT is burnt
-        assertEq(veALCX.balanceOfNFT(tokenId), 0);
+        // Check that the token is burnt
+        assertEq(veALCX.balanceOfToken(tokenId), 0);
         assertEq(veALCX.ownerOf(tokenId), address(0));
 
         hevm.stopPrank();
@@ -141,10 +148,14 @@ contract VotingEscrowTest is BaseTest {
         // Check that new token doesn't revert
         veALCX.tokenURI(tokenId);
 
-        // Withdraw, which destroys the NFT
+        veALCX.startCooldown(tokenId);
+
+        hevm.warp(block.timestamp + ONE_WEEK);
+
+        // Withdraw, which destroys the token
         veALCX.withdraw(tokenId);
 
-        // tokenURI should not work for this anymore as the NFT is burnt
+        // tokenURI should not work for this anymore as the token is burnt
         hevm.expectRevert(abi.encodePacked("Query for nonexistent token"));
         veALCX.tokenURI(tokenId);
 
@@ -174,12 +185,12 @@ contract VotingEscrowTest is BaseTest {
         uint256 tokenId = veALCX.createLock(depositAmount, ONE_WEEK, false);
 
         // Show that veALCX is not expired
-        hevm.expectRevert(abi.encodePacked("The lock didn't expire"));
+        hevm.expectRevert(abi.encodePacked("Cooldown period has not started"));
         veALCX.withdraw(tokenId);
 
         // Account doesn't have enough MANA
         hevm.expectRevert(abi.encodePacked("insufficient MANA balance"));
-        veALCX.ragequit(tokenId);
+        veALCX.startCooldown(tokenId);
 
         hevm.stopPrank();
 
@@ -192,12 +203,23 @@ contract VotingEscrowTest is BaseTest {
 
         MANA.approve(address(veALCX), ragequitAmount);
 
-        veALCX.ragequit(tokenId);
+        veALCX.startCooldown(tokenId);
 
-        assertEq(alcx.balanceOf(address(account)), depositAmount);
+        hevm.roll(block.number + 1);
 
-        // Check that the NFT is burnt
-        assertEq(veALCX.balanceOfNFT(tokenId), 0);
+        hevm.expectRevert(abi.encodePacked("Cooldown period in progress"));
+        veALCX.withdraw(tokenId);
+
+        assertEq(veALCX.cooldownEnd(tokenId), block.timestamp + ONE_WEEK);
+
+        hevm.warp(block.timestamp + ONE_WEEK + 1 days);
+
+        veALCX.withdraw(tokenId);
+
+        hevm.roll(block.number + 1);
+
+        // Check that the token is burnt
+        assertEq(veALCX.balanceOfToken(tokenId), 0);
         assertEq(veALCX.ownerOf(tokenId), address(0));
 
         hevm.stopPrank();
