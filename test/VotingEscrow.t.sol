@@ -216,7 +216,7 @@ contract VotingEscrowTest is BaseTest {
 
         veALCX.withdraw(tokenId);
 
-        assertEq(alcx.balanceOf(address(account)), depositAmount);
+        hevm.roll(block.number + 1);
 
         // Check that the token is burnt
         assertEq(veALCX.balanceOfToken(tokenId), 0);
