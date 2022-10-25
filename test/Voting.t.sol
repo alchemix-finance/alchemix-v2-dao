@@ -257,7 +257,7 @@ contract VotingTest is BaseTest {
         // Voting power remains at 1 when lock is expired
         hevm.expectRevert(abi.encodePacked("Cannot add to expired lock. Withdraw"));
         veALCX.increaseAmount(2, TOKEN_1);
-        assertEq(balance, TOKEN_1);
+        assertEq(balance, 0);
 
         hevm.stopPrank();
     }

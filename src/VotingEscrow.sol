@@ -771,7 +771,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
             }
         }
 
-        Point memory lastPoint = Point({ bias: oldLocked.amount, slope: 0, ts: block.timestamp, blk: block.number });
+        Point memory lastPoint = Point({ bias: 0, slope: 0, ts: block.timestamp, blk: block.number });
         if (_epoch > 0) {
             lastPoint = pointHistory[_epoch];
         }
@@ -802,9 +802,9 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
                 }
                 lastPoint.bias -= (lastPoint.slope * (int256(_time - lastCheckpoint)));
                 lastPoint.slope += dSlope;
-                if (lastPoint.bias < newLocked.amount) {
+                if (lastPoint.bias < 0) {
                     // This can happen
-                    lastPoint.bias = newLocked.amount;
+                    lastPoint.bias = 0;
                 }
                 if (lastPoint.slope < 0) {
                     // This cannot happen - just in case
@@ -834,8 +834,8 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
             if (lastPoint.slope < 0) {
                 lastPoint.slope = 0;
             }
-            if (lastPoint.bias < newLocked.amount) {
-                lastPoint.bias = newLocked.amount;
+            if (lastPoint.bias < 0) {
+                lastPoint.bias = 0;
             }
         }
 
@@ -1189,15 +1189,14 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
             return 0;
         } else {
             Point memory lastPoint = userPointHistory[_tokenId][_epoch];
-            LockedBalance memory _locked = locked[_tokenId];
 
             // If max lock is enabled bias is unchanged
             lastPoint.bias -= locked[_tokenId].maxLockEnabled
                 ? int256(0)
                 : lastPoint.slope * (int256(_time) - int256(lastPoint.ts));
 
-            if (lastPoint.bias < _locked.amount) {
-                lastPoint.bias = _locked.amount;
+            if (lastPoint.bias < 0) {
+                lastPoint.bias = 0;
             }
             return uint256(lastPoint.bias);
         }
@@ -1306,7 +1305,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
             } else {
                 dSlope = slopeChanges[_time];
             }
-            lastPoint.bias -= lastPoint.slope * (int256(_time - lastPoint.ts));
+            lastPoint.bias -= (lastPoint.slope * (int256(_time - lastPoint.ts)));
             if (_time == t) {
                 break;
             }

@@ -88,21 +88,14 @@ contract VotingEscrowTest is BaseTest {
         uint256 tokenId1 = veALCX.createLock(depositAmount / 2, ONE_WEEK, false);
         uint256 tokenId2 = veALCX.createLock(depositAmount / 2, ONE_WEEK * 2, false);
 
-        hevm.warp(block.timestamp + 1 days);
-
-        uint256 votingPower = veALCX.balanceOfNFT(tokenId1) + veALCX.balanceOfNFT(tokenId2);
-
         uint256 maxVotingPower = getMaxVotingPower(depositAmount / 2, veALCX.lockEnd(tokenId1)) +
             getMaxVotingPower(depositAmount / 2, veALCX.lockEnd(tokenId2));
 
         uint256 totalVotes = veALCX.totalSupply();
 
-        console2.log("diff", totalVotes - votingPower);
-        console2.log("votingPower", votingPower);
-        console2.log("totalVotess", totalVotes);
+        uint256 votingPower = veALCX.balanceOfNFT(tokenId1) + veALCX.balanceOfNFT(tokenId2);
 
-        // Off by the locked amount of one veALCX (depositAmount / 2)
-        // assertEq(votingPower, totalVotes, "votes doesn't match total");
+        assertEq(votingPower, totalVotes, "votes doesn't match total");
 
         assertEq(votingPower, maxVotingPower, "votes doesn't match total");
 
