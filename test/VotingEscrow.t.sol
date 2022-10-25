@@ -5,12 +5,12 @@ import "./BaseTest.sol";
 
 contract VotingEscrowTest is BaseTest {
     uint256 internal constant ONE_WEEK = 1 weeks;
-    uint256 depositAmount = 1e21;
-    uint256 internal constant ONE_YEAR = 365 days;
-    uint256 maxDuration = ((block.timestamp + ONE_YEAR) / ONE_WEEK) * ONE_WEEK;
+    uint256 depositAmount = TOKEN_1;
+    uint256 maxDuration = ((block.timestamp + MAXTIME) / ONE_WEEK) * ONE_WEEK;
 
     function setUp() public {
         mintAlcx(account, depositAmount);
+
         approveAmount(account, address(veALCX), depositAmount);
     }
 
@@ -55,14 +55,14 @@ contract VotingEscrowTest is BaseTest {
         // Now that max lock is disabled lock duration can be set again
         hevm.expectRevert(abi.encodePacked("Voting lock can be 1 year max"));
 
-        veALCX.updateUnlockTime(1, ONE_YEAR + ONE_WEEK, false);
+        veALCX.updateUnlockTime(1, MAXTIME + ONE_WEEK, false);
 
-        hevm.warp(block.timestamp + 360 days);
+        hevm.warp(block.timestamp + 260 days);
 
         lockEnd = veALCX.lockEnd(1);
 
         // Able to increase lock end now that previous lock end is closer
-        veALCX.updateUnlockTime(1, 300 days, false);
+        veALCX.updateUnlockTime(1, 200 days, false);
 
         // Updated lock end should be greater than previous lockEnd
         assertGt(veALCX.lockEnd(1), lockEnd);
@@ -76,7 +76,7 @@ contract VotingEscrowTest is BaseTest {
 
         hevm.expectRevert(abi.encodePacked("Voting lock can be 1 year max"));
 
-        veALCX.createLock(depositAmount, ONE_YEAR + ONE_WEEK, false);
+        veALCX.createLock(depositAmount, MAXTIME + ONE_WEEK, false);
 
         hevm.stopPrank();
     }
@@ -85,12 +85,19 @@ contract VotingEscrowTest is BaseTest {
     function testVotes() public {
         hevm.startPrank(account);
 
-        uint256 tokenId = veALCX.createLock(depositAmount, ONE_WEEK, false);
+        uint256 tokenId1 = veALCX.createLock(depositAmount / 2, ONE_WEEK, false);
+        uint256 tokenId2 = veALCX.createLock(depositAmount / 2, ONE_WEEK * 2, false);
 
-        uint256 votes = veALCX.balanceOfAtNFT(tokenId, block.number);
+        uint256 maxVotingPower = getMaxVotingPower(depositAmount / 2, veALCX.lockEnd(tokenId1)) +
+            getMaxVotingPower(depositAmount / 2, veALCX.lockEnd(tokenId2));
+
         uint256 totalVotes = veALCX.totalSupply();
 
-        assertEq(totalVotes, votes, "votes doesn't match total");
+        uint256 votingPower = veALCX.balanceOfNFT(tokenId1) + veALCX.balanceOfNFT(tokenId2);
+
+        assertEq(votingPower, totalVotes, "votes doesn't match total");
+
+        assertEq(votingPower, maxVotingPower, "votes doesn't match total");
 
         hevm.stopPrank();
     }
@@ -109,7 +116,7 @@ contract VotingEscrowTest is BaseTest {
         hevm.roll(block.number + 1);
         veALCX.withdraw(tokenId);
 
-        assertEq(alcx.balanceOf(address(account)), 1e21);
+        assertEq(alcx.balanceOf(address(account)), depositAmount);
 
         // Check that the NFT is burnt
         assertEq(veALCX.balanceOfNFT(tokenId), 0);
@@ -187,7 +194,7 @@ contract VotingEscrowTest is BaseTest {
 
         veALCX.ragequit(tokenId);
 
-        assertEq(alcx.balanceOf(address(account)), 1e21);
+        assertEq(alcx.balanceOf(address(account)), depositAmount);
 
         // Check that the NFT is burnt
         assertEq(veALCX.balanceOfNFT(tokenId), 0);

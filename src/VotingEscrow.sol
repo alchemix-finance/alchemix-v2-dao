@@ -24,14 +24,14 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     }
 
     struct Point {
-        int128 bias;
-        int128 slope; // # -dweight / dt
+        int256 bias;
+        int256 slope; // # -dweight / dt
         uint256 ts;
         uint256 blk; // block
     }
 
     struct LockedBalance {
-        int128 amount;
+        int256 amount;
         uint256 end;
         bool maxLockEnabled;
     }
@@ -61,8 +61,9 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
     uint256 internal constant WEEK = 1 weeks;
     uint256 internal constant MAXTIME = 365 days;
-    int128 internal constant iMAXTIME = 365 days;
-    uint256 internal constant MULTIPLIER = 1 ether;
+    int256 internal constant iMAXTIME = 365 days;
+    uint256 internal constant MULTIPLIER = 26 ether;
+    int256 internal constant iMULTIPLIER = 26 ether;
 
     address public immutable token;
     uint256 public supply;
@@ -81,7 +82,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     mapping(uint256 => Point[1000000000]) public userPointHistory; // user -> Point[userEpoch]
 
     mapping(uint256 => uint256) public userPointEpoch;
-    mapping(uint256 => int128) public slopeChanges; // time -> signed slope change
+    mapping(uint256 => int256) public slopeChanges; // time -> signed slope change
 
     mapping(uint256 => uint256) public attachments;
     mapping(uint256 => bool) public voted;
@@ -189,7 +190,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     /// @notice Get the most recently recorded rate of voting power decrease for `_tokenId`
     /// @param _tokenId token of the NFT
     /// @return Value of the slope
-    function getLastUserSlope(uint256 _tokenId) external view returns (int128) {
+    function getLastUserSlope(uint256 _tokenId) external view returns (int256) {
         uint256 userEpoch = userPointEpoch[_tokenId];
         return userPointHistory[_tokenId][userEpoch].slope;
     }
@@ -736,8 +737,8 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     ) internal {
         Point memory oldPoint;
         Point memory newPoint;
-        int128 oldDslope = 0;
-        int128 newDslope = 0;
+        int256 oldDslope = 0;
+        int256 newDslope = 0;
         uint256 _epoch = epoch;
 
         if (oldLocked.maxLockEnabled) oldLocked.end = ((block.timestamp + MAXTIME) / WEEK) * WEEK;
@@ -747,13 +748,13 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
             // Calculate slopes and biases
             // Kept at zero when they have to
             if (oldLocked.end > block.timestamp && oldLocked.amount > 0) {
-                oldPoint.slope = oldLocked.amount / iMAXTIME;
-                oldPoint.bias = oldPoint.slope * int128(int256(oldLocked.end - block.timestamp));
+                oldPoint.slope = (oldLocked.amount * iMULTIPLIER) / iMAXTIME;
+                oldPoint.bias = (oldPoint.slope * (int256(oldLocked.end - block.timestamp))) + oldLocked.amount;
             }
 
             if (newLocked.end > block.timestamp && newLocked.amount > 0) {
-                newPoint.slope = newLocked.amount / iMAXTIME;
-                newPoint.bias = newPoint.slope * int128(int256(newLocked.end - block.timestamp));
+                newPoint.slope = (newLocked.amount * iMULTIPLIER) / iMAXTIME;
+                newPoint.bias = (newPoint.slope * (int256(newLocked.end - block.timestamp))) + newLocked.amount;
             }
 
             // Read values of scheduled changes in the slope
@@ -793,13 +794,13 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
                 // Hopefully it won't happen that this won't get used in 5 years!
                 // If it does, users will be able to withdraw but vote weight will be broken
                 _time += WEEK;
-                int128 dSlope = 0;
+                int256 dSlope = 0;
                 if (_time > block.timestamp) {
                     _time = block.timestamp;
                 } else {
                     dSlope = slopeChanges[_time];
                 }
-                lastPoint.bias -= lastPoint.slope * int128(int256(_time - lastCheckpoint));
+                lastPoint.bias -= (lastPoint.slope * (int256(_time - lastCheckpoint)));
                 lastPoint.slope += dSlope;
                 if (lastPoint.bias < 0) {
                     // This can happen
@@ -831,10 +832,10 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
             lastPoint.slope += (newPoint.slope - oldPoint.slope);
             lastPoint.bias += (newPoint.bias - oldPoint.bias);
             if (lastPoint.slope < 0) {
-                lastPoint.slope = 1; // decay to 1
+                lastPoint.slope = 0;
             }
             if (lastPoint.bias < 0) {
-                lastPoint.bias = 1; // decay to 1
+                lastPoint.bias = 0;
             }
         }
 
@@ -896,7 +897,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
             _locked.maxLockEnabled
         );
         // Adding to existing lock, or if a lock is expired - creating a new one
-        _locked.amount += int128(int256(_value));
+        _locked.amount += int256(_value);
 
         _locked.maxLockEnabled = _maxLockEnabled;
 
@@ -969,7 +970,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
         LockedBalance memory _locked0 = locked[_from];
         LockedBalance memory _locked1 = locked[_to];
-        uint256 value0 = uint256(int256(_locked0.amount));
+        uint256 value0 = uint256(_locked0.amount);
 
         // If max lock is enabled retain the max lock
         _locked1.maxLockEnabled = _locked0.maxLockEnabled ? _locked0.maxLockEnabled : _locked1.maxLockEnabled;
@@ -1108,7 +1109,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
         LockedBalance memory _locked = locked[_tokenId];
         require(block.timestamp >= _locked.end, "The lock didn't expire");
-        uint256 value = uint256(int256(_locked.amount));
+        uint256 value = uint256(_locked.amount);
 
         locked[_tokenId] = LockedBalance(0, 0, false);
         uint256 supplyBefore = supply;
@@ -1191,13 +1192,13 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
             // If max lock is enabled bias is unchanged
             lastPoint.bias -= locked[_tokenId].maxLockEnabled
-                ? int128(int256(0))
-                : lastPoint.slope * int128(int256(_time) - int256(lastPoint.ts));
+                ? int256(0)
+                : lastPoint.slope * (int256(_time) - int256(lastPoint.ts));
 
             if (lastPoint.bias < 0) {
                 lastPoint.bias = 0;
             }
-            return uint256(int256(lastPoint.bias));
+            return uint256(lastPoint.bias);
         }
     }
 
@@ -1206,8 +1207,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     function tokenURI(uint256 _tokenId) external view returns (string memory) {
         require(idToOwner[_tokenId] != address(0), "Query for nonexistent token");
         LockedBalance memory _locked = locked[_tokenId];
-        return
-            _tokenURI(_tokenId, _balanceOfNFT(_tokenId, block.timestamp), _locked.end, uint256(int256(_locked.amount)));
+        return _tokenURI(_tokenId, _balanceOfNFT(_tokenId, block.timestamp), _locked.end, uint256(_locked.amount));
     }
 
     function balanceOfNFT(uint256 _tokenId) external view returns (uint256) {
@@ -1277,9 +1277,9 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
             blockTime += (dT * (_block - point0.blk)) / dBlock;
         }
 
-        upoint.bias -= upoint.slope * int128(int256(blockTime - upoint.ts));
+        upoint.bias -= upoint.slope * (int256(blockTime - upoint.ts));
         if (upoint.bias >= 0) {
-            return uint256(uint128(upoint.bias));
+            return uint256(upoint.bias);
         } else {
             return 0;
         }
@@ -1295,16 +1295,17 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     /// @return Total voting power at that time
     function _supplyAt(Point memory point, uint256 t) internal view returns (uint256) {
         Point memory lastPoint = point;
+
         uint256 _time = (lastPoint.ts / WEEK) * WEEK;
         for (uint256 i = 0; i < 255; ++i) {
             _time += WEEK;
-            int128 dSlope = 0;
+            int256 dSlope = 0;
             if (_time > t) {
                 _time = t;
             } else {
                 dSlope = slopeChanges[_time];
             }
-            lastPoint.bias -= lastPoint.slope * int128(int256(_time - lastPoint.ts));
+            lastPoint.bias -= (lastPoint.slope * (int256(_time - lastPoint.ts)));
             if (_time == t) {
                 break;
             }
@@ -1312,10 +1313,11 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
             lastPoint.ts = _time;
         }
 
+        // Total power could be 0
         if (lastPoint.bias < 0) {
             lastPoint.bias = 0;
         }
-        return uint256(uint128(lastPoint.bias));
+        return uint256(lastPoint.bias);
     }
 
     /// @notice Calculate total voting power

@@ -28,6 +28,9 @@ abstract contract BaseTest is DSTestPlus {
     ManaToken public MANA = new ManaToken(admin);
     VotingEscrow veALCX = new VotingEscrow(address(alcx), address(MANA));
 
+    uint256 internal constant MAXTIME = 365 days;
+    uint256 internal constant MULTIPLIER = 26 ether;
+
     uint256 public mainnet = 1;
 
     // Values for the current epoch (emissions to be manually minted)
@@ -80,9 +83,11 @@ abstract contract BaseTest is DSTestPlus {
     }
 
     // Returns the max voting power given a deposit amount and length
-    function getMaxVotingPower(uint256 _amount, uint256 _end) public returns (uint256) {
-        uint256 slope = _amount / (365 days);
-        uint256 bias = slope * (_end - block.timestamp);
+    function getMaxVotingPower(uint256 _amount, uint256 _end) public view returns (uint256) {
+        uint256 slope = (_amount * MULTIPLIER) / MAXTIME;
+
+        uint256 bias = (slope * (_end - block.timestamp)) + _amount;
+
         return bias;
     }
 }

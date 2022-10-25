@@ -30,7 +30,7 @@ contract VotingTest is BaseTest {
         voter.initialize(tokens, admin);
 
         alcx.approve(address(veALCX), TOKEN_1);
-        veALCX.createLock(TOKEN_1, 365 days, false);
+        veALCX.createLock(TOKEN_1, MAXTIME, false);
 
         uint256 maxVotingPower = getMaxVotingPower(TOKEN_1, veALCX.lockEnd(1));
 
@@ -237,6 +237,27 @@ contract VotingTest is BaseTest {
 
         // Disabling max lock should start the voting power decay
         assertLt(votingPower3, votingPower2);
+
+        hevm.stopPrank();
+    }
+
+    // veALCX voting power should decay to veALCX amount
+    function testVotingPowerDecay() public {
+        mintAlcx(account, TOKEN_1);
+
+        hevm.startPrank(account);
+
+        alcx.approve(address(veALCX), TOKEN_1);
+        veALCX.createLock(TOKEN_1, 1 weeks, false);
+
+        hevm.warp(block.timestamp + 2 weeks);
+
+        uint256 balance = veALCX.balanceOfNFT(2);
+
+        // Voting power remains at 1 when lock is expired
+        hevm.expectRevert(abi.encodePacked("Cannot add to expired lock. Withdraw"));
+        veALCX.increaseAmount(2, TOKEN_1);
+        assertEq(balance, 0);
 
         hevm.stopPrank();
     }
