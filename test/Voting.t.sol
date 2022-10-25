@@ -56,7 +56,7 @@ contract VotingTest is BaseTest {
 
         hevm.roll(block.number + 1);
 
-        assertEq(veALCX.balanceOfNFT(1), maxVotingPower);
+        assertEq(veALCX.balanceOfToken(1), maxVotingPower);
         assertEq(alcx.balanceOf(address(veALCX)), TOKEN_1);
 
         minter.initialize();
@@ -166,7 +166,7 @@ contract VotingTest is BaseTest {
         weights[0] = 5000;
 
         uint256 claimableMana = veALCX.claimableMana(1);
-        uint256 votingWeight = veALCX.balanceOfNFT(1);
+        uint256 votingWeight = veALCX.balanceOfToken(1);
 
         // Vote with half of claimable MANA
         voter.vote(1, pools, weights, claimableMana / 2);
@@ -215,7 +215,7 @@ contract VotingTest is BaseTest {
 
         uint256 maxVotingPower = getMaxVotingPower(TOKEN_1, veALCX.lockEnd(2));
 
-        uint256 votingPower1 = veALCX.balanceOfNFT(2);
+        uint256 votingPower1 = veALCX.balanceOfToken(2);
 
         assertEq(votingPower1, maxVotingPower);
 
@@ -223,7 +223,7 @@ contract VotingTest is BaseTest {
 
         minter.updatePeriod();
 
-        uint256 votingPower2 = veALCX.balanceOfNFT(2);
+        uint256 votingPower2 = veALCX.balanceOfToken(2);
 
         // Voting power should remain the same with max lock enabled
         assertEq(votingPower1, votingPower2);
@@ -233,7 +233,7 @@ contract VotingTest is BaseTest {
 
         hevm.warp(block.timestamp + 5 weeks);
 
-        uint256 votingPower3 = veALCX.balanceOfNFT(2);
+        uint256 votingPower3 = veALCX.balanceOfToken(2);
 
         // Disabling max lock should start the voting power decay
         assertLt(votingPower3, votingPower2);
@@ -252,7 +252,7 @@ contract VotingTest is BaseTest {
 
         hevm.warp(block.timestamp + 2 weeks);
 
-        uint256 balance = veALCX.balanceOfNFT(2);
+        uint256 balance = veALCX.balanceOfToken(2);
 
         // Voting power remains at 1 when lock is expired
         hevm.expectRevert(abi.encodePacked("Cannot add to expired lock. Withdraw"));

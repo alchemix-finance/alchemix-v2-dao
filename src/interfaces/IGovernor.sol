@@ -87,7 +87,7 @@ interface IGovernor {
      * name that describes the behavior. For example:
      *
      * - `params=fractional` might refer to a scheme where votes are divided fractionally between for/against/abstain.
-     * - `params=erc721` might refer to a scheme where specific NFTs are delegated to vote.
+     * - `params=erc721` might refer to a scheme where specific tokens are delegated to vote.
      *
      * NOTE: The string can be decoded by the standard
      * https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams[`URLSearchParams`]
