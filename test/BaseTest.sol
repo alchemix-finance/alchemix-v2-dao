@@ -17,20 +17,25 @@ import "src/StakingGauge.sol";
 import "src/RewardsDistributor.sol";
 import "src/Bribe.sol";
 
-import "balancer-core-v2/contracts/WeightedPoolFactory.sol";
+import { WeightedPool2TokensFactory } from "src/interfaces/balancer/WeightedPool2TokensFactory.sol";
+import { WeightedPoolUserData } from "src/interfaces/balancer/WeightedPoolUserData.sol";
+import { IVault } from "src/interfaces/balancer/IVault.sol";
+import { IBasePool } from "src/interfaces/balancer/IBasePool.sol";
+import { IAsset } from "src/interfaces/balancer/IAsset.sol";
 
 abstract contract BaseTest is DSTestPlus {
     IAlchemixToken public alcx = IAlchemixToken(0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF);
     IERC20 public bpt = IERC20(0x5c6Ee304399DBdB9C8Ef030aB642B10820DB8F56);
     IERC20 public veBAL = IERC20(0xC128a9954e6c874eA3d62ce62B468bA073093F25);
     IERC20 public galcx = IERC20(0x93Dede06AE3B5590aF1d4c111BC54C3f717E4b35);
-    WeightedPoolFactory balancerPoolFactory = WeightedPoolFactory(0xA5bf2ddF098bb0Ef6d120C98217dD6B141c74EE0);
+    WeightedPool2TokensFactory poolFactory = WeightedPool2TokensFactory(0xA5bf2ddF098bb0Ef6d120C98217dD6B141c74EE0);
     address constant admin = 0x8392F6669292fA56123F71949B52d883aE57e225;
     address account = address(0xbeef);
     address public alETHPool = 0xC4C319E2D4d66CcA4464C0c2B32c9Bd23ebe784e;
     address public alUSDPool = 0x9735F7d3Ea56b454b24fFD74C58E9bD85cfaD31B;
     address public USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-    address public weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    IERC20 public weth = IERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
+    IVault public balancerVault = IVault(0xBA12222222228d8Ba445958a75a0704d566BF2C8);
     ManaToken public MANA = new ManaToken(admin);
     VotingEscrow veALCX = new VotingEscrow(address(bpt), address(alcx), address(MANA));
 
@@ -77,21 +82,47 @@ abstract contract BaseTest is DSTestPlus {
         hevm.stopPrank();
     }
 
+    // Initializes 80 ALCX 20 WETH Balancer pool and makes an initial deposit
     function createBalancerPool() public {
         hevm.startPrank(admin);
 
-        address bptPool = balancerPoolFactory.create(
-            "Balancer 80 ALCX 20 WETH",
-            "B-80ALCX-20WETH",
-            [address(alcx), address(weth)],
-            [800000000000000000, 200000000000000000],
-            3000000000000000,
-            true,
-            address(0xBA1BA1ba1BA1bA1bA1Ba1BA1ba1BA1bA1ba1ba1B)
-        );
+        string memory name = "Balancer 80 ALCX 20 WETH";
+        string memory symbol = "B-80ALCX-20WETH";
+        address[] memory tokens = new address[](2);
+        tokens[0] = address(weth);
+        tokens[1] = address(alcx);
+        uint256[] memory weights = new uint256[](2);
+        weights[0] = uint256(200000000000000000);
+        weights[1] = uint256(800000000000000000);
+        uint256 swapFeePercentage = 3000000000000000;
+        bool oracleEnabled = true;
+        address owner = 0x0000000000000000000000000000000000000000;
 
-        bytes32 poolId = bptPool.getPoolId();
-        console2.log("poolId", poolId);
+        address bptPool = poolFactory.create(name, symbol, tokens, weights, swapFeePercentage, oracleEnabled, owner);
+
+        bytes32 poolId = IBasePool(bptPool).getPoolId();
+
+        alcx.approve(address(balancerVault), alcx.balanceOf(admin));
+        weth.approve(address(balancerVault), weth.balanceOf(admin));
+
+        IAsset[] memory _assets = new IAsset[](2);
+        _assets[0] = IAsset(address(weth));
+        _assets[1] = IAsset(address(alcx));
+
+        uint256[] memory amountsIn = new uint256[](2);
+        amountsIn[0] = weth.balanceOf(admin);
+        amountsIn[1] = alcx.balanceOf(admin);
+
+        bytes memory _userData = abi.encode(WeightedPoolUserData.JoinKind.INIT, amountsIn, uint256(0));
+
+        IVault.JoinPoolRequest memory request = IVault.JoinPoolRequest({
+            assets: _assets,
+            maxAmountsIn: amountsIn,
+            userData: _userData,
+            fromInternalBalance: false
+        });
+
+        balancerVault.joinPool(poolId, admin, admin, request);
 
         hevm.stopPrank();
     }
