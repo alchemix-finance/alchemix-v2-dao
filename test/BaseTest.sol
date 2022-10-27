@@ -17,12 +17,14 @@ import "src/StakingGauge.sol";
 import "src/RewardsDistributor.sol";
 import "src/Bribe.sol";
 
+import "balancer-core-v2/contracts/WeightedPoolFactory.sol";
+
 abstract contract BaseTest is DSTestPlus {
     IAlchemixToken public alcx = IAlchemixToken(0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF);
     IERC20 public bpt = IERC20(0x5c6Ee304399DBdB9C8Ef030aB642B10820DB8F56);
     IERC20 public veBAL = IERC20(0xC128a9954e6c874eA3d62ce62B468bA073093F25);
     IERC20 public galcx = IERC20(0x93Dede06AE3B5590aF1d4c111BC54C3f717E4b35);
-    address public balancerPoolFactory = 0xA5bf2ddF098bb0Ef6d120C98217dD6B141c74EE0;
+    WeightedPoolFactory balancerPoolFactory = WeightedPoolFactory(0xA5bf2ddF098bb0Ef6d120C98217dD6B141c74EE0);
     address constant admin = 0x8392F6669292fA56123F71949B52d883aE57e225;
     address account = address(0xbeef);
     address public alETHPool = 0xC4C319E2D4d66CcA4464C0c2B32c9Bd23ebe784e;

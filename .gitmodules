@@ -11,6 +11,3 @@
 	path = lib/v2-foundry
 	; url = git@github.com:alchemix-finance/v2-foundry.git
 	url = https://github.com/alchemix-finance/v2-foundry
-[submodule "lib/balancer-v2-monorepo"]
-	path = lib/balancer-v2-monorepo
-	url = https://github.com/balancer-labs/balancer-v2-monorepo
