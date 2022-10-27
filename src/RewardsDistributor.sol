@@ -33,7 +33,7 @@ contract RewardsDistributor {
         startTime = _t;
         lastTokenTime = _t;
         timeCursor = _t;
-        address _token = IVotingEscrow(_votingEscrow).token();
+        address _token = IVotingEscrow(_votingEscrow).ALCX();
         token = _token;
         votingEscrow = _votingEscrow;
         depositor = msg.sender;

@@ -46,7 +46,7 @@ contract Minter is IMinter {
     // bps of emissions going to veALCX holders
     uint256 public veAlcxEmissionsRate;
 
-    event Mint(address indexed sender, uint256 epoch, uint256 circulatingSupply, uint256 circulatingEmissions);
+    event Mint(address indexed sender, uint256 epoch, uint256 circulatingEmissions);
 
     constructor(InitializationParams memory params) {
         stepdown = params.stepdown;
@@ -82,12 +82,6 @@ contract Minter is IMinter {
     function setVeAlcxEmissionsRate(uint256 _veAlcxEmissionsRate) external {
         require(msg.sender == admin, "not admin");
         veAlcxEmissionsRate = _veAlcxEmissionsRate;
-    }
-
-    // Circulating supply is total token supply - locked supply
-    function circulatingAlcxSupply() public view returns (uint256) {
-        // TODO determine if we should calculate amount of veALCX locked in BPT positions
-        return alcx.totalSupply();
     }
 
     // Amount of emission for the current epoch
@@ -139,7 +133,7 @@ contract Minter is IMinter {
             alcx.approve(address(voter), epochEmissions - veAlcxEmissions);
             voter.notifyRewardAmount(epochEmissions - veAlcxEmissions);
 
-            emit Mint(msg.sender, epochEmissions, circulatingAlcxSupply(), circulatingEmissionsSupply());
+            emit Mint(msg.sender, epochEmissions, circulatingEmissionsSupply());
         }
         return period;
     }

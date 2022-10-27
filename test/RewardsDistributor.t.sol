@@ -3,10 +3,6 @@ pragma solidity ^0.8.15;
 
 import "./BaseTest.sol";
 
-/// @dev See https://onbjerg.github.io/foundry-book/forge/writing-tests.html for details on how this is run
-/// @dev See https://onbjerg.github.io/foundry-book/reference/ds-test.html for assertions list
-/// @dev See https://onbjerg.github.io/foundry-book/reference/cheatcodes.html for cheatcodes like prank()
-/// @dev asserts are (actual, expected)
 contract RewardsDistributorTest is BaseTest {
     address holder = 0x000000000000000000000000000000000000dEaD;
     RewardsDistributor distributor;

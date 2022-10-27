@@ -3,6 +3,8 @@ pragma solidity ^0.8.15;
 
 import "./BaseTest.sol";
 
+import "lib/forge-std/src/console2.sol";
+
 contract MinterTest is BaseTest {
     Voter voter;
     GaugeFactory gaugeFactory;
@@ -12,10 +14,9 @@ contract MinterTest is BaseTest {
 
     uint256 nextEpoch = 86400 * 14;
     uint256 epochsUntilTail = 80;
-    uint256 internal constant LOCK = 365 days;
 
     function setUp() public {
-        mintAlcx(admin, 1e25);
+        mintBpt(admin, TOKEN_1);
         veALCX.setVoter(admin);
 
         hevm.startPrank(admin);
@@ -30,8 +31,8 @@ contract MinterTest is BaseTest {
         tokens[0] = address(alcx);
         voter.initialize(tokens, admin);
 
-        alcx.approve(address(veALCX), 2e25);
-        veALCX.createLock(TOKEN_1, 365 days, false);
+        bpt.approve(address(veALCX), TOKEN_1);
+        veALCX.createLock(TOKEN_1, MAXTIME, false);
 
         distributor = new RewardsDistributor(address(veALCX));
         veALCX.setVoter(address(voter));
@@ -58,7 +59,7 @@ contract MinterTest is BaseTest {
         uint256 maxVotingPower = getMaxVotingPower(TOKEN_1, veALCX.lockEnd(1));
 
         assertEq(veALCX.balanceOfToken(1), maxVotingPower);
-        assertEq(alcx.balanceOf(address(veALCX)), TOKEN_1);
+        assertEq(bpt.balanceOf(address(veALCX)), TOKEN_1);
 
         address[] memory pools = new address[](1);
         pools[0] = alETHPool;
@@ -116,17 +117,19 @@ contract MinterTest is BaseTest {
     }
 
     function initializeVotingEscrow() public {
-        mintAlcx(admin, TOKEN_1M);
+        mintBpt(admin, TOKEN_1);
 
         address[] memory claimants = new address[](1);
         claimants[0] = admin;
         uint256[] memory amounts = new uint256[](1);
-        amounts[0] = TOKEN_1M;
+        amounts[0] = TOKEN_1;
 
         hevm.startPrank(admin);
 
+        bpt.approve(address(veALCX), TOKEN_1);
+
         for (uint256 i = 0; i < claimants.length; i++) {
-            veALCX.createLockFor(amounts[i], LOCK, false, claimants[i]);
+            veALCX.createLockFor(amounts[i], MAXTIME, false, claimants[i]);
         }
 
         assertEq(veALCX.ownerOf(2), admin);
@@ -138,6 +141,7 @@ contract MinterTest is BaseTest {
 
     function testMinterWeeklyDistribute() public {
         initializeVotingEscrow();
+        createBalancerPool();
 
         uint256 startingRewards = minter.rewards();
 
@@ -160,8 +164,14 @@ contract MinterTest is BaseTest {
 
         assertGt(distributor.claimable(1), 3013259951171);
 
+        uint256 initBal = veALCX.balanceOfToken(1);
+        console2.log("initBal", initBal);
+
         distributor.claim(1);
         assertEq(distributor.claimable(1), 0);
+
+        uint256 nextBal = veALCX.balanceOfToken(1);
+        console2.log("nextBal", nextBal);
 
         hevm.warp(block.timestamp + nextEpoch);
         hevm.roll(block.number + 1);
