@@ -14,7 +14,8 @@ contract VotingTest is BaseTest {
     uint256 lockTime = 30 days;
 
     function setUp() public {
-        mintAlcx(admin, TOKEN_1);
+        setupBaseTest();
+
         veALCX.setVoter(admin);
 
         hevm.startPrank(admin);
@@ -29,12 +30,12 @@ contract VotingTest is BaseTest {
         tokens[0] = address(alcx);
         voter.initialize(tokens, admin);
 
-        alcx.approve(address(veALCX), TOKEN_1);
+        IERC20(bpt).approve(address(veALCX), TOKEN_1);
         veALCX.createLock(TOKEN_1, MAXTIME, false);
 
         uint256 maxVotingPower = getMaxVotingPower(TOKEN_1, veALCX.lockEnd(1));
 
-        distributor = new RewardsDistributor(address(veALCX));
+        distributor = new RewardsDistributor(address(veALCX), address(weth), address(balancerVault));
         veALCX.setVoter(address(voter));
 
         InitializationParams memory params = InitializationParams(
@@ -206,11 +207,9 @@ contract VotingTest is BaseTest {
 
     // veALCX holder with max lock enabled should have constant max voting power
     function testMaxLockVotingPower() public {
-        mintAlcx(account, TOKEN_1);
+        hevm.startPrank(admin);
 
-        hevm.startPrank(account);
-
-        alcx.approve(address(veALCX), TOKEN_1);
+        IERC20(bpt).approve(address(veALCX), TOKEN_1);
         veALCX.createLock(TOKEN_1, 0, true);
 
         uint256 maxVotingPower = getMaxVotingPower(TOKEN_1, veALCX.lockEnd(2));
@@ -243,11 +242,9 @@ contract VotingTest is BaseTest {
 
     // veALCX voting power should decay to veALCX amount
     function testVotingPowerDecay() public {
-        mintAlcx(account, TOKEN_1);
+        hevm.startPrank(admin);
 
-        hevm.startPrank(account);
-
-        alcx.approve(address(veALCX), TOKEN_1);
+        IERC20(bpt).approve(address(veALCX), TOKEN_1);
         veALCX.createLock(TOKEN_1, 1 weeks, false);
 
         hevm.warp(block.timestamp + 2 weeks);

@@ -12,7 +12,7 @@ contract RewardsDistributorTest is BaseTest {
 
     /// @dev Deploy the contract
     function setUp() public {
-        distributor = new RewardsDistributor(address(veALCX));
+        distributor = new RewardsDistributor(address(veALCX), address(weth), address(balancerVault));
     }
 
     function testRewardsDistributorSetup() public view {
@@ -25,7 +25,7 @@ contract RewardsDistributorTest is BaseTest {
     //     uint256 alcxBalance = alcx.balanceOf(holder);
     //     assertGt(alcxBalance, depositAmount, "Not enough alcx");
 
-    //     alcx.approve(address(veALCX), depositAmount);
+    //     IERC20(bpt).approve(address(veALCX), depositAmount);
     //     uint256 tokenId = veALCX.createLock(depositAmount, lockTime, false);
 
     //     // Check that veALCX was created

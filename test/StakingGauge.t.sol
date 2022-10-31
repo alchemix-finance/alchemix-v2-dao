@@ -13,7 +13,7 @@ contract StakingGaugeTest is BaseTest {
     StakingGauge gauge2;
 
     function setUp() public {
-        mintAlcx(admin, 1e25);
+        setupBaseTest();
         veALCX.setVoter(admin);
 
         hevm.startPrank(admin);
@@ -25,7 +25,7 @@ contract StakingGaugeTest is BaseTest {
         alcx.approve(address(veALCX), 2e25);
         veALCX.createLock(TOKEN_1, 365 days, false);
 
-        distributor = new RewardsDistributor(address(veALCX));
+        distributor = new RewardsDistributor(address(veALCX), address(weth), address(balancerVault));
         veALCX.setVoter(address(voter));
 
         InitializationParams memory params = InitializationParams(

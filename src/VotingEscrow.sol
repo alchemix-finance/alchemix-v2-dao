@@ -67,13 +67,15 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     uint256 internal constant MULTIPLIER = 26 ether;
     int256 internal constant iMULTIPLIER = 26 ether;
 
-    address public immutable BPT;
     address public immutable ALCX;
     uint256 public supply;
+
+    address public BPT;
 
     address public MANA;
     uint256 public manaMultiplier;
     uint256 public manaPerVeALCX;
+
     address public admin; // the timelock executor
 
     mapping(uint256 => LockedBalance) public locked;
@@ -172,9 +174,9 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     ) {
         BPT = _bpt;
         ALCX = _alcx;
+        MANA = _mana;
         voter = msg.sender;
         admin = msg.sender;
-        MANA = _mana;
         manaMultiplier = 10; // 10 bps = 0.1%
         manaPerVeALCX = 1e18; // determine initial value
 

@@ -22,11 +22,10 @@ import { WeightedPoolUserData } from "src/interfaces/balancer/WeightedPoolUserDa
 import { IVault } from "src/interfaces/balancer/IVault.sol";
 import { IBasePool } from "src/interfaces/balancer/IBasePool.sol";
 import { IAsset } from "src/interfaces/balancer/IAsset.sol";
+import { IWETH9 } from "src/interfaces/IWETH9.sol";
 
 abstract contract BaseTest is DSTestPlus {
     IAlchemixToken public alcx = IAlchemixToken(0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF);
-    IERC20 public bpt = IERC20(0x5c6Ee304399DBdB9C8Ef030aB642B10820DB8F56);
-    IERC20 public veBAL = IERC20(0xC128a9954e6c874eA3d62ce62B468bA073093F25);
     IERC20 public galcx = IERC20(0x93Dede06AE3B5590aF1d4c111BC54C3f717E4b35);
     WeightedPool2TokensFactory poolFactory = WeightedPool2TokensFactory(0xA5bf2ddF098bb0Ef6d120C98217dD6B141c74EE0);
     address constant admin = 0x8392F6669292fA56123F71949B52d883aE57e225;
@@ -35,9 +34,10 @@ abstract contract BaseTest is DSTestPlus {
     address public alUSDPool = 0x9735F7d3Ea56b454b24fFD74C58E9bD85cfaD31B;
     address public USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     IERC20 public weth = IERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
+    address public bpt;
     IVault public balancerVault = IVault(0xBA12222222228d8Ba445958a75a0704d566BF2C8);
     ManaToken public MANA = new ManaToken(admin);
-    VotingEscrow veALCX = new VotingEscrow(address(bpt), address(alcx), address(MANA));
+    VotingEscrow public veALCX;
 
     uint256 internal constant MAXTIME = 365 days;
     uint256 internal constant MULTIPLIER = 26 ether;
@@ -56,6 +56,11 @@ abstract contract BaseTest is DSTestPlus {
     uint256 constant TOKEN_100M = 1e26; // 1e8 = 100M tokens with 18 decimals
     uint256 constant TOKEN_10B = 1e28; // 1e10 = 10B tokens with 18 decimals
 
+    function setupBaseTest() public {
+        bpt = createBalancerPool();
+        veALCX = new VotingEscrow(bpt, address(alcx), address(MANA));
+    }
+
     function mintAlcx(address _account, uint256 _amount) public {
         hevm.startPrank(admin);
 
@@ -73,17 +78,20 @@ abstract contract BaseTest is DSTestPlus {
         hevm.stopPrank();
     }
 
-    function mintBpt(address _account, uint256 _amount) public {
-        hevm.startPrank(address(veBAL));
+    function mintWeth(address _account, uint256 _amount) public {
+        hevm.deal(address(_account), _amount);
+        hevm.startPrank(address(_account));
 
-        bpt.approve(address(veBAL), _amount);
-        bpt.transfer(_account, _amount);
+        IWETH9(address(weth)).deposit{ value: _amount }();
 
         hevm.stopPrank();
     }
 
     // Initializes 80 ALCX 20 WETH Balancer pool and makes an initial deposit
-    function createBalancerPool() public {
+    function createBalancerPool() public returns (address) {
+        mintAlcx(admin, TOKEN_100M);
+        mintWeth(admin, TOKEN_100M);
+
         hevm.startPrank(admin);
 
         string memory name = "Balancer 80 ALCX 20 WETH";
@@ -98,20 +106,28 @@ abstract contract BaseTest is DSTestPlus {
         bool oracleEnabled = true;
         address owner = 0x0000000000000000000000000000000000000000;
 
-        address bptPool = poolFactory.create(name, symbol, tokens, weights, swapFeePercentage, oracleEnabled, owner);
+        address balancerPool = poolFactory.create(
+            name,
+            symbol,
+            tokens,
+            weights,
+            swapFeePercentage,
+            oracleEnabled,
+            owner
+        );
 
-        bytes32 poolId = IBasePool(bptPool).getPoolId();
+        bytes32 poolId = IBasePool(balancerPool).getPoolId();
 
-        alcx.approve(address(balancerVault), alcx.balanceOf(admin));
-        weth.approve(address(balancerVault), weth.balanceOf(admin));
+        alcx.approve(address(balancerVault), TOKEN_1M * 2);
+        weth.approve(address(balancerVault), TOKEN_1M);
 
         IAsset[] memory _assets = new IAsset[](2);
         _assets[0] = IAsset(address(weth));
         _assets[1] = IAsset(address(alcx));
 
         uint256[] memory amountsIn = new uint256[](2);
-        amountsIn[0] = weth.balanceOf(admin);
-        amountsIn[1] = alcx.balanceOf(admin);
+        amountsIn[0] = TOKEN_1M;
+        amountsIn[1] = TOKEN_1M * 2;
 
         bytes memory _userData = abi.encode(WeightedPoolUserData.JoinKind.INIT, amountsIn, uint256(0));
 
@@ -125,6 +141,8 @@ abstract contract BaseTest is DSTestPlus {
         balancerVault.joinPool(poolId, admin, admin, request);
 
         hevm.stopPrank();
+
+        return balancerPool;
     }
 
     function approveAmount(

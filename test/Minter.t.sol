@@ -3,8 +3,6 @@ pragma solidity ^0.8.15;
 
 import "./BaseTest.sol";
 
-import "lib/forge-std/src/console2.sol";
-
 contract MinterTest is BaseTest {
     Voter voter;
     GaugeFactory gaugeFactory;
@@ -16,7 +14,8 @@ contract MinterTest is BaseTest {
     uint256 epochsUntilTail = 80;
 
     function setUp() public {
-        mintBpt(admin, TOKEN_1);
+        setupBaseTest();
+
         veALCX.setVoter(admin);
 
         hevm.startPrank(admin);
@@ -31,10 +30,10 @@ contract MinterTest is BaseTest {
         tokens[0] = address(alcx);
         voter.initialize(tokens, admin);
 
-        bpt.approve(address(veALCX), TOKEN_1);
+        IERC20(bpt).approve(address(veALCX), TOKEN_1);
         veALCX.createLock(TOKEN_1, MAXTIME, false);
 
-        distributor = new RewardsDistributor(address(veALCX));
+        distributor = new RewardsDistributor(address(veALCX), address(weth), address(balancerVault));
         veALCX.setVoter(address(voter));
 
         InitializationParams memory params = InitializationParams(
@@ -59,7 +58,7 @@ contract MinterTest is BaseTest {
         uint256 maxVotingPower = getMaxVotingPower(TOKEN_1, veALCX.lockEnd(1));
 
         assertEq(veALCX.balanceOfToken(1), maxVotingPower);
-        assertEq(bpt.balanceOf(address(veALCX)), TOKEN_1);
+        assertEq(IERC20(bpt).balanceOf(address(veALCX)), TOKEN_1);
 
         address[] memory pools = new address[](1);
         pools[0] = alETHPool;
@@ -117,8 +116,6 @@ contract MinterTest is BaseTest {
     }
 
     function initializeVotingEscrow() public {
-        mintBpt(admin, TOKEN_1);
-
         address[] memory claimants = new address[](1);
         claimants[0] = admin;
         uint256[] memory amounts = new uint256[](1);
@@ -126,7 +123,7 @@ contract MinterTest is BaseTest {
 
         hevm.startPrank(admin);
 
-        bpt.approve(address(veALCX), TOKEN_1);
+        IERC20(bpt).approve(address(veALCX), TOKEN_1);
 
         for (uint256 i = 0; i < claimants.length; i++) {
             veALCX.createLockFor(amounts[i], MAXTIME, false, claimants[i]);
@@ -134,6 +131,7 @@ contract MinterTest is BaseTest {
 
         assertEq(veALCX.ownerOf(2), admin);
         assertEq(veALCX.ownerOf(3), address(0));
+
         hevm.roll(block.number + 1);
 
         hevm.stopPrank();
@@ -141,7 +139,6 @@ contract MinterTest is BaseTest {
 
     function testMinterWeeklyDistribute() public {
         initializeVotingEscrow();
-        createBalancerPool();
 
         uint256 startingRewards = minter.rewards();
 
@@ -165,54 +162,38 @@ contract MinterTest is BaseTest {
         assertGt(distributor.claimable(1), 3013259951171);
 
         uint256 initBal = veALCX.balanceOfToken(1);
-        console2.log("initBal", initBal);
 
-        distributor.claim(1);
-        assertEq(distributor.claimable(1), 0);
+        hevm.startPrank(admin);
+
+        weth.approve(address(distributor), type(uint256).max);
+        distributor.claim(1, true);
 
         uint256 nextBal = veALCX.balanceOfToken(1);
-        console2.log("nextBal", nextBal);
 
-        hevm.warp(block.timestamp + nextEpoch);
-        hevm.roll(block.number + 1);
-
-        minter.updatePeriod();
-
-        distributor.claim(1);
-
-        hevm.warp(block.timestamp + nextEpoch);
-        hevm.roll(block.number + 1);
-
-        minter.updatePeriod();
-
-        uint256[] memory tokenIds = new uint256[](2);
-        tokenIds[0] = 1;
-        tokenIds[1] = 2;
-
-        distributor.claimMany(tokenIds);
-
-        hevm.warp(block.timestamp + nextEpoch);
-        hevm.roll(block.number + 1);
-
-        minter.updatePeriod();
-
-        distributor.claim(1);
-
-        hevm.warp(block.timestamp + nextEpoch);
-        hevm.roll(block.number + 1);
-
-        minter.updatePeriod();
-
-        distributor.claimMany(tokenIds);
-
+        // Claimable amount should be 0 after claiming
         assertEq(distributor.claimable(1), 0);
-        assertEq(distributor.claimable(2), 0);
+
+        // Token balance should be higher after compounding
+        assertGt(nextBal, initBal);
+
+        // Setup both claim types (compound, early)
+        hevm.warp(block.timestamp + nextEpoch);
+        hevm.roll(block.number + 1);
+
+        minter.updatePeriod();
+
+        uint256 amountClaimedEarly = distributor.claim(1, false);
 
         hevm.warp(block.timestamp + nextEpoch);
         hevm.roll(block.number + 1);
 
         minter.updatePeriod();
 
-        distributor.claim(1);
+        uint256 amountClaimedCompounded = distributor.claim(1, true);
+
+        // Given the same epoch duration a compound claim should be greater than an early claim
+        assertGt(amountClaimedCompounded, amountClaimedEarly);
+
+        hevm.stopPrank();
     }
 }

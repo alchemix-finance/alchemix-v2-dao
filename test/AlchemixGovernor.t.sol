@@ -14,22 +14,24 @@ contract AlchemixGovernorTest is BaseTest {
     AlchemixGovernor governor;
 
     function setUp() public {
-        mintAlcx(admin, 2e25);
-        mintAlcx(address(0xbeef), 1e25);
-        mintAlcx(address(0xdead), 1e25);
+        setupBaseTest();
+
         veALCX.setVoter(admin);
 
         hevm.startPrank(admin);
 
-        alcx.approve(address(veALCX), 97 * TOKEN_1);
-        veALCX.createLock(97 * TOKEN_1, 365 days, false);
+        IERC20(bpt).transfer(address(0xbeef), TOKEN_1);
+        IERC20(bpt).transfer(address(0xdead), TOKEN_1);
+
+        IERC20(bpt).approve(address(veALCX), 2 * TOKEN_1);
+        veALCX.createLock(2 * TOKEN_1, 365 days, false);
         hevm.roll(block.number + 1);
 
         hevm.stopPrank();
 
         hevm.startPrank(address(0xbeef));
-        alcx.approve(address(veALCX), 3 * TOKEN_1);
-        veALCX.createLock(3 * TOKEN_1, 365 days, false);
+        IERC20(bpt).approve(address(veALCX), TOKEN_1);
+        veALCX.createLock(TOKEN_1, 365 days, false);
         hevm.roll(block.number + 1);
 
         hevm.stopPrank();
@@ -42,7 +44,7 @@ contract AlchemixGovernorTest is BaseTest {
 
         veALCX.setVoter(address(voter));
 
-        distributor = new RewardsDistributor(address(veALCX));
+        distributor = new RewardsDistributor(address(veALCX), address(weth), address(balancerVault));
 
         InitializationParams memory params = InitializationParams(
             address(voter),
@@ -90,8 +92,8 @@ contract AlchemixGovernorTest is BaseTest {
         // 0xbeef + 0xdead > quorum
         hevm.startPrank(address(0xdead));
 
-        alcx.approve(address(veALCX), 3 * TOKEN_1);
-        veALCX.createLock(3 * TOKEN_1, 365 days, false);
+        IERC20(bpt).approve(address(veALCX), TOKEN_1 / 3);
+        veALCX.createLock(TOKEN_1 / 3, 365 days, false);
 
         hevm.roll(block.number + 1);
 
