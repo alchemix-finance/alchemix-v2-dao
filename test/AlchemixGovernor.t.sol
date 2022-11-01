@@ -44,7 +44,7 @@ contract AlchemixGovernorTest is BaseTest {
 
         veALCX.setVoter(address(voter));
 
-        distributor = new RewardsDistributor(address(veALCX), address(weth), address(balancerVault));
+        distributor = new RewardsDistributor(address(veALCX), address(weth), address(balancerVault), priceFeed);
 
         InitializationParams memory params = InitializationParams(
             address(voter),

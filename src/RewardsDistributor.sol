@@ -9,6 +9,11 @@ import { IVault } from "./interfaces/balancer/IVault.sol";
 import { WeightedPoolUserData } from "./interfaces/balancer/WeightedPoolUserData.sol";
 import { IBasePool } from "./interfaces/balancer/IBasePool.sol";
 import { IAsset } from "./interfaces/balancer/IAsset.sol";
+import { IManagedPool } from "./interfaces/balancer/IManagedPool.sol";
+import { WeightedMath } from "./interfaces/balancer/WeightedMath.sol";
+import { AggregatorV3Interface } from "./interfaces/chainlink/AggregatorV3Interface.sol";
+
+import "lib/forge-std/src/console2.sol";
 
 contract RewardsDistributor {
     event CheckpointToken(uint256 time, uint256 tokens);
@@ -22,6 +27,8 @@ contract RewardsDistributor {
     IWETH9 public WETH;
     IVault public balancerVault;
     bytes32 public balancerPoolId;
+    IBasePool public balancerPool;
+    AggregatorV3Interface public priceFeed;
 
     uint256 public startTime;
     uint256 public timeCursor;
@@ -42,10 +49,13 @@ contract RewardsDistributor {
 
     IAsset[] public poolAssets = new IAsset[](2);
 
+    event Claim(address indexed owner, uint256 amount, bool compounded);
+
     constructor(
         address _votingEscrow,
         address _weth,
-        address _balancerVault
+        address _balancerVault,
+        address _priceFeed
     ) {
         uint256 _t = (block.timestamp / WEEK) * WEEK;
         startTime = _t;
@@ -58,7 +68,9 @@ contract RewardsDistributor {
         votingEscrow = _votingEscrow;
         WETH = IWETH9(_weth);
         balancerVault = IVault(_balancerVault);
-        balancerPoolId = IBasePool(address(lockedToken)).getPoolId();
+        balancerPool = IBasePool(address(lockedToken));
+        balancerPoolId = balancerPool.getPoolId();
+        priceFeed = AggregatorV3Interface(_priceFeed);
         depositor = msg.sender;
         IERC20(_lockedToken).approve(_votingEscrow, type(uint256).max);
         IERC20(_rewardsToken).approve(address(balancerVault), type(uint256).max);
@@ -309,17 +321,28 @@ contract RewardsDistributor {
         return _claimable(_tokenId, votingEscrow, _lastTokenTime);
     }
 
-    function _depositIntoBalancerPool(uint256 _wethAmount, uint256 _alcxAmount) internal {
+    function _depositIntoBalancerPool(
+        uint256 _wethAmount,
+        uint256 _alcxAmount,
+        uint256[] memory _balances,
+        uint256[] memory _normalizedWeights
+    ) internal {
         uint256[] memory amountsIn = new uint256[](2);
         amountsIn[0] = _wethAmount;
         amountsIn[1] = _alcxAmount;
 
-        uint256 amountOut = 0; // bpt amount out calc
+        uint256 bptAmountOut = WeightedMath._calcBptOutGivenExactTokensIn(
+            _balances,
+            _normalizedWeights,
+            amountsIn,
+            IERC20(address(balancerPool)).totalSupply(),
+            balancerPool.getSwapFeePercentage()
+        );
 
         bytes memory _userData = abi.encode(
             WeightedPoolUserData.JoinKind.EXACT_TOKENS_IN_FOR_BPT_OUT,
             amountsIn,
-            amountOut
+            bptAmountOut
         );
 
         IVault.JoinPoolRequest memory request = IVault.JoinPoolRequest({
@@ -348,10 +371,15 @@ contract RewardsDistributor {
         tokenLastBalance -= alcxAmount;
 
         if (_compound) {
-            uint256 wethAmount = alcxAmount / 8; // Do weth % calc here
+            (, int256 alcxEthPrice, , , ) = priceFeed.latestRoundData();
+            (, uint256[] memory balances, ) = balancerVault.getPoolTokens(balancerPoolId);
+            uint256[] memory normalizedWeights = IManagedPool(address(balancerPool)).getNormalizedWeights();
+
+            // Weight of eth to deposit given the amount of alcx and currenct price of alcx/eth
+            uint256 wethAmount = (alcxAmount * uint256(alcxEthPrice)) / normalizedWeights[0];
 
             require(
-                msg.value == wethAmount || WETH.balanceOf(msg.sender) >= wethAmount,
+                msg.value >= wethAmount || WETH.balanceOf(msg.sender) >= wethAmount,
                 "insufficient eth to compound"
             );
 
@@ -359,10 +387,11 @@ contract RewardsDistributor {
             if (msg.value > 0) WETH.deposit{ value: msg.value }();
             else WETH.transferFrom(msg.sender, address(this), wethAmount);
 
-            _depositIntoBalancerPool(wethAmount, alcxAmount);
+            _depositIntoBalancerPool(wethAmount, alcxAmount, balances, normalizedWeights);
 
             IVotingEscrow(votingEscrow).depositFor(_tokenId, IERC20(lockedToken).balanceOf(address(this)));
 
+            emit Claim(owner, alcxAmount, _compound);
             return alcxAmount;
         }
 
@@ -372,6 +401,7 @@ contract RewardsDistributor {
         IERC20(rewardsToken).transfer(BURN_ADDRESS, burnAmount);
         IERC20(rewardsToken).transfer(owner, claimAmount);
 
+        emit Claim(owner, claimAmount, _compound);
         return claimAmount;
     }
 

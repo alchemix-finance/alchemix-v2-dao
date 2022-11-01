@@ -33,7 +33,7 @@ contract MinterTest is BaseTest {
         IERC20(bpt).approve(address(veALCX), TOKEN_1);
         veALCX.createLock(TOKEN_1, MAXTIME, false);
 
-        distributor = new RewardsDistributor(address(veALCX), address(weth), address(balancerVault));
+        distributor = new RewardsDistributor(address(veALCX), address(weth), address(balancerVault), priceFeed);
         veALCX.setVoter(address(voter));
 
         InitializationParams memory params = InitializationParams(

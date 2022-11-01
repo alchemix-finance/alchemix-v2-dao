@@ -33,6 +33,7 @@ abstract contract BaseTest is DSTestPlus {
     address public alETHPool = 0xC4C319E2D4d66CcA4464C0c2B32c9Bd23ebe784e;
     address public alUSDPool = 0x9735F7d3Ea56b454b24fFD74C58E9bD85cfaD31B;
     address public USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    address public priceFeed = 0x194a9AaF2e0b67c35915cD01101585A33Fe25CAa;
     IERC20 public weth = IERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
     address public bpt;
     IVault public balancerVault = IVault(0xBA12222222228d8Ba445958a75a0704d566BF2C8);
@@ -129,7 +130,9 @@ abstract contract BaseTest is DSTestPlus {
         amountsIn[0] = TOKEN_1M;
         amountsIn[1] = TOKEN_1M * 2;
 
-        bytes memory _userData = abi.encode(WeightedPoolUserData.JoinKind.INIT, amountsIn, uint256(0));
+        uint256 amountOut = 0;
+
+        bytes memory _userData = abi.encode(WeightedPoolUserData.JoinKind.INIT, amountsIn, amountOut);
 
         IVault.JoinPoolRequest memory request = IVault.JoinPoolRequest({
             assets: _assets,

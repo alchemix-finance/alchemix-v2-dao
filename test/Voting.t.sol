@@ -35,7 +35,7 @@ contract VotingTest is BaseTest {
 
         uint256 maxVotingPower = getMaxVotingPower(TOKEN_1, veALCX.lockEnd(1));
 
-        distributor = new RewardsDistributor(address(veALCX), address(weth), address(balancerVault));
+        distributor = new RewardsDistributor(address(veALCX), address(weth), address(balancerVault), priceFeed);
         veALCX.setVoter(address(voter));
 
         InitializationParams memory params = InitializationParams(
