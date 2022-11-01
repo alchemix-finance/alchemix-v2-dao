@@ -9,8 +9,6 @@ contract VotingEscrowTest is BaseTest {
 
     function setUp() public {
         setupBaseTest();
-
-        approveAmount(admin, address(veALCX), TOKEN_1);
     }
 
     // Create veALCX
@@ -106,6 +104,7 @@ contract VotingEscrowTest is BaseTest {
         hevm.startPrank(admin);
 
         uint256 tokenId = veALCX.createLock(TOKEN_1, ONE_WEEK, false);
+        uint256 bptBalanceBefore = IERC20(bpt).balanceOf(address(admin));
 
         hevm.expectRevert(abi.encodePacked("Cooldown period has not started"));
         veALCX.withdraw(tokenId);
@@ -122,7 +121,10 @@ contract VotingEscrowTest is BaseTest {
         hevm.roll(block.number + 1);
         veALCX.withdraw(tokenId);
 
-        assertEq(alcx.balanceOf(address(admin)), TOKEN_1);
+        uint256 bptBalanceAfter = IERC20(bpt).balanceOf(address(admin));
+
+        // Bpt balance after should increase by the withdraw amount
+        assertEq(bptBalanceAfter - bptBalanceBefore, TOKEN_1);
 
         // Check that the token is burnt
         assertEq(veALCX.balanceOfToken(tokenId), 0);

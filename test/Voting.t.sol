@@ -58,7 +58,7 @@ contract VotingTest is BaseTest {
         hevm.roll(block.number + 1);
 
         assertEq(veALCX.balanceOfToken(1), maxVotingPower);
-        assertEq(alcx.balanceOf(address(veALCX)), TOKEN_1);
+        assertEq(IERC20(bpt).balanceOf(address(veALCX)), TOKEN_1);
 
         minter.initialize();
 
@@ -66,17 +66,18 @@ contract VotingTest is BaseTest {
 
         hevm.roll(block.number + 1);
 
-        // TODO once we determine how to distribute emissions, add tests
-        // to check veALCX holder ALCX balances increasing over an epoch
-        uint256 before = alcx.balanceOf(address(minter));
-        assertEq(before, 0);
+        // Check ALCX balances increase in distributor and voter over an epoch
+        uint256 distributorBal = alcx.balanceOf(address(distributor));
+        uint256 voterBal = alcx.balanceOf(address(voter));
+        assertEq(distributorBal, 0);
+        assertEq(voterBal, 0);
 
         hevm.warp(block.timestamp + 86400 * 14);
         hevm.roll(block.number + 1);
 
         minter.updatePeriod();
-        assertGt(alcx.balanceOf(address(distributor)), before);
-        assertGt(alcx.balanceOf(address(voter)), before);
+        assertGt(alcx.balanceOf(address(distributor)), distributorBal);
+        assertGt(alcx.balanceOf(address(voter)), voterBal);
         hevm.stopPrank();
     }
 

@@ -60,6 +60,10 @@ abstract contract BaseTest is DSTestPlus {
     function setupBaseTest() public {
         bpt = createBalancerPool();
         veALCX = new VotingEscrow(bpt, address(alcx), address(MANA));
+
+        hevm.startPrank(admin);
+        IERC20(bpt).approve(address(veALCX), type(uint256).max);
+        hevm.stopPrank();
     }
 
     function mintAlcx(address _account, uint256 _amount) public {
@@ -146,18 +150,6 @@ abstract contract BaseTest is DSTestPlus {
         hevm.stopPrank();
 
         return balancerPool;
-    }
-
-    function approveAmount(
-        address _account,
-        address _spender,
-        uint256 _amount
-    ) public {
-        hevm.startPrank(_account);
-
-        alcx.approve(_spender, _amount);
-
-        hevm.stopPrank();
     }
 
     function setMinter(address _minter) public {

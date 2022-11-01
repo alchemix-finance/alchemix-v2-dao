@@ -1427,8 +1427,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
                     abi.encodePacked(
                         '{"name": "lock #',
                         toString(_tokenId),
-                        // TODO update description when utility is finalized
-                        '", "description": "BPT locks, can be used to boost yields, vote on token emission", "image": "data:image/svg+xml;base64,',
+                        '", "description": "BPT locks, can be used to boost yields, capture emissions, vote on governance", "image": "data:image/svg+xml;base64,',
                         Base64.encode(bytes(output)),
                         '"}'
                     )

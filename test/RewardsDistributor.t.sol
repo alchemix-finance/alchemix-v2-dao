@@ -12,6 +12,8 @@ contract RewardsDistributorTest is BaseTest {
 
     /// @dev Deploy the contract
     function setUp() public {
+        setupBaseTest();
+
         distributor = new RewardsDistributor(address(veALCX), address(weth), address(balancerVault), priceFeed);
     }
 
