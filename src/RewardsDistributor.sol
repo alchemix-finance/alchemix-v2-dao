@@ -80,11 +80,11 @@ contract RewardsDistributor {
     }
 
     /// @dev Allows for payments from the WETH contract.
-    // receive() external payable {
-    //     if (IWETH9(msg.sender) != WETH) {
-    //         revert("msg.sender is not WETH contract");
-    //     }
-    // }
+    receive() external payable {
+        if (IWETH9(msg.sender) != WETH) {
+            revert("msg.sender is not WETH contract");
+        }
+    }
 
     function timestamp() external view returns (uint256) {
         return (block.timestamp / WEEK) * WEEK;

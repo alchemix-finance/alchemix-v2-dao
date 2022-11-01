@@ -23,7 +23,6 @@ contract AlchemixGovernorTest is BaseTest {
         IERC20(bpt).transfer(address(0xbeef), TOKEN_1);
         IERC20(bpt).transfer(address(0xdead), TOKEN_1);
 
-        IERC20(bpt).approve(address(veALCX), 90 * TOKEN_1);
         veALCX.createLock(90 * TOKEN_1, 365 days, false);
         hevm.roll(block.number + 1);
 

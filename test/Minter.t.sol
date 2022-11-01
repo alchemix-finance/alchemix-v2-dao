@@ -30,7 +30,6 @@ contract MinterTest is BaseTest {
         tokens[0] = address(alcx);
         voter.initialize(tokens, admin);
 
-        IERC20(bpt).approve(address(veALCX), TOKEN_1);
         veALCX.createLock(TOKEN_1, MAXTIME, false);
 
         distributor = new RewardsDistributor(address(veALCX), address(weth), address(balancerVault), priceFeed);
@@ -182,7 +181,11 @@ contract MinterTest is BaseTest {
 
         minter.updatePeriod();
 
+        uint256 claimable = distributor.claimable(1);
         uint256 amountClaimedEarly = distributor.claim(1, false);
+
+        // Amount claimed should be half of claimable amount
+        assertEq(claimable / 2, amountClaimedEarly);
 
         hevm.warp(block.timestamp + nextEpoch);
         hevm.roll(block.number + 1);
