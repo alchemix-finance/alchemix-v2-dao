@@ -15,12 +15,15 @@ import { WeightedMath } from "./interfaces/balancer/WeightedMath.sol";
 import { AggregatorV3Interface } from "./interfaces/chainlink/AggregatorV3Interface.sol";
 
 contract RewardsDistributor {
+    using SafeERC20 for IERC20;
+
     event CheckpointToken(uint256 time, uint256 tokens);
 
     event Claimed(uint256 tokenId, uint256 amount, uint256 claimEpoch, uint256 maxEpoch);
 
     uint256 constant WEEK = 7 * 86400;
     address constant BURN_ADDRESS = 0x000000000000000000000000000000000000dEaD;
+    uint256 public constant BPS = 10000;
 
     IWETH9 public WETH;
     IVault public balancerVault;
@@ -375,7 +378,7 @@ contract RewardsDistributor {
 
             // Wrap eth if necessary
             if (msg.value > 0) WETH.deposit{ value: msg.value }();
-            else SafeERC20.safeTransferFrom(IERC20(address(WETH)), msg.sender, address(this), wethAmount);
+            else IERC20(address(WETH)).safeTransferFrom(msg.sender, address(this), wethAmount);
 
             _depositIntoBalancerPool(wethAmount, alcxAmount, normalizedWeights);
 
@@ -383,11 +386,11 @@ contract RewardsDistributor {
 
             return alcxAmount;
         } else {
-            uint256 claimAmount = (alcxAmount * IVotingEscrow(votingEscrow).claimFeeBps()) / 10000;
+            uint256 claimAmount = (alcxAmount * IVotingEscrow(votingEscrow).claimFeeBps()) / BPS;
             uint256 burnAmount = alcxAmount - claimAmount;
 
-            SafeERC20.safeTransfer(IERC20(rewardsToken), BURN_ADDRESS, burnAmount);
-            SafeERC20.safeTransfer(IERC20(rewardsToken), owner, claimAmount);
+            IERC20(rewardsToken).safeTransfer(BURN_ADDRESS, burnAmount);
+            IERC20(rewardsToken).safeTransfer(owner, claimAmount);
 
             return claimAmount;
         }
@@ -402,7 +405,7 @@ contract RewardsDistributor {
 
         // Amount of eth to deposit given the amount of alcx rewards and currenct price of alcx/eth
         uint256 amount = (((_alcxAmount * uint256(alcxEthPrice)) / 1 ether) * normalizedWeights[0]) /
-            (normalizedWeights[0] + normalizedWeights[1]);
+            normalizedWeights[1];
 
         return (amount, normalizedWeights);
     }

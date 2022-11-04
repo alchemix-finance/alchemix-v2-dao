@@ -189,20 +189,20 @@ contract MinterTest is BaseTest {
 
         minter.updatePeriod();
 
-        // Amount claimable with fee
-        uint256 claimableEarly = (distributor.claimable(1) * veALCX.claimFeeBps()) / 10000;
+        // Amount claimable
+        uint256 claimable = distributor.claimable(1);
 
         // Claim ALCX rewards early without compounding
-        uint256 amountClaimedEarly = distributor.claim(1, false);
+        uint256 amountClaimed = distributor.claim(1, false);
 
         // Balance after claiming ALCX rewards
         uint256 alcxBalanceAfter = alcx.balanceOf(admin);
 
         // Amount claimed should be equal to the claimable amount with fee
-        assertEq(amountClaimedEarly, claimableEarly, "incorrect amount claimed");
+        assertEq(amountClaimed, (claimable * veALCX.claimFeeBps()) / distributor.BPS(), "incorrect amount claimed");
 
         // Accounts ALCX balance should increase by the amount claimed
-        assertEq(alcxBalanceAfter - alcxBalanceBefore, amountClaimedEarly, "unexpected ALCX balance");
+        assertEq(alcxBalanceAfter - alcxBalanceBefore, amountClaimed, "unexpected ALCX balance");
 
         // Amount claimable should be reset after claiming
         assertEq(distributor.claimable(1), 0, "amount claimable should be 0");
@@ -228,11 +228,16 @@ contract MinterTest is BaseTest {
 
         minter.updatePeriod();
 
+        (uint256 amount, ) = distributor.amountToCompound(distributor.claimable(1));
+
         // Accounts must provide proportional amount of WETH to deposit into the Balancer pool
-        weth.approve(address(distributor), type(uint256).max);
+        weth.approve(address(distributor), amount);
+        uint256 wethBalanceBefore = weth.balanceOf(admin);
 
         // Claim ALCX rewards and compound into exisiting veALCX position with WETH
         distributor.claim(1, true);
+
+        uint256 wethBalanceAfter = weth.balanceOf(admin);
 
         // Updated amount of BPT locked
         (int256 nextLockedAmount, , , ) = veALCX.locked(1);
@@ -240,7 +245,32 @@ contract MinterTest is BaseTest {
         // BPT locked should be higher after compounding
         assertGt(nextLockedAmount, initLockedAmount, "error compounding");
 
-        // Amount claimable should be reset after claiming
+        // WETH balance should decrease by amount used to compound
+        assertEq(wethBalanceBefore - wethBalanceAfter, amount);
+
+        // Fast forward one epoch
+        hevm.warp(block.timestamp + nextEpoch);
+        hevm.roll(block.number + 1);
+
+        minter.updatePeriod();
+
+        (amount, ) = distributor.amountToCompound(distributor.claimable(1));
+        hevm.deal(admin, amount);
+
+        // Claim ALCX rewards by providing ETH
+        distributor.claim{ value: amount }(1, true);
+
+        assertEq(distributor.claimable(1), 0, "amount claimable should be 0");
+    }
+
+    function testCompoundRewardsFailure() public {
+        initializeVotingEscrow();
+
+        hevm.startPrank(admin);
+
+        minter.updatePeriod();
+
+        // After no epoch has passed, amount claimable should be 0
         hevm.expectRevert(abi.encodePacked("nothing to claim"));
         distributor.claim(1, true);
         assertEq(distributor.claimable(1), 0, "amount claimable should be 0");
@@ -257,13 +287,5 @@ contract MinterTest is BaseTest {
         // Compound claiming should revert if user doesn't provide enough weth
         hevm.expectRevert(abi.encodePacked("insufficient eth to compound"));
         distributor.claim(1, true);
-
-        (uint256 ethAmount, ) = distributor.amountToCompound(distributor.claimable(1));
-        hevm.deal(admin, ethAmount);
-
-        // Claim ALCX rewards by providing ETH
-        distributor.claim{ value: ethAmount }(1, true);
-
-        assertEq(distributor.claimable(1), 0, "amount claimable should be 0");
     }
 }
