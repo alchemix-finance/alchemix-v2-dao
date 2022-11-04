@@ -12,10 +12,10 @@ contract MinterTest is BaseTest {
 
     uint256 nextEpoch = 86400 * 14;
     uint256 epochsUntilTail = 80;
-    uint256 internal constant LOCK = 365 days;
 
     function setUp() public {
-        mintAlcx(admin, 1e25);
+        setupBaseTest();
+
         veALCX.setVoter(admin);
 
         hevm.startPrank(admin);
@@ -30,10 +30,9 @@ contract MinterTest is BaseTest {
         tokens[0] = address(alcx);
         voter.initialize(tokens, admin);
 
-        alcx.approve(address(veALCX), 2e25);
-        veALCX.createLock(TOKEN_1, 365 days, false);
+        veALCX.createLock(TOKEN_1, MAXTIME, false);
 
-        distributor = new RewardsDistributor(address(veALCX));
+        distributor = new RewardsDistributor(address(veALCX), address(weth), address(balancerVault), priceFeed);
         veALCX.setVoter(address(voter));
 
         InitializationParams memory params = InitializationParams(
@@ -58,7 +57,7 @@ contract MinterTest is BaseTest {
         uint256 maxVotingPower = getMaxVotingPower(TOKEN_1, veALCX.lockEnd(1));
 
         assertEq(veALCX.balanceOfToken(1), maxVotingPower);
-        assertEq(alcx.balanceOf(address(veALCX)), TOKEN_1);
+        assertEq(IERC20(bpt).balanceOf(address(veALCX)), TOKEN_1);
 
         address[] memory pools = new address[](1);
         pools[0] = alETHPool;
@@ -116,93 +115,181 @@ contract MinterTest is BaseTest {
     }
 
     function initializeVotingEscrow() public {
-        mintAlcx(admin, TOKEN_1M);
-
         address[] memory claimants = new address[](1);
         claimants[0] = admin;
         uint256[] memory amounts = new uint256[](1);
-        amounts[0] = TOKEN_1M;
+        amounts[0] = TOKEN_1;
 
         hevm.startPrank(admin);
 
+        IERC20(bpt).approve(address(veALCX), TOKEN_1);
+
         for (uint256 i = 0; i < claimants.length; i++) {
-            veALCX.createLockFor(amounts[i], LOCK, false, claimants[i]);
+            veALCX.createLockFor(amounts[i], MAXTIME, false, claimants[i]);
         }
 
         assertEq(veALCX.ownerOf(2), admin);
         assertEq(veALCX.ownerOf(3), address(0));
+
         hevm.roll(block.number + 1);
 
         hevm.stopPrank();
     }
 
-    function testMinterWeeklyDistribute() public {
+    // Verify the setup paramaters and emissions schedule are working as expected
+    function testWeeklyEmissionsSchedule() public {
         initializeVotingEscrow();
 
         uint256 startingRewards = minter.rewards();
 
         minter.updatePeriod();
 
+        // Rewards should equal the starting amount contract was initialized with
         assertEq(startingRewards, rewards);
+
+        // After no epoch has passed, amount claimable should be 0
         assertEq(distributor.claimable(1), 0);
 
+        // Fast forward one epoch
         hevm.warp(block.timestamp + nextEpoch);
         hevm.roll(block.number + 1);
 
         minter.updatePeriod();
 
+        // After one epoch rewards amount should decrease by the defined stepdown amount
         assertEq(minter.stepdown(), startingRewards - minter.rewards());
 
+        // Fast forward one epoch
         hevm.warp(block.timestamp + nextEpoch);
         hevm.roll(block.number + 1);
 
         minter.updatePeriod();
 
-        assertGt(distributor.claimable(1), 3013259951171);
+        // After two epochs the amount of ALCX claimable for a veALCX token should increase
+        assertGt(distributor.claimable(1), 0);
+    }
 
-        distributor.claim(1);
-        assertEq(distributor.claimable(1), 0);
+    // Claiming rewards early should result in a penalty
+    function testClaimRewardsEarly() public {
+        initializeVotingEscrow();
 
+        hevm.startPrank(admin);
+
+        // Initial balance of accounts ALCX
+        uint256 alcxBalanceBefore = alcx.balanceOf(admin);
+
+        minter.updatePeriod();
+
+        // After no epoch has passed, amount claimable should be 0
+        assertEq(distributor.claimable(1), 0, "amount claimable should be 0");
+
+        // Fast forward one epoch
         hevm.warp(block.timestamp + nextEpoch);
         hevm.roll(block.number + 1);
 
         minter.updatePeriod();
 
-        distributor.claim(1);
+        // Amount claimable
+        uint256 claimable = distributor.claimable(1);
 
+        // Claim ALCX rewards early without compounding
+        uint256 amountClaimed = distributor.claim(1, false);
+
+        // Balance after claiming ALCX rewards
+        uint256 alcxBalanceAfter = alcx.balanceOf(admin);
+
+        // Amount claimed should be the claimable amount minus fee
+        assertEq(
+            amountClaimed,
+            claimable - ((claimable * veALCX.claimFeeBps()) / distributor.BPS()),
+            "incorrect amount claimed"
+        );
+
+        // Accounts ALCX balance should increase by the amount claimed
+        assertEq(alcxBalanceAfter - alcxBalanceBefore, amountClaimed, "unexpected ALCX balance");
+
+        // Amount claimable should be reset after claiming
+        assertEq(distributor.claimable(1), 0, "amount claimable should be 0");
+    }
+
+    // Users can add ALCX rewards into their exisiting veALCX position
+    function testCompoundRewards() public {
+        initializeVotingEscrow();
+
+        hevm.startPrank(admin);
+
+        // Initial amount of BPT locked in a veALCX position
+        (int256 initLockedAmount, , , ) = veALCX.locked(1);
+
+        minter.updatePeriod();
+
+        // After no epoch has passed, amount claimable should be 0
+        assertEq(distributor.claimable(1), 0, "amount claimable should be 0");
+
+        // Fast forward one epoch
         hevm.warp(block.timestamp + nextEpoch);
         hevm.roll(block.number + 1);
 
         minter.updatePeriod();
 
-        uint256[] memory tokenIds = new uint256[](2);
-        tokenIds[0] = 1;
-        tokenIds[1] = 2;
+        (uint256 amount, ) = distributor.amountToCompound(distributor.claimable(1));
 
-        distributor.claimMany(tokenIds);
+        // Accounts must provide proportional amount of WETH to deposit into the Balancer pool
+        weth.approve(address(distributor), amount);
+        uint256 wethBalanceBefore = weth.balanceOf(admin);
 
+        // Claim ALCX rewards and compound into exisiting veALCX position with WETH
+        distributor.claim(1, true);
+
+        uint256 wethBalanceAfter = weth.balanceOf(admin);
+
+        // Updated amount of BPT locked
+        (int256 nextLockedAmount, , , ) = veALCX.locked(1);
+
+        // BPT locked should be higher after compounding
+        assertGt(nextLockedAmount, initLockedAmount, "error compounding");
+
+        // WETH balance should decrease by amount used to compound
+        assertEq(wethBalanceBefore - wethBalanceAfter, amount);
+
+        // Fast forward one epoch
         hevm.warp(block.timestamp + nextEpoch);
         hevm.roll(block.number + 1);
 
         minter.updatePeriod();
 
-        distributor.claim(1);
+        (amount, ) = distributor.amountToCompound(distributor.claimable(1));
+        hevm.deal(admin, amount);
 
+        // Claim ALCX rewards by providing ETH
+        distributor.claim{ value: amount }(1, true);
+
+        assertEq(distributor.claimable(1), 0, "amount claimable should be 0");
+    }
+
+    function testCompoundRewardsFailure() public {
+        initializeVotingEscrow();
+
+        hevm.startPrank(admin);
+
+        minter.updatePeriod();
+
+        // After no epoch has passed, amount claimable should be 0
+        hevm.expectRevert(abi.encodePacked("nothing to claim"));
+        distributor.claim(1, true);
+        assertEq(distributor.claimable(1), 0, "amount claimable should be 0");
+
+        // Fast forward one epoch
         hevm.warp(block.timestamp + nextEpoch);
         hevm.roll(block.number + 1);
 
         minter.updatePeriod();
 
-        distributor.claimMany(tokenIds);
+        // Set weth balance to 0
+        weth.transfer(address(0xdead), weth.balanceOf(admin));
 
-        assertEq(distributor.claimable(1), 0);
-        assertEq(distributor.claimable(2), 0);
-
-        hevm.warp(block.timestamp + nextEpoch);
-        hevm.roll(block.number + 1);
-
-        minter.updatePeriod();
-
-        distributor.claim(1);
+        // Compound claiming should revert if user doesn't provide enough weth
+        hevm.expectRevert(abi.encodePacked("insufficient eth to compound"));
+        distributor.claim(1, true);
     }
 }

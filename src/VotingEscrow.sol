@@ -67,12 +67,16 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     uint256 internal constant MULTIPLIER = 26 ether;
     int256 internal constant iMULTIPLIER = 26 ether;
 
-    address public immutable token;
+    address public immutable ALCX;
     uint256 public supply;
+
+    address public BPT;
+    uint256 public claimFeeBps = 5000; // Fee for claiming early in bps
 
     address public MANA;
     uint256 public manaMultiplier;
     uint256 public manaPerVeALCX;
+
     address public admin; // the timelock executor
 
     mapping(uint256 => LockedBalance) public locked;
@@ -161,12 +165,19 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     }
 
     /// @notice Contract constructor
-    /// @param _token `ALCX` token address
-    constructor(address _token, address _mana) {
-        token = _token;
+    /// @param _bpt `BPT` token address
+    /// @param _alcx `ALCX` token address
+    /// @param _mana `MANA` token address
+    constructor(
+        address _bpt,
+        address _alcx,
+        address _mana
+    ) {
+        BPT = _bpt;
+        ALCX = _alcx;
+        MANA = _mana;
         voter = msg.sender;
         admin = msg.sender;
-        MANA = _mana;
         manaMultiplier = 10; // 10 bps = 0.1%
         manaPerVeALCX = 1e18; // determine initial value
 
@@ -924,7 +935,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
         address from = msg.sender;
         if (_value != 0 && depositType != DepositType.MERGE_TYPE) {
-            require(IERC20(token).transferFrom(from, address(this), _value));
+            require(IERC20(BPT).transferFrom(from, address(this), _value));
         }
 
         emit Deposit(from, _tokenId, _value, _locked.end, _locked.maxLockEnabled, depositType, block.timestamp);
@@ -969,6 +980,11 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     function setManaPerVeALCX(uint256 _manaPerVeALCX) external {
         require(msg.sender == admin, "not admin");
         manaPerVeALCX = _manaPerVeALCX;
+    }
+
+    function setClaimFee(uint256 _claimFeeBps) external {
+        require(msg.sender == admin, "not admin");
+        claimFeeBps = _claimFeeBps;
     }
 
     function merge(uint256 _from, uint256 _to) external {
@@ -1132,7 +1148,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         // Both can have >= 0 amount
         _checkpoint(_tokenId, _locked, LockedBalance(0, 0, false, 0));
 
-        require(IERC20(token).transfer(msg.sender, value));
+        require(IERC20(BPT).transfer(msg.sender, value));
 
         // Burn the token
         _burn(_tokenId);
@@ -1417,8 +1433,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
                     abi.encodePacked(
                         '{"name": "lock #',
                         toString(_tokenId),
-                        // TODO update description when utility is finalized
-                        '", "description": "ALCX locks, can be used to boost yields, vote on token emission", "image": "data:image/svg+xml;base64,',
+                        '", "description": "BPT locks, can be used to boost yields, capture emissions, vote on governance", "image": "data:image/svg+xml;base64,',
                         Base64.encode(bytes(output)),
                         '"}'
                     )

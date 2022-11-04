@@ -25,7 +25,7 @@ contract StakingGauge is BaseGauge {
         factory = msg.sender;
 
         IBribe(bribe).setGauge(address(this));
-        address _token = IVotingEscrow(ve).token();
+        address _token = IVotingEscrow(ve).ALCX();
         IBribe(bribe).addRewardToken(_token);
         isReward[_token] = true;
         rewards.push(_token);

@@ -9,7 +9,11 @@ interface IVotingEscrow {
         uint256 blk; // block
     }
 
-    function token() external view returns (address);
+    function BPT() external view returns (address);
+
+    function ALCX() external view returns (address);
+
+    function claimFeeBps() external view returns (uint256);
 
     function epoch() external view returns (uint256);
 

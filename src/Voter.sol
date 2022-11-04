@@ -64,7 +64,7 @@ contract Voter {
     ) {
         veALCX = _ve;
         MANA = _mana;
-        base = IVotingEscrow(_ve).token();
+        base = IVotingEscrow(_ve).ALCX();
         gaugefactory = _gauges;
         bribefactory = _bribes;
         minter = msg.sender;

@@ -14,7 +14,8 @@ contract VotingTest is BaseTest {
     uint256 lockTime = 30 days;
 
     function setUp() public {
-        mintAlcx(admin, TOKEN_1);
+        setupBaseTest();
+
         veALCX.setVoter(admin);
 
         hevm.startPrank(admin);
@@ -29,12 +30,12 @@ contract VotingTest is BaseTest {
         tokens[0] = address(alcx);
         voter.initialize(tokens, admin);
 
-        alcx.approve(address(veALCX), TOKEN_1);
+        IERC20(bpt).approve(address(veALCX), TOKEN_1);
         veALCX.createLock(TOKEN_1, MAXTIME, false);
 
         uint256 maxVotingPower = getMaxVotingPower(TOKEN_1, veALCX.lockEnd(1));
 
-        distributor = new RewardsDistributor(address(veALCX));
+        distributor = new RewardsDistributor(address(veALCX), address(weth), address(balancerVault), priceFeed);
         veALCX.setVoter(address(voter));
 
         InitializationParams memory params = InitializationParams(
@@ -57,7 +58,7 @@ contract VotingTest is BaseTest {
         hevm.roll(block.number + 1);
 
         assertEq(veALCX.balanceOfToken(1), maxVotingPower);
-        assertEq(alcx.balanceOf(address(veALCX)), TOKEN_1);
+        assertEq(IERC20(bpt).balanceOf(address(veALCX)), TOKEN_1);
 
         minter.initialize();
 
@@ -65,17 +66,18 @@ contract VotingTest is BaseTest {
 
         hevm.roll(block.number + 1);
 
-        // TODO once we determine how to distribute emissions, add tests
-        // to check veALCX holder ALCX balances increasing over an epoch
-        uint256 before = alcx.balanceOf(address(minter));
-        assertEq(before, 0);
+        // Check ALCX balances increase in distributor and voter over an epoch
+        uint256 distributorBal = alcx.balanceOf(address(distributor));
+        uint256 voterBal = alcx.balanceOf(address(voter));
+        assertEq(distributorBal, 0);
+        assertEq(voterBal, 0);
 
         hevm.warp(block.timestamp + 86400 * 14);
         hevm.roll(block.number + 1);
 
         minter.updatePeriod();
-        assertGt(alcx.balanceOf(address(distributor)), before);
-        assertGt(alcx.balanceOf(address(voter)), before);
+        assertGt(alcx.balanceOf(address(distributor)), distributorBal);
+        assertGt(alcx.balanceOf(address(voter)), voterBal);
         hevm.stopPrank();
     }
 
@@ -206,11 +208,9 @@ contract VotingTest is BaseTest {
 
     // veALCX holder with max lock enabled should have constant max voting power
     function testMaxLockVotingPower() public {
-        mintAlcx(account, TOKEN_1);
+        hevm.startPrank(admin);
 
-        hevm.startPrank(account);
-
-        alcx.approve(address(veALCX), TOKEN_1);
+        IERC20(bpt).approve(address(veALCX), TOKEN_1);
         veALCX.createLock(TOKEN_1, 0, true);
 
         uint256 maxVotingPower = getMaxVotingPower(TOKEN_1, veALCX.lockEnd(2));
@@ -243,11 +243,9 @@ contract VotingTest is BaseTest {
 
     // veALCX voting power should decay to veALCX amount
     function testVotingPowerDecay() public {
-        mintAlcx(account, TOKEN_1);
+        hevm.startPrank(admin);
 
-        hevm.startPrank(account);
-
-        alcx.approve(address(veALCX), TOKEN_1);
+        IERC20(bpt).approve(address(veALCX), TOKEN_1);
         veALCX.createLock(TOKEN_1, 1 weeks, false);
 
         hevm.warp(block.timestamp + 2 weeks);

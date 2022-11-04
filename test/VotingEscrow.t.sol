@@ -5,33 +5,30 @@ import "./BaseTest.sol";
 
 contract VotingEscrowTest is BaseTest {
     uint256 internal constant ONE_WEEK = 1 weeks;
-    uint256 depositAmount = TOKEN_1;
     uint256 maxDuration = ((block.timestamp + MAXTIME) / ONE_WEEK) * ONE_WEEK;
 
     function setUp() public {
-        mintAlcx(account, depositAmount);
-
-        approveAmount(account, address(veALCX), depositAmount);
+        setupBaseTest();
     }
 
     // Create veALCX
     function testCreateLock() public {
-        hevm.startPrank(account);
+        hevm.startPrank(admin);
 
-        assertEq(veALCX.balanceOf(account), 0);
+        assertEq(veALCX.balanceOf(admin), 0);
 
-        veALCX.createLock(depositAmount, ONE_WEEK, false);
+        veALCX.createLock(TOKEN_1, ONE_WEEK, false);
 
-        assertEq(veALCX.ownerOf(1), account);
-        assertEq(veALCX.balanceOf(account), 1);
+        assertEq(veALCX.ownerOf(1), admin);
+        assertEq(veALCX.balanceOf(admin), 1);
 
         hevm.stopPrank();
     }
 
     function testUpdateLockDuration() public {
-        hevm.startPrank(account);
+        hevm.startPrank(admin);
 
-        veALCX.createLock(depositAmount, 5 weeks, true);
+        veALCX.createLock(TOKEN_1, 5 weeks, true);
 
         uint256 lockEnd = veALCX.lockEnd(1);
 
@@ -72,24 +69,24 @@ contract VotingEscrowTest is BaseTest {
 
     // Locking outside the allowed zones should revert
     function testInvalidLock() public {
-        hevm.startPrank(account);
+        hevm.startPrank(admin);
 
         hevm.expectRevert(abi.encodePacked("Voting lock can be 1 year max"));
 
-        veALCX.createLock(depositAmount, MAXTIME + ONE_WEEK, false);
+        veALCX.createLock(TOKEN_1, MAXTIME + ONE_WEEK, false);
 
         hevm.stopPrank();
     }
 
     // Votes should increase as veALCX is created
     function testVotes() public {
-        hevm.startPrank(account);
+        hevm.startPrank(admin);
 
-        uint256 tokenId1 = veALCX.createLock(depositAmount / 2, ONE_WEEK, false);
-        uint256 tokenId2 = veALCX.createLock(depositAmount / 2, ONE_WEEK * 2, false);
+        uint256 tokenId1 = veALCX.createLock(TOKEN_1 / 2, ONE_WEEK, false);
+        uint256 tokenId2 = veALCX.createLock(TOKEN_1 / 2, ONE_WEEK * 2, false);
 
-        uint256 maxVotingPower = getMaxVotingPower(depositAmount / 2, veALCX.lockEnd(tokenId1)) +
-            getMaxVotingPower(depositAmount / 2, veALCX.lockEnd(tokenId2));
+        uint256 maxVotingPower = getMaxVotingPower(TOKEN_1 / 2, veALCX.lockEnd(tokenId1)) +
+            getMaxVotingPower(TOKEN_1 / 2, veALCX.lockEnd(tokenId2));
 
         uint256 totalVotes = veALCX.totalSupply();
 
@@ -104,9 +101,10 @@ contract VotingEscrowTest is BaseTest {
 
     // Withdraw enabled after lock expires
     function testWithdraw() public {
-        hevm.startPrank(account);
+        hevm.startPrank(admin);
 
-        uint256 tokenId = veALCX.createLock(depositAmount, ONE_WEEK, false);
+        uint256 tokenId = veALCX.createLock(TOKEN_1, ONE_WEEK, false);
+        uint256 bptBalanceBefore = IERC20(bpt).balanceOf(address(admin));
 
         hevm.expectRevert(abi.encodePacked("Cooldown period has not started"));
         veALCX.withdraw(tokenId);
@@ -123,7 +121,10 @@ contract VotingEscrowTest is BaseTest {
         hevm.roll(block.number + 1);
         veALCX.withdraw(tokenId);
 
-        assertEq(alcx.balanceOf(address(account)), depositAmount);
+        uint256 bptBalanceAfter = IERC20(bpt).balanceOf(address(admin));
+
+        // Bpt balance after should increase by the withdraw amount
+        assertEq(bptBalanceAfter - bptBalanceBefore, TOKEN_1);
 
         // Check that the token is burnt
         assertEq(veALCX.balanceOfToken(tokenId), 0);
@@ -134,9 +135,9 @@ contract VotingEscrowTest is BaseTest {
 
     // Calling tokenURI should not work for non-existent token ids
     function testTokenURICalls() public {
-        hevm.startPrank(account);
+        hevm.startPrank(admin);
 
-        veALCX.createLock(depositAmount, ONE_WEEK, false);
+        veALCX.createLock(TOKEN_1, ONE_WEEK, false);
 
         hevm.expectRevert(abi.encodePacked("Query for nonexistent token"));
         veALCX.tokenURI(999);
@@ -180,15 +181,15 @@ contract VotingEscrowTest is BaseTest {
     }
 
     function testRagequit() public {
-        hevm.startPrank(account);
+        hevm.startPrank(admin);
 
-        uint256 tokenId = veALCX.createLock(depositAmount, ONE_WEEK, false);
+        uint256 tokenId = veALCX.createLock(TOKEN_1, ONE_WEEK, false);
 
         // Show that veALCX is not expired
         hevm.expectRevert(abi.encodePacked("Cooldown period has not started"));
         veALCX.withdraw(tokenId);
 
-        // Account doesn't have enough MANA
+        // admin doesn't have enough MANA
         hevm.expectRevert(abi.encodePacked("insufficient MANA balance"));
         veALCX.startCooldown(tokenId);
 
@@ -197,9 +198,9 @@ contract VotingEscrowTest is BaseTest {
         uint256 ragequitAmount = veALCX.amountToRagequit(tokenId);
 
         // Mint the necessary amount of MANA to ragequit
-        mintMana(account, ragequitAmount);
+        mintMana(admin, ragequitAmount);
 
-        hevm.startPrank(account);
+        hevm.startPrank(admin);
 
         MANA.approve(address(veALCX), ragequitAmount);
 
