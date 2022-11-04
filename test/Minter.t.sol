@@ -198,8 +198,12 @@ contract MinterTest is BaseTest {
         // Balance after claiming ALCX rewards
         uint256 alcxBalanceAfter = alcx.balanceOf(admin);
 
-        // Amount claimed should be equal to the claimable amount with fee
-        assertEq(amountClaimed, (claimable * veALCX.claimFeeBps()) / distributor.BPS(), "incorrect amount claimed");
+        // Amount claimed should be the claimable amount minus fee
+        assertEq(
+            amountClaimed,
+            claimable - ((claimable * veALCX.claimFeeBps()) / distributor.BPS()),
+            "incorrect amount claimed"
+        );
 
         // Accounts ALCX balance should increase by the amount claimed
         assertEq(alcxBalanceAfter - alcxBalanceBefore, amountClaimed, "unexpected ALCX balance");

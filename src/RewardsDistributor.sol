@@ -386,10 +386,10 @@ contract RewardsDistributor {
 
             return alcxAmount;
         } else {
-            uint256 claimAmount = (alcxAmount * IVotingEscrow(votingEscrow).claimFeeBps()) / BPS;
-            uint256 burnAmount = alcxAmount - claimAmount;
+            uint256 feeAmount = (alcxAmount * IVotingEscrow(votingEscrow).claimFeeBps()) / BPS;
+            uint256 claimAmount = alcxAmount - feeAmount;
 
-            IERC20(rewardsToken).safeTransfer(BURN_ADDRESS, burnAmount);
+            IERC20(rewardsToken).safeTransfer(BURN_ADDRESS, feeAmount);
             IERC20(rewardsToken).safeTransfer(owner, claimAmount);
 
             return claimAmount;
