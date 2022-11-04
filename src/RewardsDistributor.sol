@@ -2,7 +2,8 @@
 pragma solidity ^0.8.15;
 
 import "./libraries/Math.sol";
-import "./interfaces/IERC20.sol";
+import { SafeERC20 } from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
+import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { IWETH9 } from "./interfaces/IWETH9.sol";
 import "./interfaces/IVotingEscrow.sol";
 import { IVault } from "./interfaces/balancer/IVault.sol";
@@ -13,15 +14,12 @@ import { IManagedPool } from "./interfaces/balancer/IManagedPool.sol";
 import { WeightedMath } from "./interfaces/balancer/WeightedMath.sol";
 import { AggregatorV3Interface } from "./interfaces/chainlink/AggregatorV3Interface.sol";
 
-import "lib/forge-std/src/console2.sol";
-
 contract RewardsDistributor {
     event CheckpointToken(uint256 time, uint256 tokens);
 
     event Claimed(uint256 tokenId, uint256 amount, uint256 claimEpoch, uint256 maxEpoch);
 
     uint256 constant WEEK = 7 * 86400;
-    uint256 constant CLAIM_FEE = 2;
     address constant BURN_ADDRESS = 0x000000000000000000000000000000000000dEaD;
 
     IWETH9 public WETH;
@@ -49,8 +47,6 @@ contract RewardsDistributor {
 
     IAsset[] public poolAssets = new IAsset[](2);
 
-    event Claim(address indexed owner, uint256 amount, bool compounded);
-
     constructor(
         address _votingEscrow,
         address _weth,
@@ -61,10 +57,8 @@ contract RewardsDistributor {
         startTime = _t;
         lastTokenTime = _t;
         timeCursor = _t;
-        address _rewardsToken = IVotingEscrow(_votingEscrow).ALCX();
-        address _lockedToken = IVotingEscrow(_votingEscrow).BPT();
-        rewardsToken = _rewardsToken;
-        lockedToken = _lockedToken;
+        rewardsToken = address(IVotingEscrow(_votingEscrow).ALCX());
+        lockedToken = address(IVotingEscrow(_votingEscrow).BPT());
         votingEscrow = _votingEscrow;
         WETH = IWETH9(_weth);
         balancerVault = IVault(_balancerVault);
@@ -72,11 +66,11 @@ contract RewardsDistributor {
         balancerPoolId = balancerPool.getPoolId();
         priceFeed = AggregatorV3Interface(_priceFeed);
         depositor = msg.sender;
-        IERC20(_lockedToken).approve(_votingEscrow, type(uint256).max);
-        IERC20(_rewardsToken).approve(address(balancerVault), type(uint256).max);
+        IERC20(lockedToken).approve(_votingEscrow, type(uint256).max);
+        IERC20(rewardsToken).approve(address(balancerVault), type(uint256).max);
         WETH.approve(address(balancerVault), type(uint256).max);
         poolAssets[0] = IAsset(address(WETH));
-        poolAssets[1] = IAsset(address(_rewardsToken));
+        poolAssets[1] = IAsset(rewardsToken);
     }
 
     /// @dev Allows for payments from the WETH contract.
@@ -202,27 +196,27 @@ contract RewardsDistributor {
 
     function _claim(
         uint256 _tokenId,
-        address ve,
+        address _ve,
         uint256 _lastTokenTime
     ) internal returns (uint256) {
         uint256 userEpoch = 0;
         uint256 toDistribute = 0;
 
-        uint256 maxUserEpoch = IVotingEscrow(ve).userPointEpoch(_tokenId);
+        uint256 maxUserEpoch = IVotingEscrow(_ve).userPointEpoch(_tokenId);
         uint256 _startTime = startTime;
 
         if (maxUserEpoch == 0) return 0;
 
         uint256 weekCursor = timeCursorOf[_tokenId];
         if (weekCursor == 0) {
-            userEpoch = _findTimestampUserEpoch(ve, _tokenId, _startTime, maxUserEpoch);
+            userEpoch = _findTimestampUserEpoch(_ve, _tokenId, _startTime, maxUserEpoch);
         } else {
             userEpoch = userEpochOf[_tokenId];
         }
 
         if (userEpoch == 0) userEpoch = 1;
 
-        IVotingEscrow.Point memory userPoint = IVotingEscrow(ve).userPointHistory(_tokenId, userEpoch);
+        IVotingEscrow.Point memory userPoint = IVotingEscrow(_ve).userPointHistory(_tokenId, userEpoch);
 
         if (weekCursor == 0) weekCursor = ((userPoint.ts + WEEK - 1) / WEEK) * WEEK;
         if (weekCursor >= lastTokenTime) return 0;
@@ -239,7 +233,7 @@ contract RewardsDistributor {
                 if (userEpoch > maxUserEpoch) {
                     userPoint = IVotingEscrow.Point(0, 0, 0, 0);
                 } else {
-                    userPoint = IVotingEscrow(ve).userPointHistory(_tokenId, userEpoch);
+                    userPoint = IVotingEscrow(_ve).userPointHistory(_tokenId, userEpoch);
                 }
             } else {
                 int256 dt = int256(weekCursor - oldUserPoint.ts);
@@ -263,27 +257,27 @@ contract RewardsDistributor {
 
     function _claimable(
         uint256 _tokenId,
-        address ve,
+        address _ve,
         uint256 _lastTokenTime
     ) internal view returns (uint256) {
         uint256 userEpoch = 0;
         uint256 toDistribute = 0;
 
-        uint256 maxUserEpoch = IVotingEscrow(ve).userPointEpoch(_tokenId);
+        uint256 maxUserEpoch = IVotingEscrow(_ve).userPointEpoch(_tokenId);
         uint256 _startTime = startTime;
 
         if (maxUserEpoch == 0) return 0;
 
         uint256 weekCursor = timeCursorOf[_tokenId];
         if (weekCursor == 0) {
-            userEpoch = _findTimestampUserEpoch(ve, _tokenId, _startTime, maxUserEpoch);
+            userEpoch = _findTimestampUserEpoch(_ve, _tokenId, _startTime, maxUserEpoch);
         } else {
             userEpoch = userEpochOf[_tokenId];
         }
 
         if (userEpoch == 0) userEpoch = 1;
 
-        IVotingEscrow.Point memory userPoint = IVotingEscrow(ve).userPointHistory(_tokenId, userEpoch);
+        IVotingEscrow.Point memory userPoint = IVotingEscrow(_ve).userPointHistory(_tokenId, userEpoch);
 
         if (weekCursor == 0) weekCursor = ((userPoint.ts + WEEK - 1) / WEEK) * WEEK;
         if (weekCursor >= lastTokenTime) return 0;
@@ -300,7 +294,7 @@ contract RewardsDistributor {
                 if (userEpoch > maxUserEpoch) {
                     userPoint = IVotingEscrow.Point(0, 0, 0, 0);
                 } else {
-                    userPoint = IVotingEscrow(ve).userPointHistory(_tokenId, userEpoch);
+                    userPoint = IVotingEscrow(_ve).userPointHistory(_tokenId, userEpoch);
                 }
             } else {
                 int256 dt = int256(weekCursor - oldUserPoint.ts);
@@ -324,15 +318,16 @@ contract RewardsDistributor {
     function _depositIntoBalancerPool(
         uint256 _wethAmount,
         uint256 _alcxAmount,
-        uint256[] memory _balances,
         uint256[] memory _normalizedWeights
     ) internal {
+        (, uint256[] memory balances, ) = balancerVault.getPoolTokens(balancerPoolId);
+
         uint256[] memory amountsIn = new uint256[](2);
         amountsIn[0] = _wethAmount;
         amountsIn[1] = _alcxAmount;
 
         uint256 bptAmountOut = WeightedMath._calcBptOutGivenExactTokensIn(
-            _balances,
+            balances,
             _normalizedWeights,
             amountsIn,
             IERC20(address(balancerPool)).totalSupply(),
@@ -366,17 +361,12 @@ contract RewardsDistributor {
 
         uint256 alcxAmount = _claim(_tokenId, votingEscrow, _lastTokenTime);
 
-        require(alcxAmount >= 0, "nothing to claim");
+        require(alcxAmount > 0, "nothing to claim");
 
         tokenLastBalance -= alcxAmount;
 
         if (_compound) {
-            (, int256 alcxEthPrice, , , ) = priceFeed.latestRoundData();
-            (, uint256[] memory balances, ) = balancerVault.getPoolTokens(balancerPoolId);
-            uint256[] memory normalizedWeights = IManagedPool(address(balancerPool)).getNormalizedWeights();
-
-            // Weight of eth to deposit given the amount of alcx and currenct price of alcx/eth
-            uint256 wethAmount = (alcxAmount * uint256(alcxEthPrice)) / normalizedWeights[0];
+            (uint256 wethAmount, uint256[] memory normalizedWeights) = amountToCompound(alcxAmount);
 
             require(
                 msg.value >= wethAmount || WETH.balanceOf(msg.sender) >= wethAmount,
@@ -385,24 +375,36 @@ contract RewardsDistributor {
 
             // Wrap eth if necessary
             if (msg.value > 0) WETH.deposit{ value: msg.value }();
-            else WETH.transferFrom(msg.sender, address(this), wethAmount);
+            else SafeERC20.safeTransferFrom(IERC20(address(WETH)), msg.sender, address(this), wethAmount);
 
-            _depositIntoBalancerPool(wethAmount, alcxAmount, balances, normalizedWeights);
+            _depositIntoBalancerPool(wethAmount, alcxAmount, normalizedWeights);
 
             IVotingEscrow(votingEscrow).depositFor(_tokenId, IERC20(lockedToken).balanceOf(address(this)));
 
-            emit Claim(owner, alcxAmount, _compound);
             return alcxAmount;
+        } else {
+            uint256 claimAmount = (alcxAmount * IVotingEscrow(votingEscrow).claimFeeBps()) / 10000;
+            uint256 burnAmount = alcxAmount - claimAmount;
+
+            SafeERC20.safeTransfer(IERC20(rewardsToken), BURN_ADDRESS, burnAmount);
+            SafeERC20.safeTransfer(IERC20(rewardsToken), owner, claimAmount);
+
+            return claimAmount;
         }
+    }
 
-        uint256 claimAmount = alcxAmount / CLAIM_FEE;
-        uint256 burnAmount = alcxAmount - claimAmount;
+    // Amount of ETH or WETH required to create balanced pool deposit
+    function amountToCompound(uint256 _alcxAmount) public view returns (uint256, uint256[] memory) {
+        (, int256 alcxEthPrice, , , ) = priceFeed.latestRoundData();
 
-        IERC20(rewardsToken).transfer(BURN_ADDRESS, burnAmount);
-        IERC20(rewardsToken).transfer(owner, claimAmount);
+        // Return weights to prevent extra lookups
+        uint256[] memory normalizedWeights = IManagedPool(address(balancerPool)).getNormalizedWeights();
 
-        emit Claim(owner, claimAmount, _compound);
-        return claimAmount;
+        // Amount of eth to deposit given the amount of alcx rewards and currenct price of alcx/eth
+        uint256 amount = (((_alcxAmount * uint256(alcxEthPrice)) / 1 ether) * normalizedWeights[0]) /
+            (normalizedWeights[0] + normalizedWeights[1]);
+
+        return (amount, normalizedWeights);
     }
 
     // Once off event on contract initialize

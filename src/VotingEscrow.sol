@@ -71,6 +71,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     uint256 public supply;
 
     address public BPT;
+    uint256 public claimFeeBps = 5000; // Fee for claiming early in bps
 
     address public MANA;
     uint256 public manaMultiplier;
@@ -979,6 +980,11 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     function setManaPerVeALCX(uint256 _manaPerVeALCX) external {
         require(msg.sender == admin, "not admin");
         manaPerVeALCX = _manaPerVeALCX;
+    }
+
+    function setClaimFee(uint256 _claimFeeBps) external {
+        require(msg.sender == admin, "not admin");
+        claimFeeBps = _claimFeeBps;
     }
 
     function merge(uint256 _from, uint256 _to) external {

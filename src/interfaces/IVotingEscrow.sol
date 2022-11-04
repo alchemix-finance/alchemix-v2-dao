@@ -13,6 +13,8 @@ interface IVotingEscrow {
 
     function ALCX() external view returns (address);
 
+    function claimFeeBps() external view returns (uint256);
+
     function epoch() external view returns (uint256);
 
     function pointHistory(uint256 loc) external view returns (Point memory);

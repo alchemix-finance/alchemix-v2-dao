@@ -12,9 +12,9 @@ import { GaugeFactory } from "src/factories/GaugeFactory.sol";
 import { BribeFactory } from "src/factories/BribeFactory.sol";
 import { Minter, InitializationParams } from "src/Minter.sol";
 import { IAlchemixToken } from "src/interfaces/IAlchemixToken.sol";
+import { RewardsDistributor } from "src/RewardsDistributor.sol";
 import "src/governance/TimelockExecutor.sol";
 import "src/StakingGauge.sol";
-import "src/RewardsDistributor.sol";
 import "src/Bribe.sol";
 
 import { WeightedPool2TokensFactory } from "src/interfaces/balancer/WeightedPool2TokensFactory.sol";
@@ -84,8 +84,8 @@ abstract contract BaseTest is DSTestPlus {
     }
 
     function mintWeth(address _account, uint256 _amount) public {
-        hevm.deal(address(_account), _amount);
-        hevm.startPrank(address(_account));
+        hevm.deal(_account, _amount);
+        hevm.startPrank(_account);
 
         IWETH9(address(weth)).deposit{ value: _amount }();
 
