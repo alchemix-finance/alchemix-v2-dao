@@ -16,6 +16,7 @@ import { RewardsDistributor } from "src/RewardsDistributor.sol";
 import "src/governance/TimelockExecutor.sol";
 import "src/StakingGauge.sol";
 import "src/Bribe.sol";
+import "src/RevenueHandler.sol";
 
 import { WeightedPool2TokensFactory } from "src/interfaces/balancer/WeightedPool2TokensFactory.sol";
 import { WeightedPoolUserData } from "src/interfaces/balancer/WeightedPoolUserData.sol";
@@ -39,6 +40,7 @@ abstract contract BaseTest is DSTestPlus {
     IVault public balancerVault = IVault(0xBA12222222228d8Ba445958a75a0704d566BF2C8);
     ManaToken public MANA = new ManaToken(admin);
     VotingEscrow public veALCX;
+    RevenueHandler rh = new RevenueHandler(address(veALCX), admin);
 
     uint256 internal constant MAXTIME = 365 days;
     uint256 internal constant MULTIPLIER = 26 ether;

@@ -1,20 +1,12 @@
 // SPDX-License-Identifier: GPL-3
-pragma solidity 0.8.13;
+pragma solidity ^0.8.15;
 
 interface IRevenueHandler {
-    /// @notice Parameters to define actions with respect to melting a revenue token for alchemic-tokens.
-    struct RevenueTokenConfig {
-        /// The target alchemic-token.
-        address debtToken;
-        /// A list of pool adpators that can be used to trade revenue token for `debtToken`.
-        address[] poolAdaptors;
-    }
-
     /// @notice Emitted when poolAdaptor parameters are set for a revenue token.
     ///
     /// @param revenueToken     The address of the revenue token.
     /// @param poolAdaptor      The address of the target pool adaptor contract to call.
-    event AddPoolAdaptor(
+    event SetPoolAdapter(
         address revenueToken,
         address poolAdaptor
     );
@@ -28,6 +20,39 @@ interface IRevenueHandler {
         address debtToken
     );
 
+    /// @notice Emitted when a debt token is set for a revenue token.
+    ///
+    /// @param tokenId      The veALCX tokenId claiming revenue. 
+    /// @param debtToken    The address of the alchemic-token that was claimed.
+    /// @param amount       The amount of `debtToken` that was claimed.
+    /// @param recipient    The recipient of the claim.
+    event ClaimRevenue(
+        uint256 tokenId,
+        address debtToken,
+        uint256 amount,
+        address recipient
+    );
+
+    /// @notice Returns the total amount of debtToken currently claimable by tokenId.
+    ///
+    /// @param tokenId      The tokenId with a claimable balance.
+    /// @param debtToken    The debtToken that is claimable.
+    ///
+    /// @return             The amount of debtToken that is claimable by tokenId.
+    function claimable(uint256 tokenId, address debtToken) external view returns (uint256);
+
+    /// @notice Add an debtToken to the list of claimable debtTokens.
+    /// @notice This function is only callable by the contract owner.
+    ///
+    /// @param debtToken    The address of the debt token to add.
+    function addDebtToken(address debtToken) external;
+
+    /// @notice Remove an debtToken from the list of claimable debtTokens.
+    /// @notice This function is only callable by the contract owner.
+    ///
+    /// @param debtToken    The address of the debt token to remove.
+    function removeDebtToken(address debtToken) external;
+
     /// @dev Add an ERC20 token to the list of recognized revenue tokens.
     ///
     /// @param revenueToken The address of the token to be recognized as revenue.
@@ -38,19 +63,17 @@ interface IRevenueHandler {
     ///
     /// @param revenueToken     The address of the revenue token.
     /// @param poolAdaptor      The address of the target pool adaptor contract to call.
-    function addPoolAdaptor(address revenueToken, address poolAdaptor) external;
-
-    function removePoolAdaptor(address revenueToken, address poolAdaptor) external;
-    
-    /// @dev Execute a trade on a pool adaptor to purhcase alchemic-tokens using revenue tokens.
-    ///
-    /// @param revenueToken The revenue token to melt.
-    function melt(address revenueToken, address poolAdaptor) external;
+    function setPoolAdapter(address revenueToken, address poolAdaptor) external;
 
     /// @dev Claim an alotted amount of alchemic-tokens and burn them to a position in the alchemist.
     ///
+    /// @param tokenId      The ID of the veALCX position to use.
     /// @param alchemist    The address of the target alchemist.
-    /// @param amount       The amount of alchemic-tokens to burn.
+    /// @param amount       The amount to claim.
     /// @param recipient    The recipient of the resulting credit.
-    function claim(address alchemist, uint256 amount, address recipient) external;
+    function claim(uint256 tokenId, address alchemist, uint256 amount, address recipient) external;
+
+    /// @notice Checkpoint the current epoch.
+    /// @notice This function should be run once per epoch.
+    function checkpoint() external;
 }

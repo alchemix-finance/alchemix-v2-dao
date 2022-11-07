@@ -1,62 +1,161 @@
 // SPDX-License-Identifier: GPL-3
-pragma solidity 0.8.13;
+pragma solidity ^0.8.15;
 
 import "./interfaces/IRevenueHandler.sol";
-import "./interfaces/IPoolAdaptor.sol";
-import "../lib/openzeppelin-contracts/contracts/access/Ownable.sol";
+import "./interfaces/IPoolAdapter.sol";
+import "openzeppelin-contracts/contracts/access/Ownable.sol";
 import "../lib/v2-foundry/src/interfaces/IAlchemistV2.sol";
-import "../lib/v2-foundry/src/libraries/TokenUtils.sol";
 import "../lib/v2-foundry/src/base/ErrorMessages.sol";
+import "./interfaces/IVotingEscrow.sol";
+import "./interfaces/IERC20.sol";
+import "../lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 
 contract RevenueHandler is IRevenueHandler, Ownable {
-    mapping(address => RevenueTokenConfig) public revenueTokens;
+    using SafeERC20 for IERC20;
+    /// @notice Parameters to define actions with respect to melting a revenue token for alchemic-tokens.
+    struct RevenueTokenConfig {
+        /// The target alchemic-token.
+        address debtToken;
+        /// A IPoolAdapter that can be used to trade revenue token for `debtToken`.
+        address poolAdapter;
+    }
 
-    constructor() Ownable() {
+    /// @notice A checkpoint on the state of a user's account for a given debtToken
+    struct Claimable {
+        /// An amount of the target debtToken that the user can currently claim (leftover from an incomplete claim).
+        uint256 unclaimed;
+        /// The last epoch that the user claimed the target debtToken.
+        uint256 lastClaimEpoch;
+    }
 
+    address public veALCX;
+    address[] public debtTokens;
+    address[] public revenueTokens;
+    mapping(address /* token */ => RevenueTokenConfig) public revenueTokenConfigs;
+    mapping(uint256 /* epoch */ => mapping(address /* debtToken */ => uint256 /* epoch revenue */)) public epochRevenues;
+    mapping(uint256 /* tokenId */ => mapping(address /* debtToken */ => Claimable)) public userCheckpoints;
+    address public minter;
+
+    constructor(address _veALCX, address _minter) Ownable() {
+        veALCX = _veALCX;
+        minter = _minter;
+    }
+
+    /*
+        View functions
+    */
+
+    /// @inheritdoc IRevenueHandler
+    function claimable(uint256 tokenId, address debtToken) external view override returns (uint256) {
+        return _claimable(tokenId, debtToken);
+    }
+
+    /*
+        Admin functions
+    */
+
+    /// @inheritdoc IRevenueHandler
+    function addDebtToken(address debtToken) external override onlyOwner {
+        for (uint256 i = 0; i < debtTokens.length; i++) {
+            if (debtTokens[i] == debtToken) {
+                revert("debt token already exists");
+            }
+        }
+        debtTokens.push(debtToken);
+    }
+
+    /// @inheritdoc IRevenueHandler
+    function removeDebtToken(address debtToken) external override onlyOwner {
+        for (uint256 i = 0; i < debtTokens.length; i++) {
+            if (debtTokens[i] == debtToken) {
+                debtTokens[i] = debtTokens[debtTokens.length - 1];
+                debtTokens.pop();
+                return;
+            }
+        }
+        revert("debt token does not exist");
     }
 
     /// @inheritdoc IRevenueHandler
     function setDebtToken(address revenueToken, address debtToken) external override onlyOwner {
-        revenueTokens[revenueToken].debtToken = debtToken;
+        revenueTokenConfigs[revenueToken].debtToken = debtToken;
         emit SetDebtToken(revenueToken, debtToken);
     }
 
     /// @inheritdoc IRevenueHandler
-    function addPoolAdaptor(address revenueToken, address poolAdaptor) external override onlyOwner {
-        for (uint256 i = 0; i < revenueTokens[revenueToken].poolAdaptors.length; i++) {
-            if (revenueTokens[revenueToken].poolAdaptors[i] == poolAdaptor) {
-                revert IllegalArgument("adaptor exists");
-            }
-        }
-        revenueTokens[revenueToken].poolAdaptors.push(poolAdaptor);
-        emit AddPoolAdaptor(revenueToken, poolAdaptor);
+    function setPoolAdapter(address revenueToken, address poolAdapter) external override onlyOwner {
+        revenueTokenConfigs[revenueToken].poolAdapter = poolAdapter;
+        emit SetPoolAdapter(revenueToken, poolAdapter);
     }
 
-    function removePoolAdaptor(address revenueToken, address poolAdaptor) external override onlyOwner {
-        address[] storage poolAdaptors = revenueTokens[revenueToken].poolAdaptors;
-        for (uint256 i = 0; i < poolAdaptors.length; i++) {
-            if (poolAdaptors[i] == poolAdaptor) {
-                poolAdaptors[i] = poolAdaptors[poolAdaptors.length - 1];
-                poolAdaptors.pop();
-                break;
-            }
+    /*
+        User functions
+    */
+
+    /// @inheritdoc IRevenueHandler
+    function claim(uint256 tokenId, address alchemist, uint256 amount, address recipient) external override {
+        require(IVotingEscrow(veALCX).isApprovedOrOwner(msg.sender, tokenId), "not approved or owner");
+
+        address debtToken = IAlchemistV2(alchemist).debtToken();
+        uint256 amountClaimable = _claimable(tokenId, debtToken);
+        require(amount <= amountClaimable, "Not enough claimable");
+
+        uint256 currentEpoch = _currentEpoch();
+        userCheckpoints[tokenId][debtToken].lastClaimEpoch = currentEpoch;
+        userCheckpoints[tokenId][debtToken].unclaimed = amountClaimable - amount;
+
+        // burn
+        IERC20(debtToken).approve(alchemist, amount);
+        uint256 amountBurned = IAlchemistV2(alchemist).burn(amount, recipient);
+
+        // burn() will only burn up to total cdp debt
+        // send the leftover directly to the user
+        if (amountBurned < amount) {
+            IERC20(debtToken).safeTransfer(recipient, amount - amountBurned);
         }
-        revert IllegalArgument("adaptor does not exist");
+        emit ClaimRevenue(tokenId, debtToken, amount, recipient);
     }
 
     /// @inheritdoc IRevenueHandler
-    function melt(address revenueToken, address poolAdaptor) external override {
-        RevenueTokenConfig storage tokenConfig = revenueTokens[revenueToken];
-        uint256 revenueTokenBalance = TokenUtils.safeBalanceOf(revenueToken, address(this));
+    function checkpoint() external {
+        require(msg.sender == minter, "not minter");
+        uint256 currentEpoch = IVotingEscrow(veALCX).epoch();
+        for (uint256 i = 0; i < revenueTokens.length; i++) {
+            uint256 amountReceived = _melt(revenueTokens[i]);
+            epochRevenues[currentEpoch][revenueTokenConfigs[revenueTokens[i]].debtToken] = amountReceived;
+        }
+    }
+
+    /*
+        Internal functions
+    */
+
+    function _melt(address revenueToken) internal returns (uint256) {
+        RevenueTokenConfig storage tokenConfig = revenueTokenConfigs[revenueToken];
+        address poolAdapter = tokenConfig.poolAdapter;
+        uint256 revenueTokenBalance = IERC20(revenueToken).balanceOf(address(this));
         if (revenueTokenBalance == 0) {
-            revert IllegalState("revenue balance 0");
+            return 0;
         }
-        TokenUtils.safeTransfer(revenueToken, poolAdaptor, revenueTokenBalance);
-        IPoolAdaptor(poolAdaptor).melt(revenueToken, tokenConfig.debtToken, revenueTokenBalance, 0); // TODO: fix minimum amount out
+        IERC20(revenueToken).safeTransfer(poolAdapter, revenueTokenBalance);
+        return IPoolAdapter(poolAdapter).melt(revenueToken, tokenConfig.debtToken, revenueTokenBalance, 0); // TODO: fix minimum amount out
     }
 
-    /// @inheritdoc IRevenueHandler
-    function claim(address alchemist, uint256 amount, address recipient) external override {
-        IAlchemistV2(alchemist).burn(amount, recipient);
+    function _claimable(uint256 tokenId, address debtToken) internal view returns (uint256) {
+        uint256 totalClaimable = 0;
+        uint256 lastClaimEpoch = userCheckpoints[tokenId][debtToken].lastClaimEpoch;
+        uint256 currentEpoch = _currentEpoch();
+        uint256 oneEpoch = IVotingEscrow(veALCX).EPOCH();
+        for (uint256 epoch = lastClaimEpoch; epoch < currentEpoch; epoch + oneEpoch) {
+            uint256 epochRevenue = epochRevenues[epoch][debtToken];
+            uint256 epochUserVeBalance = IVotingEscrow(veALCX).balanceOfTokenAt(tokenId, epoch);
+            uint256 epochTotalVeSupply = IVotingEscrow(veALCX).totalSupplyAtT(epoch);
+            totalClaimable += epochRevenue * epochUserVeBalance / epochTotalVeSupply;
+        }
+        return totalClaimable + userCheckpoints[tokenId][debtToken].unclaimed;
+    }
+
+    function _currentEpoch() internal view returns (uint256) {
+        return IVotingEscrow(veALCX).epoch();
     }
 }

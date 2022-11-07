@@ -66,6 +66,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     int256 internal constant iMAXTIME = 365 days;
     uint256 internal constant MULTIPLIER = 26 ether;
     int256 internal constant iMULTIPLIER = 26 ether;
+    uint256 internal constant EPOCH = 2 weeks;
 
     address public immutable ALCX;
     uint256 public supply;

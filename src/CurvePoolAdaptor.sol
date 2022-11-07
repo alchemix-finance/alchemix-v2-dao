@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3
-pragma solidity 0.8.13;
+pragma solidity ^0.8.15;
 
-import "./interfaces/IPoolAdaptor.sol";
+import "./interfaces/IPoolAdapter.sol";
 import "./interfaces/curve/ICurveMetaSwap.sol";
 import "./interfaces/curve/ICurveStableSwap.sol";
-import "../lib/v2-foundry/src/libraries/TokenUtils.sol";
+import "./libraries/TokenUtils.sol";
 
-contract CurvePoolAdaptor is IPoolAdaptor {
+contract CurvePoolAdapter is IPoolAdapter {
     address public override pool;
 
     mapping(address => int128) public tokenIds;

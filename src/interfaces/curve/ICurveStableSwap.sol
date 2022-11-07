@@ -1,4 +1,4 @@
-pragma solidity 0.8.13;
+pragma solidity ^0.8.15;
 
 interface ICurveStableSwap {
     function get_dy(int128 i, int128 j, uint256 dx) external returns (uint256);
