@@ -7,3 +7,6 @@
 [submodule "lib/v2-foundry"]
 	path = lib/v2-foundry
 	url = https://github.com/alchemix-finance/v2-foundry
+[submodule "lib/openzeppelin-contracts"]
+	path = lib/openzeppelin-contracts
+	url = https://github.com/openzeppelin/openzeppelin-contracts
