@@ -3,12 +3,12 @@ pragma solidity ^0.8.15;
 
 import "./interfaces/IRevenueHandler.sol";
 import "./interfaces/IPoolAdapter.sol";
-import "openzeppelin-contracts/contracts/access/Ownable.sol";
+import "../lib/openzeppelin-contracts/contracts/access/Ownable.sol";
 import "../lib/v2-foundry/src/interfaces/IAlchemistV2.sol";
 import "../lib/v2-foundry/src/base/ErrorMessages.sol";
 import "./interfaces/IVotingEscrow.sol";
-import "./interfaces/IERC20.sol";
 import "../lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
+import "../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
 contract RevenueHandler is IRevenueHandler, Ownable {
     using SafeERC20 for IERC20;

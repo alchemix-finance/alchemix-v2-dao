@@ -68,4 +68,6 @@ interface IVotingEscrow {
     function amountToRagequit(uint256 tokenId) external view returns (uint256);
 
     function totalSupply() external view returns (uint256);
+
+    function totalSupplyAtT(uint256 epoch) external view returns (uint256);
 }
