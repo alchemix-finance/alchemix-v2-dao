@@ -20,7 +20,7 @@ contract CurvePoolAdapter is IPoolAdapter {
         isMetapool = _isMetapool;
     }
 
-    function getDy(address inputToken, address outputToken, uint256 inputAmount) external override returns (uint256) {
+    function getDy(address inputToken, address outputToken, uint256 inputAmount) external view override returns (uint256) {
         if (isMetapool) {
             return ICurveMetaSwap(pool).get_dy(tokenIds[inputToken], tokenIds[outputToken], inputAmount);
         } else {

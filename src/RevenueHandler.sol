@@ -34,11 +34,10 @@ contract RevenueHandler is IRevenueHandler, Ownable {
     mapping(address /* token */ => RevenueTokenConfig) public revenueTokenConfigs;
     mapping(uint256 /* epoch */ => mapping(address /* debtToken */ => uint256 /* epoch revenue */)) public epochRevenues;
     mapping(uint256 /* tokenId */ => mapping(address /* debtToken */ => Claimable)) public userCheckpoints;
-    address public minter;
+    uint256 public currentEpoch;
 
-    constructor(address _veALCX, address _minter) Ownable() {
+    constructor(address _veALCX) Ownable() {
         veALCX = _veALCX;
-        minter = _minter;
     }
 
     /*
@@ -100,7 +99,6 @@ contract RevenueHandler is IRevenueHandler, Ownable {
         uint256 amountClaimable = _claimable(tokenId, debtToken);
         require(amount <= amountClaimable, "Not enough claimable");
 
-        uint256 currentEpoch = _currentEpoch();
         userCheckpoints[tokenId][debtToken].lastClaimEpoch = currentEpoch;
         userCheckpoints[tokenId][debtToken].unclaimed = amountClaimable - amount;
 
@@ -118,11 +116,16 @@ contract RevenueHandler is IRevenueHandler, Ownable {
 
     /// @inheritdoc IRevenueHandler
     function checkpoint() external {
-        require(msg.sender == minter, "not minter");
-        uint256 currentEpoch = IVotingEscrow(veALCX).epoch();
-        for (uint256 i = 0; i < revenueTokens.length; i++) {
-            uint256 amountReceived = _melt(revenueTokens[i]);
-            epochRevenues[currentEpoch][revenueTokenConfigs[revenueTokens[i]].debtToken] = amountReceived;
+        uint256 oneEpoch = IVotingEscrow(veALCX).EPOCH();
+        // only run checkpoint() once per epoch
+        // TODO: add a check that it gets run during the correct phase of an epoch?
+        if (block.timestamp >= currentEpoch + oneEpoch /* && initializer == address(0) */) {
+            currentEpoch = (block.timestamp / oneEpoch) * oneEpoch;
+
+            for (uint256 i = 0; i < revenueTokens.length; i++) {
+                uint256 amountReceived = _melt(revenueTokens[i]);
+                epochRevenues[currentEpoch][revenueTokenConfigs[revenueTokens[i]].debtToken] = amountReceived;
+            }
         }
     }
 
@@ -144,7 +147,6 @@ contract RevenueHandler is IRevenueHandler, Ownable {
     function _claimable(uint256 tokenId, address debtToken) internal view returns (uint256) {
         uint256 totalClaimable = 0;
         uint256 lastClaimEpoch = userCheckpoints[tokenId][debtToken].lastClaimEpoch;
-        uint256 currentEpoch = _currentEpoch();
         uint256 oneEpoch = IVotingEscrow(veALCX).EPOCH();
         for (uint256 epoch = lastClaimEpoch; epoch < currentEpoch; epoch + oneEpoch) {
             uint256 epochRevenue = epochRevenues[epoch][debtToken];
@@ -153,9 +155,5 @@ contract RevenueHandler is IRevenueHandler, Ownable {
             totalClaimable += epochRevenue * epochUserVeBalance / epochTotalVeSupply;
         }
         return totalClaimable + userCheckpoints[tokenId][debtToken].unclaimed;
-    }
-
-    function _currentEpoch() internal view returns (uint256) {
-        return IVotingEscrow(veALCX).epoch();
     }
 }
