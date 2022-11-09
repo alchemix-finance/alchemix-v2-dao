@@ -53,6 +53,18 @@ interface IRevenueHandler {
     /// @param debtToken    The address of the debt token to remove.
     function removeDebtToken(address debtToken) external;
 
+    /// @notice Add an revenueToken to the list of claimable revenueTokens.
+    /// @notice This function is only callable by the contract owner.
+    ///
+    /// @param revenueToken    The address of the revenue token to add.
+    function addRevenueToken(address revenueToken) external;
+
+    /// @notice Remove an revenueToken from the list of claimable revenueTokens.
+    /// @notice This function is only callable by the contract owner.
+    ///
+    /// @param revenueToken    The address of the revenue token to remove.
+    function removeRevenueToken(address revenueToken) external;
+
     /// @dev Add an ERC20 token to the list of recognized revenue tokens.
     ///
     /// @param revenueToken The address of the token to be recognized as revenue.

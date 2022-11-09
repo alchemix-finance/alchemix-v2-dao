@@ -17,6 +17,7 @@ contract RevenueHandlerTest is BaseTest {
 
     /// @dev Deploy the contract
     function setUp() public {
+        setupBaseTest();
         address[] memory alusd3crvTokenIds = new address[](4);
         alusd3crvTokenIds[0] = 0xBC6DA0FE9aD5f3b0d58160288917AA56653660E9;
         alusd3crvTokenIds[1] = 0x6B175474E89094C44Da98b954EedeAC495271d0F; // dai
@@ -25,6 +26,7 @@ contract RevenueHandlerTest is BaseTest {
 
         cpa = new CurvePoolAdapter(alusd3crv, alusd3crvTokenIds, true);
         rh = new RevenueHandler(address(veALCX));
+        rh.addRevenueToken(dai);
         rh.addDebtToken(alusd);
         rh.setDebtToken(dai, alusd);
         rh.setPoolAdapter(dai, address(cpa));
@@ -39,7 +41,7 @@ contract RevenueHandlerTest is BaseTest {
         assertEq(balBefore, 0);
         rh.checkpoint();
         uint256 balAfter = IERC20(alusd).balanceOf(address(rh));
-        assertApproxEq(balAfter, revAmt, 1e16);
+        assertApproxEq(balAfter, revAmt, revAmt/100);
 
     }
 
@@ -64,23 +66,23 @@ contract RevenueHandlerTest is BaseTest {
         assertEq(balBefore, balAfter);
     }
 
-    function testCheckpointMeltsAllRevenue() external {
+    // function testCheckpointMeltsAllRevenue() external {
 
-    }
+    // }
 
-    function testClaimRevenueOneEpoch() external {
+    // function testClaimRevenueOneEpoch() external {
 
-    }
+    // }
 
-    function testClaimRevenueMultipleEpochs() external {
+    // function testClaimRevenueMultipleEpochs() external {
 
-    }
+    // }
 
-    function testClaimPartialRevenue() external {
+    // function testClaimPartialRevenue() external {
 
-    }
+    // }
 
-    function testFailClaimRevenueTwice() external {
+    // function testFailClaimRevenueTwice() external {
         
-    }
+    // }
 }

@@ -9,6 +9,7 @@ import "../lib/v2-foundry/src/base/ErrorMessages.sol";
 import "./interfaces/IVotingEscrow.sol";
 import "../lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import "../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import "../lib/forge-std/src/console.sol";
 
 contract RevenueHandler is IRevenueHandler, Ownable {
     using SafeERC20 for IERC20;
@@ -69,6 +70,28 @@ contract RevenueHandler is IRevenueHandler, Ownable {
             if (debtTokens[i] == debtToken) {
                 debtTokens[i] = debtTokens[debtTokens.length - 1];
                 debtTokens.pop();
+                return;
+            }
+        }
+        revert("debt token does not exist");
+    }
+
+    /// @inheritdoc IRevenueHandler
+    function addRevenueToken(address revenueToken) external override onlyOwner {
+        for (uint256 i = 0; i < revenueTokens.length; i++) {
+            if (revenueTokens[i] == revenueToken) {
+                revert("debt token already exists");
+            }
+        }
+        revenueTokens.push(revenueToken);
+    }
+
+    /// @inheritdoc IRevenueHandler
+    function removeRevenueToken(address revenueToken) external override onlyOwner {
+        for (uint256 i = 0; i < revenueTokens.length; i++) {
+            if (revenueTokens[i] == revenueToken) {
+                revenueTokens[i] = revenueTokens[revenueTokens.length - 1];
+                revenueTokens.pop();
                 return;
             }
         }
