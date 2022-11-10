@@ -10,6 +10,7 @@ contract RevenueHandlerTest is BaseTest {
     address holder = 0x000000000000000000000000000000000000dEaD;
     address alusd = 0xBC6DA0FE9aD5f3b0d58160288917AA56653660E9;
     address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+    address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address alusd3crv = 0x43b4FdFD4Ff969587185cDB6f0BD875c5Fc83f8c;
 
     RevenueHandler rh;
@@ -26,10 +27,16 @@ contract RevenueHandlerTest is BaseTest {
 
         cpa = new CurvePoolAdapter(alusd3crv, alusd3crvTokenIds, true);
         rh = new RevenueHandler(address(veALCX));
-        rh.addRevenueToken(dai);
+        
         rh.addDebtToken(alusd);
+
+        rh.addRevenueToken(dai);
         rh.setDebtToken(dai, alusd);
         rh.setPoolAdapter(dai, address(cpa));
+        
+        rh.addRevenueToken(usdc);
+        rh.setDebtToken(usdc, alusd);
+        rh.setPoolAdapter(usdc, address(cpa));
     }
 
     function testCheckpoint() external {
@@ -41,8 +48,7 @@ contract RevenueHandlerTest is BaseTest {
         assertEq(balBefore, 0);
         rh.checkpoint();
         uint256 balAfter = IERC20(alusd).balanceOf(address(rh));
-        assertApproxEq(balAfter, revAmt, revAmt/100);
-
+        assertApproxEq(revAmt, balAfter, revAmt/100);
     }
 
     function testCheckpointRunsOncePerEpoch() external {
@@ -66,9 +72,23 @@ contract RevenueHandlerTest is BaseTest {
         assertEq(balBefore, balAfter);
     }
 
-    // function testCheckpointMeltsAllRevenue() external {
+    function testCheckpointMeltsAllRevenue() external {
+        uint256 revAmt = 1000e18;
+        // accrue dai revenue
+        deal(dai, address(this), revAmt);
+        IERC20(dai).transfer(address(rh), revAmt);
 
-    // }
+        uint256 usdcRevAmt = 1000e6;
+        // accrue usdc revenue
+        deal(usdc, address(this), usdcRevAmt);
+        IERC20(usdc).transfer(address(rh), usdcRevAmt);
+        
+        uint256 balBefore = IERC20(alusd).balanceOf(address(rh));
+        assertEq(balBefore, 0);
+        rh.checkpoint();
+        uint256 balAfter = IERC20(alusd).balanceOf(address(rh));
+        assertApproxEq(2000e18, balAfter, 2000e18/100);
+    }
 
     // function testClaimRevenueOneEpoch() external {
 
