@@ -39,10 +39,14 @@ contract RevenueHandlerTest is BaseTest {
         rh.setPoolAdapter(usdc, address(cpa));
     }
 
+    function accrueRevenue(address token, uint256 amount) internal {
+        deal(token, address(this), amount);
+        IERC20(token).transfer(address(rh), amount);
+    }
+
     function testCheckpoint() external {
         uint256 revAmt = 1000e18;
-        deal(dai, address(this), revAmt);
-        IERC20(dai).transfer(address(rh), revAmt);
+        accrueRevenue(dai, revAmt);
         
         uint256 balBefore = IERC20(alusd).balanceOf(address(rh));
         assertEq(balBefore, 0);
@@ -53,17 +57,14 @@ contract RevenueHandlerTest is BaseTest {
 
     function testCheckpointRunsOncePerEpoch() external {
         uint256 revAmt = 1000e18;
-        // accrue revenue
-        deal(dai, address(this), revAmt);
-        IERC20(dai).transfer(address(rh), revAmt);
+        accrueRevenue(dai, revAmt);
         
         // checkpoint
         rh.checkpoint();
         uint256 balBefore = IERC20(alusd).balanceOf(address(rh));
 
         // accrue revenue again
-        deal(dai, address(this), revAmt);
-        IERC20(dai).transfer(address(rh), revAmt);
+        accrueRevenue(dai, revAmt);
 
         // attempt 2nd checkpoint
         rh.checkpoint();
@@ -75,13 +76,11 @@ contract RevenueHandlerTest is BaseTest {
     function testCheckpointMeltsAllRevenue() external {
         uint256 revAmt = 1000e18;
         // accrue dai revenue
-        deal(dai, address(this), revAmt);
-        IERC20(dai).transfer(address(rh), revAmt);
+        accrueRevenue(dai, revAmt);
 
         uint256 usdcRevAmt = 1000e6;
         // accrue usdc revenue
-        deal(usdc, address(this), usdcRevAmt);
-        IERC20(usdc).transfer(address(rh), usdcRevAmt);
+        accrueRevenue(usdc, usdcRevAmt);
         
         uint256 balBefore = IERC20(alusd).balanceOf(address(rh));
         assertEq(balBefore, 0);
@@ -90,9 +89,31 @@ contract RevenueHandlerTest is BaseTest {
         assertApproxEq(2000e18, balAfter, 2000e18/100);
     }
 
-    // function testClaimRevenueOneEpoch() external {
+    function testClaimRevenueOneEpoch() external {
+        veALCX.checkpoint();
+        
+        uint256 lockAmt = 10e18;
+        deal(address(bpt), address(this), lockAmt);
+        IERC20(bpt).approve(address(veALCX), lockAmt);
+        uint256 tokenId = veALCX.createLock(lockAmt, MAXTIME, false);
 
-    // }
+        rh.checkpoint();
+        uint256 revAmt = 1000e18;
+        
+        // jump 1 epoch
+        hevm.warp(block.timestamp + 604801);
+        hevm.roll(block.number + 50400);
+
+        accrueRevenue(dai, revAmt);
+        rh.checkpoint();
+        
+        // jump 1 epoch
+        hevm.warp(block.timestamp + 604801);
+        hevm.roll(block.number + 50400);
+
+        uint256 claimable = rh.claimable(tokenId, alusd);
+        assertApproxEq(revAmt, claimable, revAmt/100);
+    }
 
     // function testClaimRevenueMultipleEpochs() external {
 

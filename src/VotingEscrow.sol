@@ -10,6 +10,8 @@ import { IManaToken } from "./interfaces/IManaToken.sol";
 
 import { Base64 } from "src/libraries/Base64.sol";
 
+import "../lib/forge-std/src/console.sol";
+
 /// @title Voting Escrow
 /// @notice veALCX implementation that escrows ERC-20 tokens in the form of an ERC-721 token
 /// @notice Votes have a weight depending on time, so that users are committed to the future of (whatever they are voting for)
@@ -87,6 +89,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     uint256 public epoch;
     mapping(uint256 => Point) public pointHistory; // epoch -> unsigned point
     mapping(uint256 => Point[1000000000]) public userPointHistory; // user -> Point[userEpoch]
+    mapping(uint256 => uint256) public userFirstEpoch; // user -> epoch
 
     mapping(uint256 => uint256) public userPointEpoch;
     mapping(uint256 => int256) public slopeChanges; // time -> signed slope change
@@ -522,6 +525,9 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         _moveTokenDelegates(address(0), delegates(_to), _tokenId);
         // Add token. Throws if `_tokenId` is owned by someone
         _addTokenTo(_to, _tokenId);
+        // Mark first epoch
+        console.log("set epoch", epoch);
+        userFirstEpoch[_tokenId] = epoch;
         emit Transfer(address(0), _to, _tokenId);
         return true;
     }
@@ -1350,15 +1356,21 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         Point memory lastPoint = point;
 
         uint256 _time = (lastPoint.ts / WEEK) * WEEK;
+        console.log("last point", lastPoint.ts, _time, t);
         for (uint256 i = 0; i < 255; ++i) {
             _time += WEEK;
+            console.log("_time", _time);
             int256 dSlope = 0;
             if (_time > t) {
+                console.log("maybe?");
                 _time = t;
             } else {
                 dSlope = slopeChanges[_time];
             }
-            lastPoint.bias -= (lastPoint.slope * (int256(_time - lastPoint.ts)));
+            console.logInt(lastPoint.bias);
+            console.logInt(lastPoint.slope);
+            console.log(_time, lastPoint.ts);
+            lastPoint.bias -= (lastPoint.slope * (int256(_time) - int256(lastPoint.ts)));
             if (_time == t) {
                 break;
             }
@@ -1379,6 +1391,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     function totalSupplyAtT(uint256 t) public view returns (uint256) {
         uint256 _epoch = epoch;
         Point memory lastPoint = pointHistory[_epoch];
+        console.log("epoch", _epoch);
         return _supplyAt(lastPoint, t);
     }
 
