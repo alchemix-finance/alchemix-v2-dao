@@ -5,13 +5,20 @@ import "./BaseTest.sol";
 import "../src/RevenueHandler.sol";
 import "../src/CurvePoolAdapter.sol";
 import "./utils/DSTestPlus.sol";
+import "../lib/v2-foundry/src/interfaces/IAlchemistV2.sol";
+import "../lib/v2-foundry/src/interfaces/IWhitelist.sol";
 
 contract RevenueHandlerTest is BaseTest {
+    uint256 ONE_EPOCH_TIME = 1 weeks;
+    uint256 ONE_EPOCH_BLOCKS = (1 weeks) / 12;
     address holder = 0x000000000000000000000000000000000000dEaD;
     address alusd = 0xBC6DA0FE9aD5f3b0d58160288917AA56653660E9;
     address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+    address ydai = 0xdA816459F1AB5631232FE5e97a05BBBb94970c95;
     address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address alusd3crv = 0x43b4FdFD4Ff969587185cDB6f0BD875c5Fc83f8c;
+    IAlchemistV2 public alusdAlchemist = IAlchemistV2(0x5C6374a2ac4EBC38DeA0Fc1F8716e5Ea1AdD94dd);
+    IWhitelist public whitelist = IWhitelist(0x78537a6CeBa16f412E123a90472C6E0e9A8F1132);
 
     RevenueHandler rh;
     CurvePoolAdapter cpa;
@@ -42,6 +49,17 @@ contract RevenueHandlerTest is BaseTest {
     function accrueRevenue(address token, uint256 amount) internal {
         deal(token, address(this), amount);
         IERC20(token).transfer(address(rh), amount);
+    }
+
+    function takeDebt(uint256 amount) internal {
+        hevm.prank(devmsig);
+        whitelist.disable();
+
+        deal(dai, address(this), 3 * amount);
+        IERC20(dai).approve(address(alusdAlchemist), 3 * amount);
+        alusdAlchemist.depositUnderlying(ydai, 3 * amount, address(this), 0);
+        alusdAlchemist.mint(amount, address(this));
+        hevm.stopPrank();
     }
 
     function testCheckpoint() external {
@@ -101,23 +119,64 @@ contract RevenueHandlerTest is BaseTest {
         uint256 revAmt = 1000e18;
         
         // jump 1 epoch
-        hevm.warp(block.timestamp + 604801);
-        hevm.roll(block.number + 50400);
+        hevm.warp(block.timestamp + ONE_EPOCH_TIME + 1);
+        hevm.roll(block.number + ONE_EPOCH_BLOCKS);
 
         accrueRevenue(dai, revAmt);
         rh.checkpoint();
         
         // jump 1 epoch
-        hevm.warp(block.timestamp + 604801);
-        hevm.roll(block.number + 50400);
+        hevm.warp(block.timestamp + ONE_EPOCH_TIME + 1);
+        hevm.roll(block.number + ONE_EPOCH_BLOCKS);
 
         uint256 claimable = rh.claimable(tokenId, alusd);
         assertApproxEq(revAmt, claimable, revAmt/100);
+
+        uint256 debtAmt = 5000e18;
+        takeDebt(debtAmt);
+        rh.claim(tokenId, address(alusdAlchemist), claimable, address(this));
+        (int256 finalDebt, ) = alusdAlchemist.accounts(address(this));
+        assertEq(debtAmt - claimable, uint256(finalDebt));
     }
 
-    // function testClaimRevenueMultipleEpochs() external {
+    function testClaimRevenueMultipleEpochs() external {
+        veALCX.checkpoint();
+        
+        uint256 lockAmt = 10e18;
+        deal(address(bpt), address(this), lockAmt);
+        IERC20(bpt).approve(address(veALCX), lockAmt);
+        uint256 tokenId = veALCX.createLock(lockAmt, MAXTIME, false);
 
-    // }
+        rh.checkpoint();
+        uint256 revAmt = 1000e18;
+        
+        // jump 1 epoch
+        hevm.warp(block.timestamp + ONE_EPOCH_TIME + 1);
+        hevm.roll(block.number + ONE_EPOCH_BLOCKS);
+
+        accrueRevenue(dai, revAmt);
+        rh.checkpoint();
+        
+        // jump 1 epoch
+        hevm.warp(block.timestamp + ONE_EPOCH_TIME + 1);
+        hevm.roll(block.number + ONE_EPOCH_BLOCKS);
+
+        accrueRevenue(dai, revAmt);
+        rh.checkpoint();
+        
+        // jump 1 epoch
+        hevm.warp(block.timestamp + ONE_EPOCH_TIME + 1);
+        hevm.roll(block.number + ONE_EPOCH_BLOCKS);
+
+        uint256 claimable = rh.claimable(tokenId, alusd);
+        assertApproxEq(revAmt * 2, claimable, revAmt * 2 /100);
+
+        uint256 debtAmt = 5000e18;
+        takeDebt(debtAmt);
+        rh.claim(tokenId, address(alusdAlchemist), claimable, address(this));
+        (int256 finalDebt, ) = alusdAlchemist.accounts(address(this));
+        assertEq(debtAmt - claimable, uint256(finalDebt));
+    }
 
     // function testClaimPartialRevenue() external {
 
