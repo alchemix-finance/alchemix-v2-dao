@@ -144,13 +144,10 @@ contract RevenueHandler is IRevenueHandler, Ownable {
         // only run checkpoint() once per epoch
         // TODO: add a check that it gets run during the correct phase of an epoch?
         if (block.timestamp >= currentEpoch + WEEK /* && initializer == address(0) */) {
-            console.log("checkpoint for currentEpoch", currentEpoch);
             currentEpoch = (block.timestamp / WEEK) * WEEK;
-            console.log("ce updated", currentEpoch);
 
             for (uint256 i = 0; i < revenueTokens.length; i++) {
                 uint256 amountReceived = _melt(revenueTokens[i]);
-                console.log("amountReceived", amountReceived, revenueTokens[i], revenueTokenConfigs[revenueTokens[i]].debtToken);
                 epochRevenues[currentEpoch][revenueTokenConfigs[revenueTokens[i]].debtToken] += amountReceived;
             }
         }
@@ -174,18 +171,14 @@ contract RevenueHandler is IRevenueHandler, Ownable {
     function _claimable(uint256 tokenId, address debtToken) internal view returns (uint256) {
         uint256 totalClaimable = 0;
         uint256 lastClaimEpoch = userCheckpoints[tokenId][debtToken].lastClaimEpoch;
-        console.log("last", lastClaimEpoch);
         if (lastClaimEpoch == 0) {
-            console.log("is zero");
             uint256 lastUserEpoch = IVotingEscrow(veALCX).userPointEpoch(tokenId);
             lastClaimEpoch = (IVotingEscrow(veALCX).userPointHistoryTimestamp(tokenId, lastUserEpoch) / WEEK) * WEEK;
         }
-        console.log("last", lastClaimEpoch, currentEpoch);
         for (uint256 epoch = lastClaimEpoch; epoch <= currentEpoch; epoch += WEEK) {
             uint256 epochRevenue = epochRevenues[epoch][debtToken];
             uint256 epochUserVeBalance = IVotingEscrow(veALCX).balanceOfTokenAt(tokenId, epoch);
             uint256 epochTotalVeSupply = IVotingEscrow(veALCX).totalSupplyAtT(epoch);
-            console.log("rev", epochRevenue, epochUserVeBalance, epochTotalVeSupply);
             totalClaimable += epochRevenue * epochUserVeBalance / epochTotalVeSupply;
         }
         return totalClaimable + userCheckpoints[tokenId][debtToken].unclaimed;

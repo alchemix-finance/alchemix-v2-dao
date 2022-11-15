@@ -526,7 +526,6 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         // Add token. Throws if `_tokenId` is owned by someone
         _addTokenTo(_to, _tokenId);
         // Mark first epoch
-        console.log("set epoch", epoch);
         userFirstEpoch[_tokenId] = epoch;
         emit Transfer(address(0), _to, _tokenId);
         return true;
@@ -1356,20 +1355,14 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         Point memory lastPoint = point;
 
         uint256 _time = (lastPoint.ts / WEEK) * WEEK;
-        console.log("last point", lastPoint.ts, _time, t);
         for (uint256 i = 0; i < 255; ++i) {
             _time += WEEK;
-            console.log("_time", _time);
             int256 dSlope = 0;
             if (_time > t) {
-                console.log("maybe?");
                 _time = t;
             } else {
                 dSlope = slopeChanges[_time];
             }
-            console.logInt(lastPoint.bias);
-            console.logInt(lastPoint.slope);
-            console.log(_time, lastPoint.ts);
             lastPoint.bias -= (lastPoint.slope * (int256(_time) - int256(lastPoint.ts)));
             if (_time == t) {
                 break;
@@ -1391,7 +1384,6 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     function totalSupplyAtT(uint256 t) public view returns (uint256) {
         uint256 _epoch = epoch;
         Point memory lastPoint = pointHistory[_epoch];
-        console.log("epoch", _epoch);
         return _supplyAt(lastPoint, t);
     }
 
