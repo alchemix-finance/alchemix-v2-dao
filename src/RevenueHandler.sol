@@ -82,7 +82,7 @@ contract RevenueHandler is IRevenueHandler, Ownable {
     function addRevenueToken(address revenueToken) external override onlyOwner {
         for (uint256 i = 0; i < revenueTokens.length; i++) {
             if (revenueTokens[i] == revenueToken) {
-                revert("debt token already exists");
+                revert("revenue token already exists");
             }
         }
         revenueTokens.push(revenueToken);
@@ -97,7 +97,7 @@ contract RevenueHandler is IRevenueHandler, Ownable {
                 return;
             }
         }
-        revert("debt token does not exist");
+        revert("revenue token does not exist");
     }
 
     /// @inheritdoc IRevenueHandler

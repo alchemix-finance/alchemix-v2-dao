@@ -16,6 +16,7 @@ contract RevenueHandlerTest is BaseTest {
     address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
     address ydai = 0xdA816459F1AB5631232FE5e97a05BBBb94970c95;
     address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    address aleth = 0x0100546F2cD4C9D97f798fFC9755E47865FF7Ee6;
     address alusd3crv = 0x43b4FdFD4Ff969587185cDB6f0BD875c5Fc83f8c;
     IAlchemistV2 public alusdAlchemist = IAlchemistV2(0x5C6374a2ac4EBC38DeA0Fc1F8716e5Ea1AdD94dd);
     IWhitelist public whitelist = IWhitelist(0x78537a6CeBa16f412E123a90472C6E0e9A8F1132);
@@ -94,7 +95,63 @@ contract RevenueHandlerTest is BaseTest {
     }
 
     /*
-        Tests
+        Admin Function Tests
+    */
+
+    function testAddDebtToken() external {
+        rh.addDebtToken(aleth);
+        address debtToken = rh.debtTokens(1);
+        assertEq(debtToken, aleth);
+    }
+
+    function testRemoveDebtToken() external {
+        rh.addDebtToken(aleth);
+        rh.removeDebtToken(aleth);
+        hevm.expectRevert();
+        address debtToken = rh.debtTokens(1);
+    }
+
+    function testAddDebtTokenFail() external {
+        rh.addDebtToken(aleth);
+        expectError("debt token already exists");
+        rh.addDebtToken(aleth);
+    }
+
+    function testRemoveDebtTokenFail() external {
+        rh.addDebtToken(aleth);
+        rh.removeDebtToken(aleth);
+        expectError("debt token does not exist");
+        rh.removeDebtToken(aleth);
+    }
+
+    function testAddRevenueToken() external {
+        rh.addRevenueToken(address(weth));
+        address debtToken = rh.revenueTokens(2);
+        assertEq(debtToken, address(weth));
+    }
+
+    function testRemoveRevenueToken() external {
+        rh.addRevenueToken(address(weth));
+        rh.removeRevenueToken(address(weth));
+        hevm.expectRevert();
+        address debtToken = rh.revenueTokens(2);
+    }
+
+    function testAddRevenueTokenFail() external {
+        rh.addRevenueToken(address(weth));
+        expectError("revenue token already exists");
+        rh.addRevenueToken(address(weth));
+    }
+
+    function testRemoveRevenueTokenFail() external {
+        rh.addRevenueToken(address(weth));
+        rh.removeRevenueToken(address(weth));
+        expectError("revenue token does not exist");
+        rh.removeRevenueToken(address(weth));
+    }
+
+    /*
+        User Function Tests
     */
 
     function testCheckpoint() external {
@@ -229,6 +286,6 @@ contract RevenueHandlerTest is BaseTest {
         rh.claim(tokenId, address(alusdAlchemist), claimable, address(this));
         uint256 balAfter = IERC20(alusd).balanceOf(address(this));
 
-        assertEq(claimable / 2, balAfter - balBefore);
+        assertApproxEq(claimable / 2, balAfter - balBefore, 1);
     }
 }
