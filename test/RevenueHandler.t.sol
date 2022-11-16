@@ -46,9 +46,36 @@ contract RevenueHandlerTest is BaseTest {
         rh.setPoolAdapter(usdc, address(cpa));
     }
 
-    function accrueRevenue(address token, uint256 amount) internal {
+    function _accrueRevenue(address token, uint256 amount) internal {
         deal(token, address(this), amount);
         IERC20(token).transfer(address(rh), amount);
+    }
+
+    function _lockVeALCX(uint256 amount) internal returns (uint256) {
+        deal(address(bpt), address(this), amount);
+        IERC20(bpt).approve(address(veALCX), amount);
+        return veALCX.createLock(amount, MAXTIME, false);
+    }
+
+    function _jumpOneEpoch() internal {
+        hevm.warp(block.timestamp + ONE_EPOCH_TIME + 1);
+        hevm.roll(block.number + ONE_EPOCH_BLOCKS);
+    }
+
+    function _setupClaimableRevenue(uint256 revAmt) internal returns (uint256 tokenId) {
+        veALCX.checkpoint();
+        
+        uint256 lockAmt = 10e18;
+        tokenId = _lockVeALCX(lockAmt);
+
+        rh.checkpoint();
+        
+        _jumpOneEpoch();
+
+        _accrueRevenue(dai, revAmt);
+        rh.checkpoint();
+        
+        _jumpOneEpoch();
     }
 
     function takeDebt(uint256 amount) internal {
@@ -64,7 +91,7 @@ contract RevenueHandlerTest is BaseTest {
 
     function testCheckpoint() external {
         uint256 revAmt = 1000e18;
-        accrueRevenue(dai, revAmt);
+        _accrueRevenue(dai, revAmt);
         
         uint256 balBefore = IERC20(alusd).balanceOf(address(rh));
         assertEq(balBefore, 0);
@@ -75,14 +102,13 @@ contract RevenueHandlerTest is BaseTest {
 
     function testCheckpointRunsOncePerEpoch() external {
         uint256 revAmt = 1000e18;
-        accrueRevenue(dai, revAmt);
+        _accrueRevenue(dai, revAmt);
         
-        // checkpoint
         rh.checkpoint();
         uint256 balBefore = IERC20(alusd).balanceOf(address(rh));
 
         // accrue revenue again
-        accrueRevenue(dai, revAmt);
+        _accrueRevenue(dai, revAmt);
 
         // attempt 2nd checkpoint
         rh.checkpoint();
@@ -93,12 +119,10 @@ contract RevenueHandlerTest is BaseTest {
 
     function testCheckpointMeltsAllRevenue() external {
         uint256 revAmt = 1000e18;
-        // accrue dai revenue
-        accrueRevenue(dai, revAmt);
+        _accrueRevenue(dai, revAmt);
 
         uint256 usdcRevAmt = 1000e6;
-        // accrue usdc revenue
-        accrueRevenue(usdc, usdcRevAmt);
+        _accrueRevenue(usdc, usdcRevAmt);
         
         uint256 balBefore = IERC20(alusd).balanceOf(address(rh));
         assertEq(balBefore, 0);
@@ -108,81 +132,69 @@ contract RevenueHandlerTest is BaseTest {
     }
 
     function testClaimRevenueOneEpoch() external {
-        veALCX.checkpoint();
-        
-        uint256 lockAmt = 10e18;
-        deal(address(bpt), address(this), lockAmt);
-        IERC20(bpt).approve(address(veALCX), lockAmt);
-        uint256 tokenId = veALCX.createLock(lockAmt, MAXTIME, false);
-
-        rh.checkpoint();
         uint256 revAmt = 1000e18;
-        
-        // jump 1 epoch
-        hevm.warp(block.timestamp + ONE_EPOCH_TIME + 1);
-        hevm.roll(block.number + ONE_EPOCH_BLOCKS);
-
-        accrueRevenue(dai, revAmt);
-        rh.checkpoint();
-        
-        // jump 1 epoch
-        hevm.warp(block.timestamp + ONE_EPOCH_TIME + 1);
-        hevm.roll(block.number + ONE_EPOCH_BLOCKS);
+        uint256 tokenId = _setupClaimableRevenue(revAmt);
 
         uint256 claimable = rh.claimable(tokenId, alusd);
         assertApproxEq(revAmt, claimable, revAmt/100);
 
         uint256 debtAmt = 5000e18;
         takeDebt(debtAmt);
+
         rh.claim(tokenId, address(alusdAlchemist), claimable, address(this));
         (int256 finalDebt, ) = alusdAlchemist.accounts(address(this));
         assertEq(debtAmt - claimable, uint256(finalDebt));
     }
 
     function testClaimRevenueMultipleEpochs() external {
-        veALCX.checkpoint();
-        
-        uint256 lockAmt = 10e18;
-        deal(address(bpt), address(this), lockAmt);
-        IERC20(bpt).approve(address(veALCX), lockAmt);
-        uint256 tokenId = veALCX.createLock(lockAmt, MAXTIME, false);
-
-        rh.checkpoint();
         uint256 revAmt = 1000e18;
-        
-        // jump 1 epoch
-        hevm.warp(block.timestamp + ONE_EPOCH_TIME + 1);
-        hevm.roll(block.number + ONE_EPOCH_BLOCKS);
+        uint256 tokenId = _setupClaimableRevenue(revAmt);
 
-        accrueRevenue(dai, revAmt);
+        _accrueRevenue(dai, revAmt);
         rh.checkpoint();
         
-        // jump 1 epoch
-        hevm.warp(block.timestamp + ONE_EPOCH_TIME + 1);
-        hevm.roll(block.number + ONE_EPOCH_BLOCKS);
-
-        accrueRevenue(dai, revAmt);
-        rh.checkpoint();
-        
-        // jump 1 epoch
-        hevm.warp(block.timestamp + ONE_EPOCH_TIME + 1);
-        hevm.roll(block.number + ONE_EPOCH_BLOCKS);
+        _jumpOneEpoch();
 
         uint256 claimable = rh.claimable(tokenId, alusd);
         assertApproxEq(revAmt * 2, claimable, revAmt * 2 /100);
 
         uint256 debtAmt = 5000e18;
         takeDebt(debtAmt);
+
         rh.claim(tokenId, address(alusdAlchemist), claimable, address(this));
         (int256 finalDebt, ) = alusdAlchemist.accounts(address(this));
         assertEq(debtAmt - claimable, uint256(finalDebt));
     }
 
-    // function testClaimPartialRevenue() external {
+    function testClaimPartialRevenue() external {
+        uint256 revAmt = 1000e18;
+        uint256 tokenId = _setupClaimableRevenue(revAmt);
 
-    // }
+        uint256 claimable = rh.claimable(tokenId, alusd);
 
-    // function testFailClaimRevenueTwice() external {
-        
-    // }
+        uint256 debtAmt = 5000e18;
+        takeDebt(debtAmt);
+
+        rh.claim(tokenId, address(alusdAlchemist), claimable / 2, address(this));
+        (int256 currentDebt, ) = alusdAlchemist.accounts(address(this));
+        assertApproxEq(debtAmt - (claimable / 2), uint256(currentDebt), 1);
+
+        rh.claim(tokenId, address(alusdAlchemist), claimable / 2, address(this));
+        (int256 finalDebt, ) = alusdAlchemist.accounts(address(this));
+        assertApproxEq(debtAmt - claimable, uint256(finalDebt), 1);
+    }
+
+    function testFailClaimTooMuch() external {
+        uint256 revAmt = 1000e18;
+        uint256 tokenId = _setupClaimableRevenue(revAmt);
+
+        uint256 claimable = rh.claimable(tokenId, alusd);
+
+        uint256 debtAmt = 5000e18;
+        takeDebt(debtAmt);
+
+        rh.claim(tokenId, address(alusdAlchemist), claimable, address(this));
+        expectError("Not enough claimable");
+        rh.claim(tokenId, address(alusdAlchemist), claimable, address(this));
+    }
 }

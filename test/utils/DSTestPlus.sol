@@ -139,6 +139,10 @@ contract DSTestPlus is Test {
     //     if (max == type(uint256).max && x != 0) result++;
     // }
 
+    function expectError(string memory message) internal {
+        hevm.expectRevert(bytes(message));
+    }
+
     function min3(
         uint256 a,
         uint256 b,
