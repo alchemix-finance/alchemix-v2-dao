@@ -108,7 +108,7 @@ contract RevenueHandlerTest is BaseTest {
         rh.addDebtToken(aleth);
         rh.removeDebtToken(aleth);
         hevm.expectRevert();
-        address debtToken = rh.debtTokens(1);
+        rh.debtTokens(1);
     }
 
     function testAddDebtTokenFail() external {
@@ -134,7 +134,7 @@ contract RevenueHandlerTest is BaseTest {
         rh.addRevenueToken(address(weth));
         rh.removeRevenueToken(address(weth));
         hevm.expectRevert();
-        address debtToken = rh.revenueTokens(2);
+        rh.revenueTokens(2);
     }
 
     function testAddRevenueTokenFail() external {
@@ -148,6 +148,22 @@ contract RevenueHandlerTest is BaseTest {
         rh.removeRevenueToken(address(weth));
         expectError("revenue token does not exist");
         rh.removeRevenueToken(address(weth));
+    }
+
+    function testSetDebtToken() external {
+        rh.addDebtToken(aleth);
+        rh.addRevenueToken(address(weth));
+        rh.setDebtToken(address(weth), aleth);
+        (address debtToken, ) = rh.revenueTokenConfigs(address(weth));
+        assertEq(debtToken, aleth);
+    }
+
+    function testSetPoolAdapter() external {
+        rh.addDebtToken(aleth);
+        rh.addRevenueToken(address(weth));
+        rh.setPoolAdapter(address(weth), alusd3crv);
+        (, address poolAdapter) = rh.revenueTokenConfigs(address(weth));
+        assertEq(poolAdapter, alusd3crv);
     }
 
     /*

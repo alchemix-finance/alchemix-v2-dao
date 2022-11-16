@@ -32,8 +32,13 @@ test_all :; FOUNDRY_PROFILE=$(PROFILE) forge test $(FORK_URL)
 # runs test coverage: "make test_coverage" add "--report lcov" to use with lcov reporter
 test_coverage :; FOUNDRY_PROFILE=$(PROFILE) forge coverage $(FORK_URL) --report lcov
 
+test_summary :; FOUNDRY_PROFILE=$(PROFILE) forge coverage $(FORK_URL) --report summary
+
 # runs test coverage: "make test_coverage" add "--report lcov" to use with lcov reporter
 test_coverage_file :; FOUNDRY_PROFILE=$(PROFILE) forge coverage $(FORK_URL) $(MATCH_PATH) --report lcov
+
+# runs test coverage: "make test_coverage" add "--report lcov" to use with lcov reporter
+test_summary_file :; FOUNDRY_PROFILE=$(PROFILE) forge coverage $(FORK_URL) $(MATCH_PATH) --report summary
 
 # runs all tests from a given block (setting block is optional): "make test_block BLOCK=14635241" 
 test_block :; FOUNDRY_PROFILE=$(PROFILE) forge test $(FORK_URL) $(FORK_BLOCK)
