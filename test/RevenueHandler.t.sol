@@ -269,18 +269,18 @@ contract RevenueHandlerTest is BaseTest {
         uint256 revAmt = 1000e18;
         uint256 tokenId = _setupClaimableRevenue(revAmt);
 
-        uint256 claimable = rh.claimable(tokenId, alusd);
+        uint256 claimAmt = 200e18;
 
         uint256 debtAmt = 5000e18;
         _takeDebt(debtAmt);
 
-        rh.claim(tokenId, address(alusdAlchemist), claimable / 2, address(this));
+        rh.claim(tokenId, address(alusdAlchemist), claimAmt, address(this));
         (int256 currentDebt, ) = alusdAlchemist.accounts(address(this));
-        assertApproxEq(debtAmt - (claimable / 2), uint256(currentDebt), 1);
+        assertApproxEq(debtAmt - (claimAmt), uint256(currentDebt), 1);
 
-        rh.claim(tokenId, address(alusdAlchemist), claimable / 2, address(this));
+        rh.claim(tokenId, address(alusdAlchemist), claimAmt, address(this));
         (int256 finalDebt, ) = alusdAlchemist.accounts(address(this));
-        assertApproxEq(debtAmt - claimable, uint256(finalDebt), 1);
+        assertApproxEq(debtAmt - (2 * claimAmt), uint256(finalDebt), 1);
     }
 
     function testClaimTooMuch() external {
