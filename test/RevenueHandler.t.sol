@@ -67,12 +67,13 @@ contract RevenueHandlerTest is BaseTest {
         hevm.roll(block.number + ONE_EPOCH_BLOCKS);
     }
 
-    function _setupClaimableRevenue(uint256 revAmt) internal returns (uint256 tokenId) {
+    function _initializeVeALCXPosition() internal returns (uint256 tokenId) {
         veALCX.checkpoint();
-        
         uint256 lockAmt = 10e18;
         tokenId = _lockVeALCX(lockAmt);
+    }
 
+    function _accrueRevenueAndJumpOneEpoch(uint256 revAmt) internal {
         rh.checkpoint();
         
         _jumpOneEpoch();
@@ -81,6 +82,12 @@ contract RevenueHandlerTest is BaseTest {
         rh.checkpoint();
         
         _jumpOneEpoch();
+    }
+
+    function _setupClaimableRevenue(uint256 revAmt) internal returns (uint256 tokenId) {
+        tokenId = _initializeVeALCXPosition();
+
+        _accrueRevenueAndJumpOneEpoch(revAmt);
     }
 
     function _takeDebt(uint256 amount) internal {
@@ -274,7 +281,7 @@ contract RevenueHandlerTest is BaseTest {
         assertApproxEq(debtAmt - claimable, uint256(finalDebt), 1);
     }
 
-    function testFailClaimTooMuch() external {
+    function testClaimTooMuch() external {
         uint256 revAmt = 1000e18;
         uint256 tokenId = _setupClaimableRevenue(revAmt);
 
@@ -283,12 +290,18 @@ contract RevenueHandlerTest is BaseTest {
         uint256 debtAmt = 5000e18;
         _takeDebt(debtAmt);
 
+        console.log("");
+        console.log("test claimable 1", rh.claimable(tokenId, alusd));
         rh.claim(tokenId, address(alusdAlchemist), claimable / 2, address(this));
+        console.log("");
+        console.log("test claimable 2", rh.claimable(tokenId, alusd));
         expectError("Not enough claimable");
         rh.claim(tokenId, address(alusdAlchemist), claimable, address(this));
+        console.log("");
+        console.log("test claimable 3", rh.claimable(tokenId, alusd));
 
         uint256 finalClaimable = rh.claimable(tokenId, alusd);
-        assertEq(claimable / 2, finalClaimable);
+        assertApproxEq(claimable / 2, finalClaimable, 1);
     }
 
     function testClaimMoreThanDebt() external {
@@ -304,4 +317,16 @@ contract RevenueHandlerTest is BaseTest {
 
         assertApproxEq(claimable / 2, balAfter - balBefore, 1);
     }
+
+    // function testFirstClaimLate() external {
+    //     // The user has had a veALCX position for multiple epochs, but has not yet claimed any revenue.
+    //     // The user should be able to claim all the revenue they are entitled to since they initialized their veALCX position.
+    //     uint256 revAmt = 1000e18;
+    //     _accrueRevenueAndJumpOneEpoch(revAmt);
+    //     uint256 tokenId = _initializeVeALCXPosition();
+    //     _accrueRevenueAndJumpOneEpoch(revAmt);
+    //     _jumpOneEpoch();
+    //     uint256 claimable = rh.claimable(tokenId, alusd);
+    //     assertApproxEq(claimable, revAmt, revAmt/100);
+    // }
 }
