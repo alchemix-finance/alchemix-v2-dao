@@ -124,11 +124,9 @@ contract RevenueHandler is IRevenueHandler, Ownable {
         uint256 amountClaimable = _claimable(tokenId, debtToken);
         require(amount <= amountClaimable, "Not enough claimable");
 
-        // TODO something rwrong here
         userCheckpoints[tokenId][debtToken].lastClaimEpoch = currentEpoch;
         userCheckpoints[tokenId][debtToken].unclaimed = amountClaimable - amount;
 
-        // burn
         IERC20(debtToken).approve(alchemist, amount);
         uint256 amountBurned = IAlchemistV2(alchemist).burn(amount, recipient);
 
@@ -143,7 +141,6 @@ contract RevenueHandler is IRevenueHandler, Ownable {
     /// @inheritdoc IRevenueHandler
     function checkpoint() public {
         // only run checkpoint() once per epoch
-        // TODO: add a check that it gets run during the correct phase of an epoch?
         if (block.timestamp >= currentEpoch + WEEK /* && initializer == address(0) */) {
             currentEpoch = (block.timestamp / WEEK) * WEEK;
 

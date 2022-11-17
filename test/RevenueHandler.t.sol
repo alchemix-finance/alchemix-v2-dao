@@ -305,12 +305,14 @@ contract RevenueHandlerTest is BaseTest {
 
         uint256 claimable = rh.claimable(tokenId, alusd);
 
-        _takeDebt(claimable / 2);
+        uint256 debtAmt = claimable / 2;
+        _takeDebt(debtAmt);
+        
         uint256 balBefore = IERC20(alusd).balanceOf(address(this));
         rh.claim(tokenId, address(alusdAlchemist), claimable, address(this));
         uint256 balAfter = IERC20(alusd).balanceOf(address(this));
 
-        assertApproxEq(claimable / 2, balAfter - balBefore, 1);
+        assertApproxEq(debtAmt, balAfter - balBefore, 1);
     }
 
     function testFirstClaimLate() external {
