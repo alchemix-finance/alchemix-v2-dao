@@ -72,9 +72,8 @@ contract RevenueHandlerTest is BaseTest {
         hevm.roll(block.number + ONE_EPOCH_BLOCKS);
     }
 
-    function _initializeVeALCXPosition() internal returns (uint256 tokenId) {
+    function _initializeVeALCXPosition(uint256 lockAmt) internal returns (uint256 tokenId) {
         veALCX.checkpoint();
-        uint256 lockAmt = 10e18;
         tokenId = _lockVeALCX(lockAmt);
     }
 
@@ -90,7 +89,7 @@ contract RevenueHandlerTest is BaseTest {
     }
 
     function _setupClaimableRevenue(uint256 revAmt) internal returns (uint256 tokenId) {
-        tokenId = _initializeVeALCXPosition();
+        tokenId = _initializeVeALCXPosition(10e18);
 
         _accrueRevenueAndJumpOneEpoch(revAmt);
     }
@@ -100,7 +99,6 @@ contract RevenueHandlerTest is BaseTest {
         IERC20(dai).approve(address(alusdAlchemist), 3 * amount);
         alusdAlchemist.depositUnderlying(ydai, 3 * amount, address(this), 0);
         alusdAlchemist.mint(amount, address(this));
-        hevm.stopPrank();
     }
 
     /*
@@ -322,7 +320,8 @@ contract RevenueHandlerTest is BaseTest {
         // The user should be able to claim all the revenue they are entitled to since they initialized their veALCX position.
         uint256 revAmt = 1000e18;
         _accrueRevenueAndJumpOneEpoch(revAmt);
-        uint256 tokenId = _initializeVeALCXPosition();
+        uint256 lockAmt = 10e18;
+        uint256 tokenId = _initializeVeALCXPosition(lockAmt);
         _accrueRevenueAndJumpOneEpoch(revAmt);
         _jumpOneEpoch();
         uint256 claimable = rh.claimable(tokenId, alusd);
@@ -334,7 +333,8 @@ contract RevenueHandlerTest is BaseTest {
         _takeDebt(debtAmt);
 
         uint256 revAmt = 1000e18;
-        uint256 tokenId = _initializeVeALCXPosition();
+        uint256 lockAmt = 10e18;
+        uint256 tokenId = _initializeVeALCXPosition(lockAmt);
         _accrueRevenueAndJumpOneEpoch(revAmt);
         // this revenue is not yet checkpointed
         _accrueRevenue(dai, revAmt);
@@ -373,5 +373,49 @@ contract RevenueHandlerTest is BaseTest {
         rh.checkpoint();
         uint256 balAfter = IERC20(aleth).balanceOf(address(rh));
         assertApproxEq(revAmt, balAfter, revAmt/100);
+    }
+
+    function testMultipleClaimers() external {
+        uint256 debtAmt = 5000e18;
+        _takeDebt(debtAmt);
+
+        deal(dai, holder, 3 * debtAmt);
+        hevm.startPrank(holder);
+        IERC20(dai).approve(address(alusdAlchemist), 3 * debtAmt);
+        alusdAlchemist.depositUnderlying(ydai, 3 * debtAmt, holder, 0);
+        alusdAlchemist.mint(debtAmt, holder);
+        hevm.stopPrank();
+
+        uint256 lockAmt = 10e18;
+        uint256 tokenId = _initializeVeALCXPosition(lockAmt);
+
+        hevm.startPrank(holder);
+        veALCX.checkpoint();
+        uint256 holderLockAmt = 40e18;
+        deal(address(bpt), holder, holderLockAmt);
+        IERC20(bpt).approve(address(veALCX), holderLockAmt);
+        uint256 holderTokenId = veALCX.createLock(holderLockAmt, MAXTIME, false);
+        hevm.stopPrank();
+
+        uint256 revAmt = 5000e18;
+        _accrueRevenueAndJumpOneEpoch(revAmt);
+
+        uint256 claimable = rh.claimable(tokenId, alusd);
+        assertApproxEq(claimable, revAmt / 5, (revAmt / 5) / 10);
+        rh.claim(tokenId, address(alusdAlchemist), claimable, address(this));
+
+        _accrueRevenueAndJumpOneEpoch(revAmt);
+        uint256 holderClaimable = rh.claimable(holderTokenId, alusd);
+        assertApproxEq(holderClaimable, 2 * revAmt * 4 / 5, (2 * revAmt * 4 / 5) / 100);
+
+        hevm.startPrank(holder);
+        rh.claim(holderTokenId, address(alusdAlchemist), holderClaimable, holder);
+        hevm.stopPrank();
+
+        claimable = rh.claimable(tokenId, alusd);
+        rh.claim(tokenId, address(alusdAlchemist), claimable, address(this));
+
+        uint256 bal = IERC20(alusd).balanceOf(address(rh));
+        assertApproxEq(bal, 0, 10); // maybe dust
     }
 }
