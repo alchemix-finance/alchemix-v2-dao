@@ -119,13 +119,9 @@ contract RevenueHandler is IRevenueHandler, Ownable {
     /// @inheritdoc IRevenueHandler
     function claim(uint256 tokenId, address alchemist, uint256 amount, address recipient) external override {
         require(IVotingEscrow(veALCX).isApprovedOrOwner(msg.sender, tokenId), "not approved or owner");
-        // checkpoint();
 
         address debtToken = IAlchemistV2(alchemist).debtToken();
         uint256 amountClaimable = _claimable(tokenId, debtToken);
-        console.log("amount", amount);
-        console.log("claimb", amountClaimable);
-        console.log("balanc", IERC20(debtToken).balanceOf(address(this)));
         require(amount <= amountClaimable, "Not enough claimable");
 
         // TODO something rwrong here
@@ -174,21 +170,16 @@ contract RevenueHandler is IRevenueHandler, Ownable {
     }
 
     function _claimable(uint256 tokenId, address debtToken) internal view returns (uint256) {
-        console.log("claimable");
         uint256 totalClaimable = 0;
         uint256 lastClaimEpoch = userCheckpoints[tokenId][debtToken].lastClaimEpoch;
-        console.log("last claim e", lastClaimEpoch);
         if (lastClaimEpoch == 0) {
             uint256 lastUserEpoch = IVotingEscrow(veALCX).userPointEpoch(tokenId);
             lastClaimEpoch = (IVotingEscrow(veALCX).userPointHistoryTimestamp(tokenId, lastUserEpoch) / WEEK) * WEEK - WEEK;
-            console.log("upda claim e", lastClaimEpoch);
         }
-        console.log("calc from to", currentEpoch);
         for (uint256 epoch = lastClaimEpoch + WEEK; epoch <= currentEpoch; epoch += WEEK) {
             uint256 epochRevenue = epochRevenues[epoch][debtToken];
             uint256 epochUserVeBalance = IVotingEscrow(veALCX).balanceOfTokenAt(tokenId, epoch);
             uint256 epochTotalVeSupply = IVotingEscrow(veALCX).totalSupplyAtT(epoch);
-            console.log(epoch, epochRevenue, epochUserVeBalance, epochTotalVeSupply);
             totalClaimable += epochRevenue * epochUserVeBalance / epochTotalVeSupply;
         }
         return totalClaimable + userCheckpoints[tokenId][debtToken].unclaimed;

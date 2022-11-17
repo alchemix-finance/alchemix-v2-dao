@@ -45,6 +45,9 @@ contract RevenueHandlerTest is BaseTest {
         rh.addRevenueToken(usdc);
         rh.setDebtToken(usdc, alusd);
         rh.setPoolAdapter(usdc, address(cpa));
+
+        hevm.prank(devmsig);
+        whitelist.disable();
     }
 
     /*
@@ -91,9 +94,6 @@ contract RevenueHandlerTest is BaseTest {
     }
 
     function _takeDebt(uint256 amount) internal {
-        hevm.prank(devmsig);
-        whitelist.disable();
-
         deal(dai, address(this), 3 * amount);
         IERC20(dai).approve(address(alusdAlchemist), 3 * amount);
         alusdAlchemist.depositUnderlying(ydai, 3 * amount, address(this), 0);
@@ -290,15 +290,10 @@ contract RevenueHandlerTest is BaseTest {
         uint256 debtAmt = 5000e18;
         _takeDebt(debtAmt);
 
-        console.log("");
-        console.log("test claimable 1", rh.claimable(tokenId, alusd));
         rh.claim(tokenId, address(alusdAlchemist), claimable / 2, address(this));
-        console.log("");
-        console.log("test claimable 2", rh.claimable(tokenId, alusd));
+
         expectError("Not enough claimable");
         rh.claim(tokenId, address(alusdAlchemist), claimable, address(this));
-        console.log("");
-        console.log("test claimable 3", rh.claimable(tokenId, alusd));
 
         uint256 finalClaimable = rh.claimable(tokenId, alusd);
         assertApproxEq(claimable / 2, finalClaimable, 1);
@@ -318,15 +313,38 @@ contract RevenueHandlerTest is BaseTest {
         assertApproxEq(claimable / 2, balAfter - balBefore, 1);
     }
 
-    // function testFirstClaimLate() external {
-    //     // The user has had a veALCX position for multiple epochs, but has not yet claimed any revenue.
-    //     // The user should be able to claim all the revenue they are entitled to since they initialized their veALCX position.
-    //     uint256 revAmt = 1000e18;
-    //     _accrueRevenueAndJumpOneEpoch(revAmt);
-    //     uint256 tokenId = _initializeVeALCXPosition();
-    //     _accrueRevenueAndJumpOneEpoch(revAmt);
-    //     _jumpOneEpoch();
-    //     uint256 claimable = rh.claimable(tokenId, alusd);
-    //     assertApproxEq(claimable, revAmt, revAmt/100);
-    // }
+    function testFirstClaimLate() external {
+        // The user has had a veALCX position for multiple epochs, but has not yet claimed any revenue.
+        // The user should be able to claim all the revenue they are entitled to since they initialized their veALCX position.
+        uint256 revAmt = 1000e18;
+        _accrueRevenueAndJumpOneEpoch(revAmt);
+        uint256 tokenId = _initializeVeALCXPosition();
+        _accrueRevenueAndJumpOneEpoch(revAmt);
+        _jumpOneEpoch();
+        uint256 claimable = rh.claimable(tokenId, alusd);
+        assertApproxEq(claimable, revAmt, revAmt/100);
+    }
+
+    function testClaimBeforeAndAfterCheckpoint() external {
+        uint256 debtAmt = 5000e18;
+        _takeDebt(debtAmt);
+
+        uint256 revAmt = 1000e18;
+        uint256 tokenId = _initializeVeALCXPosition();
+        _accrueRevenueAndJumpOneEpoch(revAmt);
+        // this revenue is not yet checkpointed
+        _accrueRevenue(dai, revAmt);
+        uint256 claimable = rh.claimable(tokenId, alusd);
+        assertApproxEq(claimable, revAmt, revAmt/100);
+
+        rh.claim(tokenId, address(alusdAlchemist), claimable, address(this));
+
+        claimable = rh.claimable(tokenId, alusd);
+        assertEq(claimable, 0);
+        
+        // checkpoint the accrued revenue
+        rh.checkpoint();
+        claimable = rh.claimable(tokenId, alusd);
+        assertApproxEq(claimable, revAmt, revAmt/100);
+    }
 }

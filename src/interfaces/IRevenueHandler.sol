@@ -34,6 +34,9 @@ interface IRevenueHandler {
     );
 
     /// @notice Returns the total amount of debtToken currently claimable by tokenId.
+    /// @notice This function will return the amount of claimable accrued revenue up until the most recent checkpoint.
+    /// @notice If `checkpoint()` has not been called in the current epoch, then calling `claimable()`
+    /// @notice will not return the claimable accrued revenue for the current epoch.
     ///
     /// @param tokenId      The tokenId with a claimable balance.
     /// @param debtToken    The debtToken that is claimable.
@@ -78,6 +81,10 @@ interface IRevenueHandler {
     function setPoolAdapter(address revenueToken, address poolAdaptor) external;
 
     /// @dev Claim an alotted amount of alchemic-tokens and burn them to a position in the alchemist.
+    ///
+    /// @notice This function will claim accrued revenue up until the most recent checkpoint.
+    /// @notice If `checkpoint()` has not been called in the current epoch, then calling `claim()`
+    /// @notice will not claim accrued revenue for the current epoch.
     ///
     /// @param tokenId      The ID of the veALCX position to use.
     /// @param alchemist    The address of the target alchemist.
