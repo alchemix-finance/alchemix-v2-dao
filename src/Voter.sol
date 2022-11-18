@@ -10,6 +10,8 @@ import "./interfaces/IMinter.sol";
 import "./interfaces/IVotingEscrow.sol";
 import { IManaToken } from "./interfaces/IManaToken.sol";
 
+import "lib/forge-std/src/console2.sol";
+
 contract Voter {
     address public immutable veALCX; // veALCX that governs these contracts
     address public immutable MANA; // veALCX that governs these contracts
@@ -234,8 +236,7 @@ contract Voter {
         if (_gaugeType == GaugeType.Staking) {
             _gauge = IGaugeFactory(gaugefactory).createStakingGauge(_pool, _bribe, veALCX);
         } else {
-            // TODO update when passthrough gague logic is completed
-            // _gauge = IGaugeFactory(gaugefactory).createPassthroughGauge(_pool, _bribe, veALCX);
+            _gauge = IGaugeFactory(gaugefactory).createCurveGauge(_pool, _bribe, veALCX);
         }
 
         IERC20(base).approve(_gauge, type(uint256).max);

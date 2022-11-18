@@ -8,12 +8,14 @@ import "./interfaces/IERC20.sol";
 import "./interfaces/IBaseGauge.sol";
 import "./interfaces/IVoter.sol";
 
-// Gauges are used to incentivize pools, they emit reward tokens every 7 days for staked LP tokens
+// Gauges are used to incentivize pools, they emit or passthrough reward tokens for staked LP tokens
 abstract contract BaseGauge is IBaseGauge {
     address public stake; // LP token that needs to be staked for rewards
     address public ve; // Ve token used for gauges
     address public bribe;
     address public voter;
+    address public admin;
+    address public receiver;
     address factory;
 
     uint256 public derivedSupply;

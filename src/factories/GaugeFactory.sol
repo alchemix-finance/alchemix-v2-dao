@@ -2,6 +2,7 @@
 pragma solidity ^0.8.15;
 
 import "../StakingGauge.sol";
+import "../gauges/CurveGauge.sol";
 
 contract GaugeFactory {
     address public lastGauge;
@@ -12,6 +13,15 @@ contract GaugeFactory {
         address _ve
     ) external returns (address) {
         lastGauge = address(new StakingGauge(_pool, _bribe, _ve, msg.sender));
+        return lastGauge;
+    }
+
+    function createCurveGauge(
+        address _receiver,
+        address _bribe,
+        address _ve
+    ) external returns (address) {
+        lastGauge = address(new CurveGauge(_receiver, _bribe, _ve, msg.sender));
         return lastGauge;
     }
 }

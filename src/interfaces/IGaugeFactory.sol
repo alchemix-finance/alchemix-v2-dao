@@ -8,4 +8,10 @@ interface IGaugeFactory {
         address,
         address
     ) external returns (address);
+
+    function createCurveGauge(
+        address,
+        address,
+        address
+    ) external returns (address);
 }

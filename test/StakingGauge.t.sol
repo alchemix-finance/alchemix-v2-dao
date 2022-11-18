@@ -22,7 +22,7 @@ contract StakingGaugeTest is BaseTest {
         bribeFactory = new BribeFactory();
         voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory), address(MANA));
 
-        alcx.approve(address(veALCX), 2e25);
+        IERC20(bpt).approve(address(veALCX), 2e25);
         veALCX.createLock(TOKEN_1, 365 days, false);
 
         distributor = new RewardsDistributor(address(veALCX), address(weth), address(balancerVault), priceFeed);

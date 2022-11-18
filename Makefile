@@ -30,7 +30,7 @@ FORK_URL=--fork-url https://eth-mainnet.alchemyapi.io/v2/$(ALCHEMY_API_KEY)
 test_all :; FOUNDRY_PROFILE=$(PROFILE) forge test $(FORK_URL)
 
 # runs test coverage: "make test_coverage" add "--report lcov" to use with lcov reporter
-test_coverage :; FOUNDRY_PROFILE=$(PROFILE) forge coverage $(FORK_URL) --report lcov
+test_coverage :; FOUNDRY_PROFILE=$(PROFILE) forge coverage $(FORK_URL) --report summary
 
 # runs all tests from a given block (setting block is optional): "make test_block BLOCK=14635241" 
 test_block :; FOUNDRY_PROFILE=$(PROFILE) forge test $(FORK_URL) $(FORK_BLOCK)
@@ -39,7 +39,7 @@ test_block :; FOUNDRY_PROFILE=$(PROFILE) forge test $(FORK_URL) $(FORK_BLOCK)
 test_debug :; FOUNDRY_PROFILE=$(PROFILE) forge test $(FORK_URL) -vvv
 
 # runs specific test file with logs: "make test_file FILE=Minter"
-test_file :; FOUNDRY_PROFILE=$(PROFILE) forge test $(FORK_URL) $(MATCH_PATH) -vv
+test_file :; FOUNDRY_PROFILE=$(PROFILE) forge test $(FORK_URL) $(MATCH_PATH) -vvvv
 
 # runs specific test file with added verbosity for failing tests: "make test_file_debug FILE=Minter"
 test_file_debug :; FOUNDRY_PROFILE=$(PROFILE) forge test $(FORK_URL) $(MATCH_PATH) -vvv
