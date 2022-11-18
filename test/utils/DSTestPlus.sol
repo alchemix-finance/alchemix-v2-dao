@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity >=0.8.0;
 
-import {Test} from "forge-std/test.sol";
+import {Test} from "lib/forge-std/src/test.sol";
 
 import {Hevm} from "./Hevm.sol";
 
