@@ -80,6 +80,16 @@ interface IRevenueHandler {
     /// @param poolAdaptor      The address of the target pool adaptor contract to call.
     function setPoolAdapter(address revenueToken, address poolAdaptor) external;
 
+    /// @dev Disable a revenue token.
+    ///
+    /// @param revenueToken     The address of the revenue token.
+    function disableRevenueToken(address revenueToken) external;
+
+    /// @dev Enable a revenue token.
+    ///
+    /// @param revenueToken     The address of the revenue token.
+    function enableRevenueToken(address revenueToken) external;
+
     /// @dev Claim an alotted amount of alchemic-tokens and burn them to a position in the alchemist.
     ///
     /// @notice This function will claim accrued revenue up until the most recent checkpoint.

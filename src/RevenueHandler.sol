@@ -34,6 +34,8 @@ contract RevenueHandler is IRevenueHandler, Ownable {
         address debtToken;
         /// A IPoolAdapter that can be used to trade revenue token for `debtToken`.
         address poolAdapter;
+        /// A flag to enable or disable the revenue token
+        bool disabled;
     }
 
     /// @notice A checkpoint on the state of a user's account for a given debtToken
@@ -127,6 +129,18 @@ contract RevenueHandler is IRevenueHandler, Ownable {
         emit SetPoolAdapter(revenueToken, poolAdapter);
     }
 
+    /// @inheritdoc IRevenueHandler
+    function disableRevenueToken(address revenueToken) external override onlyOwner {
+        require(!revenueTokenConfigs[revenueToken].disabled, "Token disabled");
+        revenueTokenConfigs[revenueToken].disabled = true;
+    }
+
+    /// @inheritdoc IRevenueHandler
+    function enableRevenueToken(address revenueToken) external override onlyOwner {
+        require(revenueTokenConfigs[revenueToken].disabled, "Token enabled");
+        revenueTokenConfigs[revenueToken].disabled = false;
+    }
+
     /*
         User functions
     */
@@ -162,6 +176,8 @@ contract RevenueHandler is IRevenueHandler, Ownable {
             currentEpoch = (block.timestamp / WEEK) * WEEK;
 
             for (uint256 i = 0; i < revenueTokens.length; i++) {
+                if (revenueTokenConfigs[revenueTokens[i]].disabled) continue;
+
                 uint256 amountReceived = _melt(revenueTokens[i]);
                 epochRevenues[currentEpoch][revenueTokenConfigs[revenueTokens[i]].debtToken] += amountReceived;
             }

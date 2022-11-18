@@ -161,7 +161,7 @@ contract RevenueHandlerTest is BaseTest {
         rh.addDebtToken(aleth);
         rh.addRevenueToken(address(weth));
         rh.setDebtToken(address(weth), aleth);
-        (address debtToken, ) = rh.revenueTokenConfigs(address(weth));
+        (address debtToken, , ) = rh.revenueTokenConfigs(address(weth));
         assertEq(debtToken, aleth);
     }
 
@@ -169,7 +169,7 @@ contract RevenueHandlerTest is BaseTest {
         rh.addDebtToken(aleth);
         rh.addRevenueToken(address(weth));
         rh.setPoolAdapter(address(weth), alusd3crv);
-        (, address poolAdapter) = rh.revenueTokenConfigs(address(weth));
+        (, address poolAdapter, ) = rh.revenueTokenConfigs(address(weth));
         assertEq(poolAdapter, alusd3crv);
     }
 
@@ -224,7 +224,7 @@ contract RevenueHandlerTest is BaseTest {
         uint256 tokenId = _setupClaimableRevenue(revAmt);
         uint256 claimable = rh.claimable(tokenId, alusd);
         hevm.prank(holder);
-        expectError("not approved or owner");
+        expectError("Not approved or owner");
         rh.claim(tokenId, address(alusdAlchemist), claimable, address(this));
     }
 
@@ -439,5 +439,17 @@ contract RevenueHandlerTest is BaseTest {
 
         uint256 bal = IERC20(alusd).balanceOf(address(rh));
         assertApproxEq(bal, 0, 10); // maybe dust
+    }
+
+    function testDisableRevenueToken() external {
+        uint256 revAmt = 1000e18;
+        _accrueRevenue(dai, revAmt);
+        
+        uint256 balBefore = IERC20(alusd).balanceOf(address(rh));
+        assertEq(balBefore, 0);
+        rh.disableRevenueToken(dai);
+        rh.checkpoint();
+        uint256 balAfter = IERC20(alusd).balanceOf(address(rh));
+        assertEq(balBefore, balAfter);
     }
 }
