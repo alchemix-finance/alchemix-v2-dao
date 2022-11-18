@@ -10,8 +10,6 @@ import { IManaToken } from "./interfaces/IManaToken.sol";
 
 import { Base64 } from "src/libraries/Base64.sol";
 
-import "../lib/forge-std/src/console.sol";
-
 /// @title Voting Escrow
 /// @notice veALCX implementation that escrows ERC-20 tokens in the form of an ERC-721 token
 /// @notice Votes have a weight depending on time, so that users are committed to the future of (whatever they are voting for)

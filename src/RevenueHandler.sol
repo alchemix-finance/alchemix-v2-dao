@@ -9,22 +9,22 @@ import "../lib/v2-foundry/src/base/ErrorMessages.sol";
 import "./interfaces/IVotingEscrow.sol";
 import "../lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import "../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import "../lib/forge-std/src/console.sol";
 
 /// @title RevenueHandler
-///
-/// This contract is meant to receive all revenue from the Alchemix protocol, and allow
-///     veALCX stakers to claim it, primarily as a form of debt repayment.
-/// IPoolAdapter contracts are used to plug into various DEXes so that revenue tokens (dai, usdc, weth, etc)
-///     can be traded for alAssets (alUSD, alETH, etc).  Once per epoch (at the beginning of the epoch)
-///     the `checkpoint()` function needs to be called so that any revenue accrued since the last checkpoint
-///     can be melted into its relative alAsset.  After `checkpoint()` is called, the current epoch's revenue
-///     is available to be claimed by veALCX stakers (as long as they were staked before `checkpoint()` was
-///     called).
-/// veALCX stakers can claim some or all of their available revenue.  When a staker calls `claim()`, they
-///     choose an amount, target alchemist, and target recipient.  The RevenueHandler will `burn()` up to
-///     `amount` of the alAsset used by `alchemist` on `recipient`'s account.  Any leftover revenue that
-///     is not burned will be sent directly to `recipient.
+/*
+    This contract is meant to receive all revenue from the Alchemix protocol, and allow
+        veALCX stakers to claim it, primarily as a form of debt repayment.
+    IPoolAdapter contracts are used to plug into various DEXes so that revenue tokens (dai, usdc, weth, etc)
+        can be traded for alAssets (alUSD, alETH, etc).  Once per epoch (at the beginning of the epoch)
+        the `checkpoint()` function needs to be called so that any revenue accrued since the last checkpoint
+        can be melted into its relative alAsset.  After `checkpoint()` is called, the current epoch's revenue
+        is available to be claimed by veALCX stakers (as long as they were staked before `checkpoint()` was
+        called).
+    veALCX stakers can claim some or all of their available revenue.  When a staker calls `claim()`, they
+        choose an amount, target alchemist, and target recipient.  The RevenueHandler will `burn()` up to
+        `amount` of the alAsset used by `alchemist` on `recipient`'s account.  Any leftover revenue that
+        is not burned will be sent directly to `recipient.
+*/
 
 contract RevenueHandler is IRevenueHandler, Ownable {
     using SafeERC20 for IERC20;
@@ -133,7 +133,7 @@ contract RevenueHandler is IRevenueHandler, Ownable {
 
     /// @inheritdoc IRevenueHandler
     function claim(uint256 tokenId, address alchemist, uint256 amount, address recipient) external override {
-        require(IVotingEscrow(veALCX).isApprovedOrOwner(msg.sender, tokenId), "not approved or owner");
+        require(IVotingEscrow(veALCX).isApprovedOrOwner(msg.sender, tokenId), "Not approved or owner");
 
         address debtToken = IAlchemistV2(alchemist).debtToken();
         uint256 amountClaimable = _claimable(tokenId, debtToken);
@@ -145,8 +145,10 @@ contract RevenueHandler is IRevenueHandler, Ownable {
         IERC20(debtToken).approve(alchemist, amount);
         uint256 amountBurned = IAlchemistV2(alchemist).burn(amount, recipient);
 
-        // burn() will only burn up to total cdp debt
-        // send the leftover directly to the user
+        /*
+            burn() will only burn up to total cdp debt
+            send the leftover directly to the user
+        */
         if (amountBurned < amount) {
             IERC20(debtToken).safeTransfer(recipient, amount - amountBurned);
         }
@@ -178,16 +180,29 @@ contract RevenueHandler is IRevenueHandler, Ownable {
             return 0;
         }
         IERC20(revenueToken).safeTransfer(poolAdapter, revenueTokenBalance);
-        return IPoolAdapter(poolAdapter).melt(revenueToken, tokenConfig.debtToken, revenueTokenBalance, 0); // TODO: fix minimum amount out
+        /*  
+            minimumAmountOut == inputAmount
+            Here we are making the assumption that the price of the alAsset will always be at or below the price of the revenue token.
+            This is currently a safe assumption since this imbalance has always held true for alUSD and alETH since their inceptions.
+        */ 
+        return IPoolAdapter(poolAdapter).melt(revenueToken, tokenConfig.debtToken, revenueTokenBalance, revenueTokenBalance);
     }
 
     function _claimable(uint256 tokenId, address debtToken) internal view returns (uint256) {
         uint256 totalClaimable = 0;
         uint256 lastClaimEpoch = userCheckpoints[tokenId][debtToken].lastClaimEpoch;
         if (lastClaimEpoch == 0) {
+            /*
+                If we get here, the user has not yet claimed anything from the RevenueHandler.
+                We need to get the first epoch that they deposited so we know where to start tallying from.
+            */
             uint256 lastUserEpoch = IVotingEscrow(veALCX).userFirstEpoch(tokenId);
             lastClaimEpoch = (IVotingEscrow(veALCX).pointHistoryTimestamp(lastUserEpoch) / WEEK) * WEEK - WEEK;
         }
+        /*
+            Start tallying from the "next" epoch after the last epoch that they claimed, since they already
+            claimed their revenue from "lastClaimEpoch".
+        */
         for (uint256 epoch = lastClaimEpoch + WEEK; epoch <= currentEpoch; epoch += WEEK) {
             uint256 epochRevenue = epochRevenues[epoch][debtToken];
             uint256 epochUserVeBalance = IVotingEscrow(veALCX).balanceOfTokenAt(tokenId, epoch);
