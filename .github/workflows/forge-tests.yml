@@ -19,10 +19,6 @@ jobs:
 
             - run: chmod 755 ./test.sh
 
-            - run: ls lib/
-
-            - run: ls lib/forge-std
-
             - name: Run tests and coverage
               env:
                   ALCHEMY_API_KEY: ${{ secrets.ALCHEMY_API_KEY }}
