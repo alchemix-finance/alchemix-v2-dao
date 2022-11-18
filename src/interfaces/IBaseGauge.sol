@@ -11,6 +11,4 @@ interface IBaseGauge {
     function getReward(address account, address[] memory tokens) external;
 
     function left(address token) external view returns (uint256);
-
-    function setVoteStatus(address account, bool voted) external;
 }

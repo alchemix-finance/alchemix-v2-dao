@@ -130,7 +130,6 @@ contract Voter {
                 if (_votes > 0) {
                     _totalWeight += _votes;
                 }
-                IBaseGauge(gauges[_pool]).setVoteStatus(IVotingEscrow(veALCX).ownerOf(_tokenId), false);
                 emit Abstained(_tokenId, _votes);
             }
         }
@@ -186,7 +185,6 @@ contract Voter {
                 votes[_tokenId][_pool] += _poolWeight;
                 _usedWeight += _poolWeight;
                 _totalWeight += _poolWeight;
-                IBaseGauge(gauges[_pool]).setVoteStatus(IVotingEscrow(veALCX).ownerOf(_tokenId), true);
                 emit Voted(msg.sender, _tokenId, _poolWeight);
             }
         }
