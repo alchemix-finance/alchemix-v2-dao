@@ -11,6 +11,21 @@ import "../lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol"
 import "../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import "../lib/forge-std/src/console.sol";
 
+/// @title RevenueHandler
+///
+/// This contract is meant to receive all revenue from the Alchemix protocol, and allow
+///     veALCX stakers to claim it, primarily as a form of debt repayment.
+/// IPoolAdapter contracts are used to plug into various DEXes so that revenue tokens (dai, usdc, weth, etc)
+///     can be traded for alAssets (alUSD, alETH, etc).  Once per epoch (at the beginning of the epoch)
+///     the `checkpoint()` function needs to be called so that any revenue accrued since the last checkpoint
+///     can be melted into its relative alAsset.  After `checkpoint()` is called, the current epoch's revenue
+///     is available to be claimed by veALCX stakers (as long as they were staked before `checkpoint()` was
+///     called).
+/// veALCX stakers can claim some or all of their available revenue.  When a staker calls `claim()`, they
+///     choose an amount, target alchemist, and target recipient.  The RevenueHandler will `burn()` up to
+///     `amount` of the alAsset used by `alchemist` on `recipient`'s account.  Any leftover revenue that
+///     is not burned will be sent directly to `recipient.
+
 contract RevenueHandler is IRevenueHandler, Ownable {
     using SafeERC20 for IERC20;
     /// @notice Parameters to define actions with respect to melting a revenue token for alchemic-tokens.
