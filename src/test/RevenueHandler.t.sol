@@ -352,6 +352,28 @@ contract RevenueHandlerTest is BaseTest {
         assertApproxEq(claimable, revAmt, revAmt/100);
     }
 
+    function testIncreaseVeALCXBeforeFirstClaim() external {
+        // The user has had a veALCX position for an epoch, increase their position (checkpointed
+        //      their veALCX position), but has not yet claimed any revenue.
+        // The user should be able to claim all the revenue they are entitled to since they initialized their veALCX position.
+        uint256 revAmt = 1000e18;
+        _accrueRevenueAndJumpOneEpoch(revAmt); // this revenue should NOT be claimable
+
+        uint256 lockAmt = 10e18;
+        uint256 tokenId = _initializeVeALCXPosition(lockAmt);
+
+        _accrueRevenueAndJumpOneEpoch(revAmt); // this revenue SHOULD be claimable
+
+        deal(address(bpt), address(this), lockAmt);
+        IERC20(bpt).approve(address(veALCX), lockAmt);
+        veALCX.increaseAmount(tokenId, lockAmt);
+
+        _accrueRevenueAndJumpOneEpoch(revAmt); // this revenue SHOULD be claimable
+
+        uint256 claimable = rh.claimable(tokenId, alusd);
+        assertApproxEq(claimable, 2*revAmt, 2*revAmt/100);
+    }
+
     function testCheckpointETH() external {
         address[] memory alethCrvTokenIds = new address[](2);
         alethCrvTokenIds[0] = address(weth); // eth

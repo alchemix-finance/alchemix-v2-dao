@@ -18,7 +18,7 @@ PROFILE=$(TEST_PROFILE)
 FORK_BLOCK=--fork-block-number $(BLOCK)
 
 # file to test
-MATCH_PATH=--match-path test/$(FILE).t.sol
+MATCH_PATH=--match-path src/test/$(FILE).t.sol
 
 # test to run
 MATCH_TEST=--match-test $(TEST)

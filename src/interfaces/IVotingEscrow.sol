@@ -27,6 +27,8 @@ interface IVotingEscrow {
 
     function userPointHistoryTimestamp(uint256 _tokenId, uint256 _idx) external view returns (uint256);
 
+    function pointHistoryTimestamp(uint256 _idx) external view returns (uint256);
+
     function userPointEpoch(uint256 tokenId) external view returns (uint256);
 
     function userFirstEpoch(uint256 tokenId) external view returns (uint256);

@@ -220,6 +220,13 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         return userPointHistory[_tokenId][_idx].ts;
     }
 
+    /// @notice Get the timestamp for checkpoint `_idx`
+    /// @param _idx User epoch number
+    /// @return Epoch time of the checkpoint
+    function pointHistoryTimestamp(uint256 _idx) external view returns (uint256) {
+        return pointHistory[_idx].ts;
+    }
+
     /// @notice Get timestamp when `_tokenId`'s lock finishes
     /// @param _tokenId ID of the token
     /// @return Epoch time of the lock end
