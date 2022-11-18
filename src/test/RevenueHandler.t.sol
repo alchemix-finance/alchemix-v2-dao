@@ -2,12 +2,12 @@
 pragma solidity ^0.8.15;
 
 import "./BaseTest.sol";
-import "../src/RevenueHandler.sol";
-import "../src/CurveMetaPoolAdapter.sol";
-import "../src/CurveEthPoolAdapter.sol";
+import "src/RevenueHandler.sol";
+import "src/CurveMetaPoolAdapter.sol";
+import "src/CurveEthPoolAdapter.sol";
 import "./utils/DSTestPlus.sol";
-import "../lib/v2-foundry/src/interfaces/IAlchemistV2.sol";
-import "../lib/v2-foundry/src/interfaces/IWhitelist.sol";
+import "lib/v2-foundry/src/interfaces/IAlchemistV2.sol";
+import "lib/v2-foundry/src/interfaces/IWhitelist.sol";
 
 contract RevenueHandlerTest is BaseTest {
     uint256 ONE_EPOCH_TIME = 1 weeks;
