@@ -17,9 +17,6 @@ jobs:
             - name: Install dependencies
               run: forge install
 
-            - name: Install submodules
-              run: git submodule update --init --recursive
-
             - run: chmod 755 ./test.sh
 
             - name: Run tests and coverage
