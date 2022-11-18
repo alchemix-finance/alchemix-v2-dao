@@ -32,15 +32,6 @@ contract DSTestPlus is Test {
         );
     }
 
-    // function fail(string memory err) internal virtual {
-    //     emit log_named_string("Error", err);
-    //     fail();
-    // }
-
-    // function assertFalse(bool data) internal virtual {
-    //     assertTrue(!data);
-    // }
-
     function assertUint128Eq(uint128 a, uint128 b) internal virtual {
         assertEq(uint256(a), uint256(b));
     }
@@ -117,27 +108,6 @@ contract DSTestPlus is Test {
             assertEq(a[i], b[i]);
         }
     }
-
-    // function bound(
-    //     uint256 x,
-    //     uint256 min,
-    //     uint256 max
-    // ) internal pure returns (uint256 result) {
-    //     require(max >= min, "MAX_LESS_THAN_MIN");
-
-    //     uint256 size = max - min;
-
-    //     if (max != type(uint256).max) size++; // Make the max inclusive.
-    //     if (size == 0) return min; // Using max would be equivalent as well.
-    //     // Ensure max is inclusive in cases where x != 0 and max is at uint256 max.
-    //     if (max == type(uint256).max && x != 0) x--; // Accounted for later.
-
-    //     if (x < min) x += size * (((min - x) / size) + 1);
-    //     result = min + ((x - min) % size);
-
-    //     // Account for decrementing x to make max inclusive.
-    //     if (max == type(uint256).max && x != 0) result++;
-    // }
 
     function expectError(string memory message) internal {
         hevm.expectRevert(bytes(message));
