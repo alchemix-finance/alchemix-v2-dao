@@ -176,6 +176,7 @@ contract RevenueHandler is IRevenueHandler, Ownable {
             currentEpoch = (block.timestamp / WEEK) * WEEK;
 
             for (uint256 i = 0; i < revenueTokens.length; i++) {
+                // If a revenue token is disabled, skip it.
                 if (revenueTokenConfigs[revenueTokens[i]].disabled) continue;
 
                 uint256 amountReceived = _melt(revenueTokens[i]);
