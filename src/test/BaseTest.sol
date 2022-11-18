@@ -2,7 +2,7 @@
 pragma solidity ^0.8.15;
 
 import "lib/forge-std/src/console2.sol";
-import { Test } from "lib/forge-std/src/test.sol";
+import { Test } from "lib/forge-std/src/Test.sol";
 import { DSTestPlus } from "./utils/DSTestPlus.sol";
 import { VotingEscrow } from "src/VotingEscrow.sol";
 import { AlchemixGovernor } from "src/AlchemixGovernor.sol";
