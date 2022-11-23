@@ -39,7 +39,7 @@ test_block :; FOUNDRY_PROFILE=$(PROFILE) forge test $(FORK_URL) $(FORK_BLOCK)
 test_debug :; FOUNDRY_PROFILE=$(PROFILE) forge test $(FORK_URL) -vvv
 
 # runs specific test file with logs: "make test_file FILE=Minter"
-test_file :; FOUNDRY_PROFILE=$(PROFILE) forge test $(FORK_URL) $(MATCH_PATH) -vvvv
+test_file :; FOUNDRY_PROFILE=$(PROFILE) forge test $(FORK_URL) $(MATCH_PATH) -vv
 
 # runs specific test file with added verbosity for failing tests: "make test_file_debug FILE=Minter"
 test_file_debug :; FOUNDRY_PROFILE=$(PROFILE) forge test $(FORK_URL) $(MATCH_PATH) -vvv

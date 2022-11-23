@@ -17,11 +17,11 @@ contract GaugeFactory {
     }
 
     function createCurveGauge(
-        address _receiver,
         address _bribe,
-        address _ve
+        address _ve,
+        uint256 _index
     ) external returns (address) {
-        lastGauge = address(new CurveGauge(_receiver, _bribe, _ve, msg.sender));
+        lastGauge = address(new CurveGauge(_bribe, _ve, msg.sender, _index));
         return lastGauge;
     }
 }

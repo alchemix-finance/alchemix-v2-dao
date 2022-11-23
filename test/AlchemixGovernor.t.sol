@@ -61,7 +61,7 @@ contract AlchemixGovernorTest is BaseTest {
         alcx.grantRole(keccak256("MINTER"), address(minter));
 
         alcx.approve(address(gaugeFactory), 15 * TOKEN_100K);
-        voter.createGauge(alETHPool, Voter.GaugeType.Staking);
+        voter.createGauge(alETHPool, Voter.GaugeType.Staking, uint256(0));
         address gaugeAddress = voter.gauges(alETHPool);
         address bribeAddress = voter.bribes(gaugeAddress);
         gauge = StakingGauge(gaugeAddress);
@@ -83,7 +83,7 @@ contract AlchemixGovernorTest is BaseTest {
         hevm.assume(a != address(0));
 
         hevm.startPrank(address(timelockExecutor));
-        voter.createGauge(a, Voter.GaugeType.Staking);
+        voter.createGauge(a, Voter.GaugeType.Staking, uint256(0));
         hevm.stopPrank();
     }
 

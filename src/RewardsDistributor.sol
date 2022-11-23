@@ -14,8 +14,6 @@ import { IManagedPool } from "./interfaces/balancer/IManagedPool.sol";
 import { WeightedMath } from "./interfaces/balancer/WeightedMath.sol";
 import { AggregatorV3Interface } from "./interfaces/chainlink/AggregatorV3Interface.sol";
 
-import "lib/forge-std/src/console2.sol";
-
 contract RewardsDistributor {
     using SafeERC20 for IERC20;
 
@@ -92,7 +90,6 @@ contract RewardsDistributor {
     function _checkpointToken() internal {
         uint256 tokenBalance = IERC20(rewardsToken).balanceOf(address(this));
         uint256 toDistribute = tokenBalance - tokenLastBalance;
-        console2.log("toDistribute", toDistribute);
         tokenLastBalance = tokenBalance;
 
         uint256 t = lastTokenTime;

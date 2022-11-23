@@ -8,8 +8,6 @@ import "./interfaces/IVoter.sol";
 import "./interfaces/IVotingEscrow.sol";
 import "./interfaces/IAlchemixToken.sol";
 
-import "lib/forge-std/src/console2.sol";
-
 struct InitializationParams {
     address voter; // the voting & distribution system
     address ve; // the ve(3,3) system that will be locked into

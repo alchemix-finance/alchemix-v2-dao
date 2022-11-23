@@ -10,8 +10,6 @@ import "./interfaces/IMinter.sol";
 import "./interfaces/IVotingEscrow.sol";
 import { IManaToken } from "./interfaces/IManaToken.sol";
 
-import "lib/forge-std/src/console2.sol";
-
 contract Voter {
     address public immutable veALCX; // veALCX that governs these contracts
     address public immutable MANA; // veALCX that governs these contracts
@@ -29,7 +27,8 @@ contract Voter {
     // Type of gauge being created
     enum GaugeType {
         Staking,
-        Passthrough
+        Passthrough,
+        Curve
     }
 
     address[] public pools; // all pools viable for incentives
@@ -226,7 +225,11 @@ contract Voter {
         emit Whitelisted(msg.sender, _token);
     }
 
-    function createGauge(address _pool, GaugeType _gaugeType) external returns (address) {
+    function createGauge(
+        address _pool,
+        GaugeType _gaugeType,
+        uint256 _index
+    ) external returns (address) {
         require(gauges[_pool] == address(0x0), "exists");
         require(msg.sender == executor, "only executor creates gauges");
 
@@ -235,8 +238,9 @@ contract Voter {
         address _gauge;
         if (_gaugeType == GaugeType.Staking) {
             _gauge = IGaugeFactory(gaugefactory).createStakingGauge(_pool, _bribe, veALCX);
-        } else {
-            _gauge = IGaugeFactory(gaugefactory).createCurveGauge(_pool, _bribe, veALCX);
+        }
+        if (_gaugeType == GaugeType.Curve) {
+            _gauge = IGaugeFactory(gaugefactory).createCurveGauge(_bribe, veALCX, _index);
         }
 
         IERC20(base).approve(_gauge, type(uint256).max);

@@ -12,6 +12,6 @@ interface IGaugeFactory {
     function createCurveGauge(
         address,
         address,
-        address
+        uint256
     ) external returns (address);
 }
