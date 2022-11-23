@@ -2,6 +2,7 @@
 pragma solidity ^0.8.15;
 
 import "../StakingGauge.sol";
+import "../PassthroughGauge.sol";
 import "../gauges/CurveGauge.sol";
 
 contract GaugeFactory {
@@ -22,6 +23,15 @@ contract GaugeFactory {
         uint256 _index
     ) external returns (address) {
         lastGauge = address(new CurveGauge(_bribe, _ve, msg.sender, _index));
+        return lastGauge;
+    }
+
+    function createPassthroughGauge(
+        address _receiver,
+        address _bribe,
+        address _ve
+    ) external returns (address) {
+        lastGauge = address(new PassthroughGauge(_receiver, _bribe, _ve, msg.sender));
         return lastGauge;
     }
 }

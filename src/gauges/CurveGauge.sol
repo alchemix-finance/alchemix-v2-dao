@@ -58,7 +58,7 @@ contract CurveGauge is BaseGauge {
     }
 
     function passthroughRewards(uint256 _amount, bytes32 _proposal) public lock {
-        require(_amount > 0);
+        require(_amount > 0, "insufficient amount");
 
         bytes32 proposalHash = keccak256(abi.encodePacked(_proposal));
 
@@ -74,7 +74,7 @@ contract CurveGauge is BaseGauge {
     }
 
     function notifyRewardAmount(address token, uint256 _amount) external override lock {
-        require(_amount > 0);
+        require(_amount > 0, "insufficient amount");
         if (!isReward[token]) {
             require(rewards.length < MAX_REWARD_TOKENS, "too many rewards tokens");
         }

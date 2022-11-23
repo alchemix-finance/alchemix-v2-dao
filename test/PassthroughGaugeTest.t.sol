@@ -3,7 +3,7 @@ pragma solidity ^0.8.15;
 
 import "./BaseTest.sol";
 
-contract CurveGaugeTest is BaseTest {
+contract PassthroughGaugeTest is BaseTest {
     Voter voter;
     GaugeFactory gaugeFactory;
     BribeFactory bribeFactory;
@@ -12,6 +12,7 @@ contract CurveGaugeTest is BaseTest {
     CurveGauge alUsdGauge;
     CurveGauge alEthGauge;
     CurveGauge alUsdFraxBpGauge;
+    PassthroughGauge sushiGauge;
 
     uint256 nextEpoch = 86400 * 14;
     uint256 snapshotWeek = 15948915;
@@ -29,6 +30,7 @@ contract CurveGaugeTest is BaseTest {
     address alUsdPoolAddress = 0x43b4FdFD4Ff969587185cDB6f0BD875c5Fc83f8c;
     address alEthPoolAddress = 0xC4C319E2D4d66CcA4464C0c2B32c9Bd23ebe784e;
     address alUsdFraxBpPoolAddress = 0xB30dA2376F63De30b42dC055C93fa474F31330A5;
+    address sushiPoolAddress = 0x7519C93fC5073E15d89131fD38118D73A72370F8;
 
     uint256 alUsdPool = 34;
     uint256 alEthPool = 46;
@@ -82,14 +84,17 @@ contract CurveGaugeTest is BaseTest {
         voter.createGauge(alUsdPoolAddress, Voter.GaugeType.Curve, alUsdPool);
         voter.createGauge(alEthPoolAddress, Voter.GaugeType.Curve, alEthPool);
         voter.createGauge(alUsdFraxBpPoolAddress, Voter.GaugeType.Curve, alUsdFraxBpPool);
+        voter.createGauge(sushiPoolAddress, Voter.GaugeType.Passthrough, uint256(0));
 
         address alUsdGaugeAddress = voter.gauges(alUsdPoolAddress);
         address alEthGaugeAddress = voter.gauges(alEthPoolAddress);
         address alUsdFraxBpGaugeAddress = voter.gauges(alUsdFraxBpPoolAddress);
+        address sushiGaugeAddress = voter.gauges(sushiPoolAddress);
 
         alUsdGauge = CurveGauge(alUsdGaugeAddress);
         alEthGauge = CurveGauge(alEthGaugeAddress);
         alUsdFraxBpGauge = CurveGauge(alUsdFraxBpGaugeAddress);
+        sushiGauge = PassthroughGauge(sushiGaugeAddress);
 
         hevm.stopPrank();
     }
@@ -101,33 +106,38 @@ contract CurveGaugeTest is BaseTest {
         hevm.warp(period);
 
         uint256 votiumBalanceBefore = alcx.balanceOf(votiumStash);
+        uint256 sushiBalanceBefore = alcx.balanceOf(sushiPoolAddress);
 
-        address[] memory pools = new address[](3);
+        address[] memory pools = new address[](4);
         pools[0] = alUsdPoolAddress;
         pools[1] = alEthPoolAddress;
         pools[2] = alUsdFraxBpPoolAddress;
-        uint256[] memory weights = new uint256[](3);
+        pools[3] = sushiPoolAddress;
+        uint256[] memory weights = new uint256[](4);
         weights[0] = 5000;
         weights[1] = 5000;
         weights[2] = 5000;
+        weights[3] = 5000;
 
         // Move forward epoch
         hevm.warp(period + 1 weeks);
 
         voter.vote(1, pools, weights, 0);
 
-        address[] memory gauges = new address[](3);
+        address[] memory gauges = new address[](4);
         gauges[0] = address(alUsdGauge);
         gauges[1] = address(alEthGauge);
         gauges[2] = address(alUsdFraxBpGauge);
+        gauges[3] = address(sushiGauge);
 
         voter.distribute(gauges);
 
         uint256 alUsdGaugeBalance = alcx.balanceOf(address(alUsdGauge));
         uint256 alEthGaugeBalance = alcx.balanceOf(address(alEthGauge));
         uint256 alUsdFraxBpGaugeBalance = alcx.balanceOf(address(alUsdFraxBpGauge));
+        uint256 sushiGaugeBalance = alcx.balanceOf(address(sushiGauge));
 
-        uint256 totalBalances = alUsdGaugeBalance + alEthGaugeBalance + alUsdFraxBpGaugeBalance;
+        uint256 votiumBalances = alUsdGaugeBalance + alEthGaugeBalance + alUsdFraxBpGaugeBalance;
 
         // Set time to be a week of a snapshot vote to test a valid proposal
         hevm.warp(snapshotWeek);
@@ -135,12 +145,18 @@ contract CurveGaugeTest is BaseTest {
         alUsdGauge.passthroughRewards(alUsdGaugeBalance, proposal);
         alEthGauge.passthroughRewards(alEthGaugeBalance, proposal);
         alUsdFraxBpGauge.passthroughRewards(alUsdFraxBpGaugeBalance, proposal);
+        sushiGauge.passthroughRewards(sushiGaugeBalance);
 
         uint256 votiumBalanceAfter = alcx.balanceOf(votiumStash);
+        uint256 sushiBalanceAfter = alcx.balanceOf(sushiPoolAddress);
 
-        uint256 votiumFee = (totalBalances * platformFee) / DENOMINATOR;
+        uint256 votiumFee = (votiumBalances * platformFee) / DENOMINATOR;
 
-        assertEq(votiumBalanceAfter - votiumBalanceBefore, totalBalances - votiumFee);
+        // Votium stash ALCX balance should increase by the three curve pools minus votium fee
+        assertEq(votiumBalanceAfter - votiumBalanceBefore, votiumBalances - votiumFee);
+
+        // Sushi pool ALCX balance should increase by the gauge amount
+        assertEq(sushiBalanceAfter - sushiBalanceBefore, sushiGaugeBalance);
 
         hevm.stopPrank();
     }

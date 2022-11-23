@@ -14,6 +14,7 @@ import { Minter, InitializationParams } from "src/Minter.sol";
 import { IAlchemixToken } from "src/interfaces/IAlchemixToken.sol";
 import { RewardsDistributor } from "src/RewardsDistributor.sol";
 import { CurveGauge } from "src/gauges/CurveGauge.sol";
+import { PassthroughGauge } from "src/PassthroughGauge.sol";
 import "src/governance/TimelockExecutor.sol";
 import "src/StakingGauge.sol";
 import "src/Bribe.sol";

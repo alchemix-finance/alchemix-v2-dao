@@ -16,13 +16,14 @@ contract Voter {
     address internal immutable base;
     address public immutable gaugefactory;
     address public immutable bribefactory;
-    uint256 internal constant DURATION = 7 days; // rewards are released over 7 days
-    uint256 internal constant BRIBE_LAG = 1 days;
     address public minter;
     address public executor; // should be set to the timelock executor
     address public emergencyCouncil; // credibly neutral party similar to Curve's Emergency DAO
 
     uint256 public totalWeight; // total voting weight
+
+    uint256 internal constant DURATION = 7 days; // rewards are released over 7 days
+    uint256 internal constant BRIBE_LAG = 1 days;
 
     // Type of gauge being created
     enum GaugeType {
@@ -234,13 +235,18 @@ contract Voter {
         require(msg.sender == executor, "only executor creates gauges");
 
         address _bribe = IBribeFactory(bribefactory).createBribe();
-        // Handling different gauge types
+
+        // Handle gauge type
         address _gauge;
+
         if (_gaugeType == GaugeType.Staking) {
             _gauge = IGaugeFactory(gaugefactory).createStakingGauge(_pool, _bribe, veALCX);
         }
         if (_gaugeType == GaugeType.Curve) {
             _gauge = IGaugeFactory(gaugefactory).createCurveGauge(_bribe, veALCX, _index);
+        }
+        if (_gaugeType == GaugeType.Passthrough) {
+            _gauge = IGaugeFactory(gaugefactory).createPassthroughGauge(_pool, _bribe, veALCX);
         }
 
         IERC20(base).approve(_gauge, type(uint256).max);
