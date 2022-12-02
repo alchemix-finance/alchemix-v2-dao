@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.15;
 
 import "./BaseTest.sol";
@@ -20,18 +20,20 @@ contract PassthroughGaugeTest is BaseTest {
     uint256 platformFee = 400; // 4%
     uint256 DENOMINATOR = 10000; // denominates weights 10000 = 100%
 
-    // Proposal taken from snapshot url
+    // Proposal id from snapshot url
     // https://snapshot.org/#/cvx.eth/proposal/0xd7db40d1ca142cb5ca24bce5d0f78f3b037fde6c7ebb3c3650a317e910278b1f
     bytes32 public proposal = 0xd7db40d1ca142cb5ca24bce5d0f78f3b037fde6c7ebb3c3650a317e910278b1f;
 
     // Contract that receives votium bribes
     address votiumStash = 0x378Ba9B73309bE80BF4C2c027aAD799766a7ED5A;
 
+    // Pool addresses
     address alUsdPoolAddress = 0x43b4FdFD4Ff969587185cDB6f0BD875c5Fc83f8c;
     address alEthPoolAddress = 0xC4C319E2D4d66CcA4464C0c2B32c9Bd23ebe784e;
     address alUsdFraxBpPoolAddress = 0xB30dA2376F63De30b42dC055C93fa474F31330A5;
     address sushiPoolAddress = 0x7519C93fC5073E15d89131fD38118D73A72370F8;
 
+    // Votium pool indexes
     uint256 alUsdPool = 34;
     uint256 alEthPool = 46;
     uint256 alUsdFraxBpPool = 105;
@@ -81,11 +83,15 @@ contract PassthroughGaugeTest is BaseTest {
 
         minter.initialize();
 
+        // Create votium gauges
         voter.createGauge(alUsdPoolAddress, Voter.GaugeType.Curve, alUsdPool);
         voter.createGauge(alEthPoolAddress, Voter.GaugeType.Curve, alEthPool);
         voter.createGauge(alUsdFraxBpPoolAddress, Voter.GaugeType.Curve, alUsdFraxBpPool);
+
+        // Create sushi gauge
         voter.createGauge(sushiPoolAddress, Voter.GaugeType.Passthrough, uint256(0));
 
+        // Get address of new gauges
         address alUsdGaugeAddress = voter.gauges(alUsdPoolAddress);
         address alEthGaugeAddress = voter.gauges(alEthPoolAddress);
         address alUsdFraxBpGaugeAddress = voter.gauges(alUsdFraxBpPoolAddress);
@@ -99,7 +105,8 @@ contract PassthroughGaugeTest is BaseTest {
         hevm.stopPrank();
     }
 
-    function testCurveAlUsdRewards() public {
+    // Rewards should be passed through to votium and sushi pools
+    function testPassthroughGaugeRewards() public {
         hevm.startPrank(admin);
 
         uint256 period = minter.activePeriod();

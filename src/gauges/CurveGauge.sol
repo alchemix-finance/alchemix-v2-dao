@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.15;
 
 import "src/interfaces/IBribe.sol";
@@ -9,6 +9,10 @@ import "src/BaseGauge.sol";
 import { IVotiumBribe } from "src/interfaces/votium/IVotiumBribe.sol";
 import { SafeERC20 } from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 
+/// @title Curve Gauge
+/// @notice Gauge to handle distribution of rewards to a given Curve pool
+/// @notice Rewards are sent to Curve pool via Votium
+/// @dev Pool index is subject to change and proposal id is located in the snapshot url
 contract CurveGauge is BaseGauge {
     using SafeERC20 for IERC20;
 
@@ -16,8 +20,13 @@ contract CurveGauge is BaseGauge {
     event Withdraw(address indexed from, uint256 tokenId, uint256 amount);
     event Passthrough(address indexed from, address token, uint256 amount, address receiver);
 
+    // Votium pool index (subject to change)
     uint256 poolIndex;
-    address public _token;
+
+    // Rewards token for pool
+    address public rewardToken;
+
+    // Votium contract that is sent rewards
     address public votiumReceiver = 0x19BBC3463Dd8d07f55438014b021Fb457EBD4595;
 
     constructor(
@@ -36,10 +45,10 @@ contract CurveGauge is BaseGauge {
         admin = msg.sender;
 
         IBribe(bribe).setGauge(address(this));
-        _token = IVotingEscrow(ve).ALCX();
-        IBribe(bribe).addRewardToken(_token);
-        isReward[_token] = true;
-        rewards.push(_token);
+        rewardToken = IVotingEscrow(ve).ALCX();
+        IBribe(bribe).addRewardToken(rewardToken);
+        isReward[rewardToken] = true;
+        rewards.push(rewardToken);
     }
 
     function setAdmin(address _admin) external {
@@ -57,20 +66,23 @@ contract CurveGauge is BaseGauge {
         poolIndex = _poolIndex;
     }
 
+    /// @notice Pass rewards to votium contract
+    /// @param _amount Amount of rewards
+    /// @param _proposal Proposal id from snapshot url
     function passthroughRewards(uint256 _amount, bytes32 _proposal) public lock {
         require(_amount > 0, "insufficient amount");
 
         bytes32 proposalHash = keccak256(abi.encodePacked(_proposal));
 
-        uint256 rewardBalance = IERC20(_token).balanceOf(address(this));
+        uint256 rewardBalance = IERC20(rewardToken).balanceOf(address(this));
         require(rewardBalance >= _amount, "insufficient rewards");
 
         _updateRewardForAllTokens();
 
-        IERC20(_token).approve(receiver, _amount);
-        IVotiumBribe(receiver).depositBribe(_token, _amount, proposalHash, poolIndex);
+        IERC20(rewardToken).approve(receiver, _amount);
+        IVotiumBribe(receiver).depositBribe(rewardToken, _amount, proposalHash, poolIndex);
 
-        emit Passthrough(msg.sender, _token, _amount, receiver);
+        emit Passthrough(msg.sender, rewardToken, _amount, receiver);
     }
 
     function notifyRewardAmount(address token, uint256 _amount) external override lock {

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.15;
 
 import "src/interfaces/IBribe.sol";
@@ -7,12 +7,15 @@ import "src/interfaces/IVoter.sol";
 import "src/interfaces/IVotingEscrow.sol";
 import "src/BaseGauge.sol";
 
+/// @title Passthrough Gauge
+/// @notice Generic Gauge to handle distribution of rewards directly to a pool
+/// @dev If custom distribution logic is necessary create additional contract
 contract PassthroughGauge is BaseGauge {
     event Deposit(address indexed from, uint256 tokenId, uint256 amount);
     event Withdraw(address indexed from, uint256 tokenId, uint256 amount);
     event Passthrough(address indexed from, address token, uint256 amount, address receiver);
 
-    address public _token;
+    address public rewardToken;
 
     constructor(
         address _receiver,
@@ -28,10 +31,10 @@ contract PassthroughGauge is BaseGauge {
         admin = msg.sender;
 
         IBribe(bribe).setGauge(address(this));
-        _token = IVotingEscrow(ve).ALCX();
-        IBribe(bribe).addRewardToken(_token);
-        isReward[_token] = true;
-        rewards.push(_token);
+        rewardToken = IVotingEscrow(ve).ALCX();
+        IBribe(bribe).addRewardToken(rewardToken);
+        isReward[rewardToken] = true;
+        rewards.push(rewardToken);
     }
 
     function setAdmin(address _admin) external {
@@ -44,17 +47,19 @@ contract PassthroughGauge is BaseGauge {
         receiver = _receiver;
     }
 
+    /// @notice Pass rewards to pool
+    /// @param _amount Amount of rewards
     function passthroughRewards(uint256 _amount) public lock {
         require(_amount > 0, "insufficient amount");
 
-        uint256 rewardBalance = IERC20(_token).balanceOf(address(this));
+        uint256 rewardBalance = IERC20(rewardToken).balanceOf(address(this));
         require(rewardBalance >= _amount, "insufficient rewards");
 
         _updateRewardForAllTokens();
 
-        _safeTransfer(_token, receiver, _amount);
+        _safeTransfer(rewardToken, receiver, _amount);
 
-        emit Passthrough(msg.sender, _token, _amount, receiver);
+        emit Passthrough(msg.sender, rewardToken, _amount, receiver);
     }
 
     function notifyRewardAmount(address token, uint256 _amount) external override lock {
