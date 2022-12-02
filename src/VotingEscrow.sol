@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.15;
 
 import { IERC721, IERC721Metadata } from "openzeppelin-contracts/contracts/token/ERC721/extensions/IERC721Metadata.sol";
@@ -7,7 +7,6 @@ import { IERC721Receiver } from "openzeppelin-contracts/contracts/token/ERC721/I
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { IVotingEscrow } from "src/interfaces/IVotingEscrow.sol";
 import { IManaToken } from "./interfaces/IManaToken.sol";
-
 import { Base64 } from "src/libraries/Base64.sol";
 
 /// @title Voting Escrow

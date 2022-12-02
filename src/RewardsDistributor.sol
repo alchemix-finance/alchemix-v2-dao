@@ -197,6 +197,11 @@ contract RewardsDistributor {
         _checkpointTotalSupply();
     }
 
+    /// @notice Get the amount of ALCX rewards a veALCX has earned
+    /// @param _tokenId ID of the token
+    /// @param _ve veALCX address
+    /// @param _lastTokenTime Point in time of veALCX rewards accrual
+    /// @return Amount of ALCX rewards claimable
     function _claim(
         uint256 _tokenId,
         address _ve,
@@ -313,11 +318,18 @@ contract RewardsDistributor {
         return toDistribute;
     }
 
+    /// @notice Amount of ALCX available to be claimed for a veALCX position
+    /// @param _tokenId ID of the token
+    /// @return Amount of ALCX claimable
     function claimable(uint256 _tokenId) external view returns (uint256) {
         uint256 _lastTokenTime = (lastTokenTime / WEEK) * WEEK;
         return _claimable(_tokenId, votingEscrow, _lastTokenTime);
     }
 
+    /// @notice Claim ALCX rewards for a given veALCX position
+    /// @param _wethAmount Amount of WETH to deposit into pool
+    /// @param _alcxAmount Amount of ALCX to deposit into pool
+    /// @param _normalizedWeights Weight of ALCX and WETH
     function _depositIntoBalancerPool(
         uint256 _wethAmount,
         uint256 _alcxAmount,
@@ -353,6 +365,10 @@ contract RewardsDistributor {
         balancerVault.joinPool(balancerPoolId, address(this), address(this), request);
     }
 
+    /// @notice Claim ALCX rewards for a given veALCX position
+    /// @param _tokenId ID of the token
+    /// @param _compound Indicator that determines if rewards are being compounded
+    /// @return Amount of ALCX that was either claimed or compounded
     function claim(uint256 _tokenId, bool _compound) external payable returns (uint256) {
         require(IVotingEscrow(votingEscrow).isApprovedOrOwner(msg.sender, _tokenId), "not approved or owner");
 
@@ -373,7 +389,7 @@ contract RewardsDistributor {
 
             require(
                 msg.value >= wethAmount || WETH.balanceOf(msg.sender) >= wethAmount,
-                "insufficient eth to compound"
+                "insufficient balance to compound"
             );
 
             // Wrap eth if necessary
@@ -389,21 +405,25 @@ contract RewardsDistributor {
             uint256 feeAmount = (alcxAmount * IVotingEscrow(votingEscrow).claimFeeBps()) / BPS;
             uint256 claimAmount = alcxAmount - feeAmount;
 
-            IERC20(rewardsToken).safeTransfer(BURN_ADDRESS, feeAmount);
+            // Transfer rewards to veALCX owner
             IERC20(rewardsToken).safeTransfer(owner, claimAmount);
+
+            // Reallocate fee to veALCX rewards
+            IERC20(rewardsToken).safeTransfer(address(this), feeAmount);
 
             return claimAmount;
         }
     }
 
-    // Amount of ETH or WETH required to create balanced pool deposit
+    /// @notice Get the amount of ETH or WETH required to create balanced pool deposit
+    /// @param _alcxAmount Amount of ALCX that will make up the balanced deposit
+    /// @return amount of ETH or WETH
+    /// @return normalizedWeights of the pool. Prevents an additional lookup of weights
     function amountToCompound(uint256 _alcxAmount) public view returns (uint256, uint256[] memory) {
         (, int256 alcxEthPrice, , , ) = priceFeed.latestRoundData();
 
-        // Return weights to prevent extra lookups
         uint256[] memory normalizedWeights = IManagedPool(address(balancerPool)).getNormalizedWeights();
 
-        // Amount of eth to deposit given the amount of alcx rewards and currenct price of alcx/eth
         uint256 amount = (((_alcxAmount * uint256(alcxEthPrice)) / 1 ether) * normalizedWeights[0]) /
             normalizedWeights[1];
 
