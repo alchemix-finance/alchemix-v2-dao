@@ -5,7 +5,7 @@ import "./libraries/Math.sol";
 import "./interfaces/IBribeFactory.sol";
 import "./interfaces/IBaseGauge.sol";
 import "./interfaces/IGaugeFactory.sol";
-import "./interfaces/IERC20.sol";
+import "../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import "./interfaces/IMinter.sol";
 import "./interfaces/IVotingEscrow.sol";
 import { IManaToken } from "./interfaces/IManaToken.sol";

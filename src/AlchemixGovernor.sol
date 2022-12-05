@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
-import { IGovernor } from "openzeppelin-contracts/contracts/governance/IGovernor.sol";
-import { IVotes } from "openzeppelin-contracts/contracts/governance/utils/IVotes.sol";
+import { IGovernor } from "../lib/openzeppelin-contracts/contracts/governance/IGovernor.sol";
+import { IVotes } from "../lib/openzeppelin-contracts/contracts/governance/utils/IVotes.sol";
 
 import { L2Governor } from "src/governance/L2Governor.sol";
 import { L2GovernorCountingSimple } from "src/governance/L2GovernorCountingSimple.sol";

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
-import './interfaces/IERC20.sol';
+import "../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import './interfaces/IBribe.sol';
 import './interfaces/IBaseGauge.sol';
 
