@@ -17,6 +17,7 @@ contract RevenueHandlerTest is BaseTest {
     address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
     address ydai = 0xdA816459F1AB5631232FE5e97a05BBBb94970c95;
     address usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    address usdt = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
     address aleth = 0x0100546F2cD4C9D97f798fFC9755E47865FF7Ee6;
     address alusd3crv = 0x43b4FdFD4Ff969587185cDB6f0BD875c5Fc83f8c;
     address alethcrv = 0xC4C319E2D4d66CcA4464C0c2B32c9Bd23ebe784e;
@@ -30,10 +31,10 @@ contract RevenueHandlerTest is BaseTest {
     function setUp() public {
         setupBaseTest();
         address[] memory alusd3crvTokenIds = new address[](4);
-        alusd3crvTokenIds[0] = 0xBC6DA0FE9aD5f3b0d58160288917AA56653660E9;
-        alusd3crvTokenIds[1] = 0x6B175474E89094C44Da98b954EedeAC495271d0F; // dai
-        alusd3crvTokenIds[2] = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48; // usdc
-        alusd3crvTokenIds[3] = 0xdAC17F958D2ee523a2206206994597C13D831ec7; // usdt
+        alusd3crvTokenIds[0] = alusd;
+        alusd3crvTokenIds[1] = dai; // dai
+        alusd3crvTokenIds[2] = usdc; // usdc
+        alusd3crvTokenIds[3] = usdt; // usdt
 
         cpa = new CurveMetaPoolAdapter(alusd3crv, alusd3crvTokenIds);
         rh = new RevenueHandler(address(veALCX));
@@ -379,7 +380,7 @@ contract RevenueHandlerTest is BaseTest {
         alethCrvTokenIds[0] = address(weth); // eth
         alethCrvTokenIds[1] = aleth;
 
-        CurveEthPoolAdapter alethCpa = new CurveEthPoolAdapter(alethcrv, alethCrvTokenIds);
+        CurveEthPoolAdapter alethCpa = new CurveEthPoolAdapter(alethcrv, alethCrvTokenIds, address(weth));
 
         rh.addDebtToken(aleth);
 

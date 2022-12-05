@@ -2,13 +2,13 @@
 pragma solidity ^0.8.15;
 
 interface IRevenueHandler {
-    /// @notice Emitted when poolAdaptor parameters are set for a revenue token.
+    /// @notice Emitted when poolAdapter parameters are set for a revenue token.
     ///
     /// @param revenueToken     The address of the revenue token.
-    /// @param poolAdaptor      The address of the target pool adaptor contract to call.
+    /// @param poolAdapter      The address of the target pool adapter contract to call.
     event SetPoolAdapter(
         address revenueToken,
-        address poolAdaptor
+        address poolAdapter
     );
 
     /// @notice Emitted when a debt token is set for a revenue token.
@@ -74,11 +74,11 @@ interface IRevenueHandler {
     /// @param debtToken    The address of the alchemic-token that will be bought using the revenue token.
     function setDebtToken(address revenueToken, address debtToken) external;
 
-    /// @dev Add call data for interactin with a pool adaptor.
+    /// @dev Add call data for interactin with a pool adapter.
     ///
     /// @param revenueToken     The address of the revenue token.
-    /// @param poolAdaptor      The address of the target pool adaptor contract to call.
-    function setPoolAdapter(address revenueToken, address poolAdaptor) external;
+    /// @param poolAdapter      The address of the target pool adapter contract to call.
+    function setPoolAdapter(address revenueToken, address poolAdapter) external;
 
     /// @dev Disable a revenue token.
     ///

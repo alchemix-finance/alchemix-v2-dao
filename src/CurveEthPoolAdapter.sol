@@ -8,13 +8,15 @@ import "./libraries/TokenUtils.sol";
 import "./interfaces/IWETH9.sol";
 
 contract CurveEthPoolAdapter is IPoolAdapter {
-    address public constant weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
     address public override pool;
 
     mapping(address => int128) public tokenIds;
     bool public isMetapool;
+    
+    address public weth;
 
-    constructor(address _pool, address[] memory _tokens) {
+    constructor(address _pool, address[] memory _tokens, address _weth) {
+        weth = _weth;
         pool = _pool;
         for (uint256 i; i < _tokens.length; i++) {
             tokenIds[_tokens[i]] = int128(int256(i));
