@@ -395,7 +395,7 @@ contract RevenueHandlerTest is BaseTest {
         assertEq(balBefore, 0);
         rh.checkpoint();
         uint256 balAfter = IERC20(aleth).balanceOf(address(rh));
-        assertApproxEq(revAmt, balAfter, revAmt/100);
+        assertApproxEq(revAmt, balAfter, revAmt/75);
     }
 
     function testMultipleClaimers() external {
