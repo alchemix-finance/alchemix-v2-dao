@@ -8,7 +8,7 @@ import "src/interfaces/IVotingEscrow.sol";
 import "src/BaseGauge.sol";
 
 /// @title Passthrough Gauge
-/// @notice Generic Gauge to handle distribution of rewards directly to a pool
+/// @notice Generic Gauge to handle distribution of rewards without pool specific passthrough logic
 /// @dev If custom distribution logic is necessary create additional contract
 contract PassthroughGauge is BaseGauge {
     event Deposit(address indexed from, uint256 tokenId, uint256 amount);
