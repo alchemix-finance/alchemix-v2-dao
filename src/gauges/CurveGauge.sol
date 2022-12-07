@@ -67,7 +67,7 @@ contract CurveGauge is BaseGauge {
     /// @notice Pass rewards to votium contract
     /// @param _amount Amount of rewards
     /// @param _proposal Proposal id from snapshot url
-    function passthroughRewards(uint256 _amount, bytes32 _proposal) public lock {
+    function _passthroughRewards(uint256 _amount, bytes32 _proposal) internal {
         require(_amount > 0, "insufficient amount");
 
         bytes32 proposalHash = keccak256(abi.encodePacked(_proposal));
@@ -83,7 +83,11 @@ contract CurveGauge is BaseGauge {
         emit Passthrough(msg.sender, rewardToken, _amount, receiver);
     }
 
-    function notifyRewardAmount(address token, uint256 _amount) external override lock {
+    function notifyRewardAmount(
+        address token,
+        uint256 _amount,
+        bytes32 _proposal
+    ) external override lock {
         require(_amount > 0, "insufficient amount");
         if (!isReward[token]) {
             require(rewards.length < MAX_REWARD_TOKENS, "too many rewards tokens");
@@ -115,5 +119,7 @@ contract CurveGauge is BaseGauge {
         }
 
         emit NotifyReward(msg.sender, token, _amount);
+
+        _passthroughRewards(_amount, _proposal);
     }
 }

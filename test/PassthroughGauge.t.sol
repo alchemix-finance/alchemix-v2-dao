@@ -140,33 +140,34 @@ contract PassthroughGaugeTest is BaseTest {
         gauges[2] = address(alUsdFraxBpGauge);
         gauges[3] = address(sushiGauge);
 
-        voter.distribute(gauges);
-
-        uint256 alUsdGaugeBalance = alcx.balanceOf(address(alUsdGauge));
-        uint256 alEthGaugeBalance = alcx.balanceOf(address(alEthGauge));
-        uint256 alUsdFraxBpGaugeBalance = alcx.balanceOf(address(alUsdFraxBpGauge));
-        uint256 sushiGaugeBalance = alcx.balanceOf(address(sushiGauge));
-
-        uint256 votiumBalances = alUsdGaugeBalance + alEthGaugeBalance + alUsdFraxBpGaugeBalance;
-
         // Set time to be a week of a snapshot vote to test a valid proposal
         hevm.warp(snapshotWeek);
 
-        alUsdGauge.passthroughRewards(alUsdGaugeBalance, proposal);
-        alEthGauge.passthroughRewards(alEthGaugeBalance, proposal);
-        alUsdFraxBpGauge.passthroughRewards(alUsdFraxBpGaugeBalance, proposal);
-        sushiGauge.passthroughRewards(sushiGaugeBalance);
+        // Update gauges to get claimable rewards value
+        minter.updatePeriod();
+        voter.updateFor(gauges);
 
-        uint256 votiumBalanceAfter = alcx.balanceOf(votiumStash);
+        // Claimable rewards of each gauge
+        uint256 sushiGaugeClaimable = voter.claimable(address(sushiGauge));
+        uint256 alUsdGaugeClaimable = voter.claimable(address(alUsdGauge));
+        uint256 alEthGaugeClaimable = voter.claimable(address(alEthGauge));
+        uint256 alUsdFraxBpGaugeClaimable = voter.claimable(address(alUsdFraxBpGauge));
+
+        voter.distribute(gauges, proposal);
+
         uint256 sushiBalanceAfter = alcx.balanceOf(sushiPoolAddress);
 
-        uint256 votiumFee = (votiumBalances * platformFee) / DENOMINATOR;
+        uint256 votiumBalanceAfter = alcx.balanceOf(votiumStash);
 
-        // Votium stash ALCX balance should increase by the three curve pools minus votium fee
-        assertEq(votiumBalanceAfter - votiumBalanceBefore, votiumBalances - votiumFee);
+        uint256 votiumClaimable = alUsdGaugeClaimable + alEthGaugeClaimable + alUsdFraxBpGaugeClaimable;
 
-        // Sushi pool ALCX balance should increase by the gauge amount
-        assertEq(sushiBalanceAfter - sushiBalanceBefore, sushiGaugeBalance);
+        uint256 votiumFee = (votiumClaimable * platformFee) / DENOMINATOR;
+
+        // Votium stash ALCX balance should increase by the three curve pools claimable amount minus votium fee
+        assertEq(votiumBalanceAfter - votiumBalanceBefore, votiumClaimable - votiumFee);
+
+        // Sushi pool ALCX balance should increase by the claimable amount
+        assertEq(sushiBalanceAfter - sushiBalanceBefore, sushiGaugeClaimable);
 
         hevm.stopPrank();
     }

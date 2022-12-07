@@ -376,13 +376,13 @@ contract Voter {
         }
     }
 
-    function distribute(address _gauge) public lock {
+    function distribute(address _gauge, bytes32 _proposal) public lock {
         IMinter(minter).updatePeriod();
         _updateFor(_gauge);
         uint256 _claimable = claimable[_gauge];
         if (_claimable > IBaseGauge(_gauge).left(base) && _claimable / DURATION > 0) {
             claimable[_gauge] = 0;
-            IBaseGauge(_gauge).notifyRewardAmount(base, _claimable);
+            IBaseGauge(_gauge).notifyRewardAmount(base, _claimable, _proposal);
             emit DistributeReward(msg.sender, _gauge, _claimable);
             // distribute bribes & fees too
             IBaseGauge(_gauge).deliverBribes();
@@ -399,13 +399,13 @@ contract Voter {
 
     function distribute(uint256 start, uint256 finish) public {
         for (uint256 x = start; x < finish; x++) {
-            distribute(gauges[pools[x]]);
+            distribute(gauges[pools[x]], bytes32(0));
         }
     }
 
-    function distribute(address[] memory _gauges) external {
+    function distribute(address[] memory _gauges, bytes32 _proposal) external {
         for (uint256 x = 0; x < _gauges.length; x++) {
-            distribute(_gauges[x]);
+            distribute(_gauges[x], _proposal);
         }
     }
 

@@ -108,7 +108,12 @@ contract StakingGauge is BaseGauge {
         emit Withdraw(msg.sender, tokenId, amount);
     }
 
-    function notifyRewardAmount(address token, uint256 amount) external override lock {
+    function notifyRewardAmount(
+        address token,
+        uint256 amount,
+        bytes32 proposal
+    ) external override lock {
+        proposal = bytes32(0);
         require(token != stake);
         require(amount > 0);
         if (!isReward[token]) {
