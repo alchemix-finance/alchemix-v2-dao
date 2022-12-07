@@ -20,9 +20,10 @@ contract GaugeFactory {
     function createCurveGauge(
         address _bribe,
         address _ve,
-        uint256 _index
+        uint256 _index,
+        address _receiver
     ) external returns (address) {
-        lastGauge = address(new CurveGauge(_bribe, _ve, msg.sender, _index));
+        lastGauge = address(new CurveGauge(_bribe, _ve, msg.sender, _index, _receiver));
         return lastGauge;
     }
 

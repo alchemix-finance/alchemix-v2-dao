@@ -50,7 +50,7 @@ contract MinterTest is BaseTest {
 
         alcx.grantRole(keccak256("MINTER"), address(minter));
 
-        voter.createGauge(alETHPool, Voter.GaugeType.Staking, uint256(0));
+        voter.createGauge(alETHPool, Voter.GaugeType.Staking, uint256(0), zeroAddress);
 
         hevm.roll(block.number + 1);
 
@@ -300,7 +300,7 @@ contract MinterTest is BaseTest {
         minter.updatePeriod();
 
         // Set weth balance to 0
-        weth.transfer(address(0xdead), weth.balanceOf(admin));
+        weth.transfer(zeroAddress, weth.balanceOf(admin));
 
         hevm.expectRevert(abi.encodePacked("insufficient balance to compound"));
         distributor.claim(1, true);

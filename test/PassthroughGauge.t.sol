@@ -24,7 +24,10 @@ contract PassthroughGaugeTest is BaseTest {
     // https://snapshot.org/#/cvx.eth/proposal/0xd7db40d1ca142cb5ca24bce5d0f78f3b037fde6c7ebb3c3650a317e910278b1f
     bytes32 public proposal = 0xd7db40d1ca142cb5ca24bce5d0f78f3b037fde6c7ebb3c3650a317e910278b1f;
 
-    // Contract that receives votium bribes
+    // Votium contract that is sent rewards
+    address votiumReceiver = 0x19BBC3463Dd8d07f55438014b021Fb457EBD4595;
+
+    // Votium contract that receives rewards (via the receiver)
     address votiumStash = 0x378Ba9B73309bE80BF4C2c027aAD799766a7ED5A;
 
     // Pool addresses
@@ -34,9 +37,9 @@ contract PassthroughGaugeTest is BaseTest {
     address sushiPoolAddress = 0x7519C93fC5073E15d89131fD38118D73A72370F8;
 
     // Votium pool indexes
-    uint256 alUsdPool = 34;
-    uint256 alEthPool = 46;
-    uint256 alUsdFraxBpPool = 105;
+    uint256 alUsdIndex = 34;
+    uint256 alEthIndex = 46;
+    uint256 alUsdFraxBpIndex = 105;
 
     function setUp() public {
         setupBaseTest();
@@ -84,12 +87,12 @@ contract PassthroughGaugeTest is BaseTest {
         minter.initialize();
 
         // Create votium gauges
-        voter.createGauge(alUsdPoolAddress, Voter.GaugeType.Curve, alUsdPool);
-        voter.createGauge(alEthPoolAddress, Voter.GaugeType.Curve, alEthPool);
-        voter.createGauge(alUsdFraxBpPoolAddress, Voter.GaugeType.Curve, alUsdFraxBpPool);
+        voter.createGauge(alUsdPoolAddress, Voter.GaugeType.Curve, alUsdIndex, votiumReceiver);
+        voter.createGauge(alEthPoolAddress, Voter.GaugeType.Curve, alEthIndex, votiumReceiver);
+        voter.createGauge(alUsdFraxBpPoolAddress, Voter.GaugeType.Curve, alUsdFraxBpIndex, votiumReceiver);
 
         // Create sushi gauge
-        voter.createGauge(sushiPoolAddress, Voter.GaugeType.Passthrough, uint256(0));
+        voter.createGauge(sushiPoolAddress, Voter.GaugeType.Passthrough, uint256(0), zeroAddress);
 
         // Get address of new gauges
         address alUsdGaugeAddress = voter.gauges(alUsdPoolAddress);

@@ -36,6 +36,7 @@ abstract contract BaseTest is DSTestPlus {
     address public alUSDPool = 0x9735F7d3Ea56b454b24fFD74C58E9bD85cfaD31B;
     address public USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address public priceFeed = 0x194a9AaF2e0b67c35915cD01101585A33Fe25CAa;
+    address public zeroAddress = address(0xdead);
     IERC20 public weth = IERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
     address public bpt;
     IVault public balancerVault = IVault(0xBA12222222228d8Ba445958a75a0704d566BF2C8);

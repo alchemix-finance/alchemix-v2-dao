@@ -226,10 +226,17 @@ contract Voter {
         emit Whitelisted(msg.sender, _token);
     }
 
+    /// @notice Creates a gauge for a pool
+    /// @dev Index and receiver are votium specific parameters and should be 0 and 0xdead for other gauge types
+    /// @param _pool address of the pool the gauge is for
+    /// @param _gaugeType type of gauge being created
+    /// @param _index index of the votium pool for a Curve gauge
+    /// @param _receiver votium contract that receives and handles rewards
     function createGauge(
         address _pool,
         GaugeType _gaugeType,
-        uint256 _index
+        uint256 _index,
+        address _receiver
     ) external returns (address) {
         require(gauges[_pool] == address(0x0), "exists");
         require(msg.sender == executor, "only executor creates gauges");
@@ -243,7 +250,7 @@ contract Voter {
             _gauge = IGaugeFactory(gaugefactory).createStakingGauge(_pool, _bribe, veALCX);
         }
         if (_gaugeType == GaugeType.Curve) {
-            _gauge = IGaugeFactory(gaugefactory).createCurveGauge(_bribe, veALCX, _index);
+            _gauge = IGaugeFactory(gaugefactory).createCurveGauge(_bribe, veALCX, _index, _receiver);
         }
         if (_gaugeType == GaugeType.Passthrough) {
             _gauge = IGaugeFactory(gaugefactory).createPassthroughGauge(_pool, _bribe, veALCX);

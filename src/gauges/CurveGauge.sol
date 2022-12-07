@@ -26,19 +26,17 @@ contract CurveGauge is BaseGauge {
     // Rewards token for pool
     address public rewardToken;
 
-    // Votium contract that is sent rewards
-    address public votiumReceiver = 0x19BBC3463Dd8d07f55438014b021Fb457EBD4595;
-
     constructor(
         address _bribe,
         address _ve,
         address _voter,
-        uint256 _index
+        uint256 _index,
+        address _receiver
     ) {
         bribe = _bribe;
         ve = _ve;
         voter = _voter;
-        receiver = votiumReceiver;
+        receiver = _receiver;
 
         poolIndex = _index;
 

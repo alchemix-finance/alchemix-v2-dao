@@ -13,7 +13,8 @@ interface IGaugeFactory {
     function createCurveGauge(
         address,
         address,
-        uint256
+        uint256,
+        address
     ) external returns (address);
 
     function createPassthroughGauge(
