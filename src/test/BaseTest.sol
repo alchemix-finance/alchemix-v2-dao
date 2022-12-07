@@ -2,7 +2,7 @@
 pragma solidity ^0.8.15;
 
 import "lib/forge-std/src/console2.sol";
-import { DSTest } from "ds-test/test.sol";
+import { Test } from "lib/forge-std/src/Test.sol";
 import { DSTestPlus } from "./utils/DSTestPlus.sol";
 import { VotingEscrow } from "src/VotingEscrow.sol";
 import { AlchemixGovernor } from "src/AlchemixGovernor.sol";
@@ -26,11 +26,12 @@ import { IBasePool } from "src/interfaces/balancer/IBasePool.sol";
 import { IAsset } from "src/interfaces/balancer/IAsset.sol";
 import { IWETH9 } from "src/interfaces/IWETH9.sol";
 
-abstract contract BaseTest is DSTestPlus {
+contract BaseTest is DSTestPlus {
     IAlchemixToken public alcx = IAlchemixToken(0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF);
     IERC20 public galcx = IERC20(0x93Dede06AE3B5590aF1d4c111BC54C3f717E4b35);
     WeightedPool2TokensFactory poolFactory = WeightedPool2TokensFactory(0xA5bf2ddF098bb0Ef6d120C98217dD6B141c74EE0);
     address constant admin = 0x8392F6669292fA56123F71949B52d883aE57e225;
+    address constant devmsig = 0x9e2b6378ee8ad2A4A95Fe481d63CAba8FB0EBBF9;
     address account = address(0xbeef);
     address public alETHPool = 0xC4C319E2D4d66CcA4464C0c2B32c9Bd23ebe784e;
     address public alUSDPool = 0x9735F7d3Ea56b454b24fFD74C58E9bD85cfaD31B;

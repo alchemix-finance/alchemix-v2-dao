@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.15;
 
-import { IERC721, IERC721Metadata } from "openzeppelin-contracts/contracts/token/ERC721/extensions/IERC721Metadata.sol";
-import { IVotes } from "openzeppelin-contracts/contracts/governance/utils/IVotes.sol";
-import { IERC721Receiver } from "openzeppelin-contracts/contracts/token/ERC721/IERC721Receiver.sol";
-import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import { IERC721, IERC721Metadata } from "../lib/openzeppelin-contracts/contracts/token/ERC721/extensions/IERC721Metadata.sol";
+import { IVotes } from "../lib/openzeppelin-contracts/contracts/governance/utils/IVotes.sol";
+import { IERC721Receiver } from "../lib/openzeppelin-contracts/contracts/token/ERC721/IERC721Receiver.sol";
+import { IERC20 } from "../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { IVotingEscrow } from "src/interfaces/IVotingEscrow.sol";
 import { IManaToken } from "./interfaces/IManaToken.sol";
 import { Base64 } from "src/libraries/Base64.sol";
@@ -65,6 +65,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     int256 internal constant iMAXTIME = 365 days;
     uint256 internal constant MULTIPLIER = 26 ether;
     int256 internal constant iMULTIPLIER = 26 ether;
+    uint256 public constant EPOCH = 2 weeks;
 
     address public immutable ALCX;
     uint256 public supply;
@@ -85,6 +86,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     uint256 public epoch;
     mapping(uint256 => Point) public pointHistory; // epoch -> unsigned point
     mapping(uint256 => Point[1000000000]) public userPointHistory; // user -> Point[userEpoch]
+    mapping(uint256 => uint256) public userFirstEpoch; // user -> epoch
 
     mapping(uint256 => uint256) public userPointEpoch;
     mapping(uint256 => int256) public slopeChanges; // time -> signed slope change
@@ -213,6 +215,13 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     /// @return Epoch time of the checkpoint
     function userPointHistoryTimestamp(uint256 _tokenId, uint256 _idx) external view returns (uint256) {
         return userPointHistory[_tokenId][_idx].ts;
+    }
+
+    /// @notice Get the timestamp for checkpoint `_idx`
+    /// @param _idx User epoch number
+    /// @return Epoch time of the checkpoint
+    function pointHistoryTimestamp(uint256 _idx) external view returns (uint256) {
+        return pointHistory[_idx].ts;
     }
 
     /// @notice Get timestamp when `_tokenId`'s lock finishes
@@ -520,6 +529,8 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         _moveTokenDelegates(address(0), delegates(_to), _tokenId);
         // Add token. Throws if `_tokenId` is owned by someone
         _addTokenTo(_to, _tokenId);
+        // Mark first epoch
+        userFirstEpoch[_tokenId] = epoch;
         emit Transfer(address(0), _to, _tokenId);
         return true;
     }
@@ -1356,7 +1367,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
             } else {
                 dSlope = slopeChanges[_time];
             }
-            lastPoint.bias -= (lastPoint.slope * (int256(_time - lastPoint.ts)));
+            lastPoint.bias -= (lastPoint.slope * (int256(_time) - int256(lastPoint.ts)));
             if (_time == t) {
                 break;
             }
