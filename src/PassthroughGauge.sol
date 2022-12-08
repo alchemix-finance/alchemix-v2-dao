@@ -2,7 +2,7 @@
 pragma solidity ^0.8.15;
 
 import "src/interfaces/IBribe.sol";
-import "src/interfaces/IERC20.sol";
+import "../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import "src/interfaces/IVoter.sol";
 import "src/interfaces/IVotingEscrow.sol";
 import "src/BaseGauge.sol";

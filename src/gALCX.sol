@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.15;
 
-import {IERC20} from "../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import {ERC20} from "solmate/tokens/ERC20.sol";
+import { IERC20 } from "../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import { ERC20 } from "solmate/tokens/ERC20.sol";
 
-import {IALCXSource} from "./interfaces/IALCXSource.sol";
+import { IALCXSource } from "./interfaces/IALCXSource.sol";
 
 /// @title A wrapper for single-sided ALCX staking
 contract gALCX is ERC20 {
-
     IERC20 public alcx = IERC20(0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF);
     IALCXSource public pools = IALCXSource(0xAB8e74017a8Cc7c15FFcCd726603790d26d7DeCa);
     uint256 public poolId = 1;
@@ -29,7 +28,7 @@ contract gALCX is ERC20 {
 
     // OWNERSHIP
 
-    modifier onlyOwner {
+    modifier onlyOwner() {
         require(msg.sender == owner, "Not owner");
         _;
     }
@@ -90,7 +89,7 @@ contract gALCX is ERC20 {
         require(success, "Transfer failed");
         pools.deposit(poolId, amount);
         // gAmount always <= amount
-        uint256 gAmount = amount * exchangeRatePrecision / exchangeRate;
+        uint256 gAmount = (amount * exchangeRatePrecision) / exchangeRate;
         _mint(msg.sender, gAmount);
         emit Stake(msg.sender, gAmount, amount);
     }
@@ -99,7 +98,7 @@ contract gALCX is ERC20 {
     /// @param gAmount the amount of gALCX to withdraw
     function unstake(uint256 gAmount) external {
         bumpExchangeRate();
-        uint256 amount = gAmount * exchangeRate / exchangeRatePrecision;
+        uint256 amount = (gAmount * exchangeRate) / exchangeRatePrecision;
         _burn(msg.sender, gAmount);
         // Withdraw ALCX and send to user
         pools.withdraw(poolId, amount);
