@@ -26,9 +26,7 @@ contract VotingTest is BaseTest {
         bribeFactory = new BribeFactory();
         voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory), address(MANA));
 
-        address[] memory tokens = new address[](1);
-        tokens[0] = address(alcx);
-        voter.initialize(tokens, admin);
+        voter.initialize(address(alcx), admin);
 
         IERC20(bpt).approve(address(veALCX), TOKEN_1);
         veALCX.createLock(TOKEN_1, MAXTIME, false);

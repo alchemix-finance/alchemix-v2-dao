@@ -39,11 +39,8 @@ contract StakingGaugeTest is BaseTest {
 
         minter = new Minter(params);
 
-        address[] memory tokens = new address[](1);
-        tokens[0] = address(alcx);
-
         // Initialize after minter is created to set minter address
-        voter.initialize(tokens, address(minter));
+        voter.initialize(address(alcx), address(minter));
 
         distributor.setDepositor(address(minter));
 

@@ -26,9 +26,7 @@ contract MinterTest is BaseTest {
         bribeFactory = new BribeFactory();
         voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory), address(MANA));
 
-        address[] memory tokens = new address[](1);
-        tokens[0] = address(alcx);
-        voter.initialize(tokens, admin);
+        voter.initialize(address(alcx), admin);
 
         veALCX.createLock(TOKEN_1, MAXTIME, false);
 

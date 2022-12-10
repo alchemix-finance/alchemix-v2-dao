@@ -90,11 +90,9 @@ contract Voter {
         _;
     }
 
-    function initialize(address[] memory _tokens, address _minter) external {
+    function initialize(address _token, address _minter) external {
         require(msg.sender == minter);
-        for (uint256 i = 0; i < _tokens.length; i++) {
-            _whitelist(_tokens[i]);
-        }
+        _whitelist(_token);
         minter = _minter;
     }
 
