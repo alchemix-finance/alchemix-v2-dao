@@ -107,44 +107,4 @@ contract StakingGauge is BaseGauge {
         IVoter(voter).emitWithdraw(tokenId, msg.sender, amount);
         emit Withdraw(msg.sender, tokenId, amount);
     }
-
-    function notifyRewardAmount(
-        address token,
-        uint256 amount,
-        bytes32 proposal
-    ) external override lock {
-        proposal = bytes32(0);
-        require(token != stake);
-        require(amount > 0);
-        if (!isReward[token]) {
-            require(rewards.length < MAX_REWARD_TOKENS, "too many rewards tokens");
-        }
-        // rewards accrue only during the bribe period
-        uint256 bribeStart = block.timestamp - (block.timestamp % (7 days)) + BRIBE_LAG;
-        uint256 adjustedTstamp = block.timestamp < bribeStart ? bribeStart : bribeStart + 7 days;
-        if (rewardRate[token] == 0) _writeRewardPerTokenCheckpoint(token, 0, adjustedTstamp);
-        (rewardPerTokenStored[token], lastUpdateTime[token]) = _updateRewardPerToken(token);
-
-        if (block.timestamp >= periodFinish[token]) {
-            _safeTransferFrom(token, msg.sender, address(this), amount);
-            rewardRate[token] = amount / DURATION;
-        } else {
-            uint256 _remaining = periodFinish[token] - block.timestamp;
-            uint256 _left = _remaining * rewardRate[token];
-            require(amount > _left);
-            _safeTransferFrom(token, msg.sender, address(this), amount);
-            rewardRate[token] = (amount + _left) / DURATION;
-        }
-        require(rewardRate[token] > 0);
-        uint256 balance = IERC20(token).balanceOf(address(this));
-        require(rewardRate[token] <= balance / DURATION, "Provided reward too high");
-        periodFinish[token] = adjustedTstamp + DURATION;
-        if (!isReward[token]) {
-            isReward[token] = true;
-            rewards.push(token);
-            IBribe(bribe).addRewardToken(token);
-        }
-
-        emit NotifyReward(msg.sender, token, amount);
-    }
 }

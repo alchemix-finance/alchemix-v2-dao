@@ -2,11 +2,11 @@
 pragma solidity ^0.8.15;
 
 interface IBaseGauge {
-    function notifyRewardAmount(
-        address token,
-        uint256 amount,
-        bytes32 proposal
-    ) external;
+    function setAdmin(address _admin) external;
+
+    function acceptAdmin() external;
+
+    function notifyRewardAmount(address token, uint256 amount) external;
 
     function deliverBribes() external;
 

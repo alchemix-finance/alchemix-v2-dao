@@ -78,6 +78,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     uint256 public manaPerVeALCX;
 
     address public admin; // the timelock executor
+    address public pendingAdmin; // the timelock executor
 
     mapping(uint256 => LockedBalance) public locked;
 
@@ -984,7 +985,12 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
     function setAdmin(address _admin) external {
         require(msg.sender == admin, "not admin");
-        admin = _admin;
+        pendingAdmin = _admin;
+    }
+
+    function acceptAdmin() external {
+        require(msg.sender == pendingAdmin, "not pending admin");
+        admin = pendingAdmin;
     }
 
     function setManaPerVeALCX(uint256 _manaPerVeALCX) external {

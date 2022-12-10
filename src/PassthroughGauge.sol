@@ -10,37 +10,10 @@ import "src/BaseGauge.sol";
 /// @title Passthrough Gauge
 /// @notice Generic Gauge to handle distribution of rewards without pool specific passthrough logic
 /// @dev If custom distribution logic is necessary create additional contract
-contract PassthroughGauge is BaseGauge {
-    event Deposit(address indexed from, uint256 tokenId, uint256 amount);
-    event Withdraw(address indexed from, uint256 tokenId, uint256 amount);
+abstract contract PassthroughGauge is BaseGauge {
+    address public receiver;
+
     event Passthrough(address indexed from, address token, uint256 amount, address receiver);
-
-    address public rewardToken;
-
-    constructor(
-        address _receiver,
-        address _bribe,
-        address _ve,
-        address _voter
-    ) {
-        bribe = _bribe;
-        ve = _ve;
-        voter = _voter;
-        receiver = _receiver;
-
-        admin = msg.sender;
-
-        IBribe(bribe).setGauge(address(this));
-        rewardToken = IVotingEscrow(ve).ALCX();
-        IBribe(bribe).addRewardToken(rewardToken);
-        isReward[rewardToken] = true;
-        rewards.push(rewardToken);
-    }
-
-    function setAdmin(address _admin) external {
-        require(msg.sender == admin, "not admin");
-        admin = _admin;
-    }
 
     function updateReceiver(address _receiver) external {
         require(msg.sender == admin, "not admin");
@@ -49,8 +22,9 @@ contract PassthroughGauge is BaseGauge {
 
     /// @notice Pass rewards to pool
     /// @param _amount Amount of rewards
-    function _passthroughRewards(uint256 _amount) internal {
+    function passthroughRewards(uint256 _amount) public virtual {
         require(_amount > 0, "insufficient amount");
+        require(msg.sender == voter, "not voter");
 
         uint256 rewardBalance = IERC20(rewardToken).balanceOf(address(this));
         require(rewardBalance >= _amount, "insufficient rewards");
@@ -62,12 +36,7 @@ contract PassthroughGauge is BaseGauge {
         emit Passthrough(msg.sender, rewardToken, _amount, receiver);
     }
 
-    function notifyRewardAmount(
-        address token,
-        uint256 _amount,
-        bytes32 _proposal
-    ) external override lock {
-        _proposal = bytes32(0);
+    function notifyRewardAmount(address token, uint256 _amount) external override lock {
         require(_amount > 0, "insufficient amount");
         if (!isReward[token]) {
             require(rewards.length < MAX_REWARD_TOKENS, "too many rewards tokens");
@@ -100,6 +69,6 @@ contract PassthroughGauge is BaseGauge {
 
         emit NotifyReward(msg.sender, token, _amount);
 
-        _passthroughRewards(_amount);
+        passthroughRewards(_amount);
     }
 }

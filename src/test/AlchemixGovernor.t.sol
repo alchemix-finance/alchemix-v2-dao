@@ -62,29 +62,32 @@ contract AlchemixGovernorTest is BaseTest {
         alcx.grantRole(keccak256("MINTER"), address(minter));
 
         alcx.approve(address(gaugeFactory), 15 * TOKEN_100K);
-        voter.createGauge(alETHPool, Voter.GaugeType.Staking, uint256(0), zeroAddress);
+        voter.createGauge(alETHPool, Voter.GaugeType.Staking);
         address gaugeAddress = voter.gauges(alETHPool);
         address bribeAddress = voter.bribes(gaugeAddress);
         gauge = StakingGauge(gaugeAddress);
         bribe = Bribe(bribeAddress);
 
         timelockExecutor = new TimelockExecutor(1 days);
-
         governor = new AlchemixGovernor(veALCX, TimelockExecutor(timelockExecutor));
-        voter.setExecutor(address(timelockExecutor));
+
         timelockExecutor.setAdmin(address(governor));
+        voter.setExecutor(address(timelockExecutor));
+
         hevm.stopPrank();
 
-        hevm.startPrank(address(governor));
+        hevm.prank(address(governor));
         timelockExecutor.acceptAdmin();
-        hevm.stopPrank();
+
+        hevm.prank(address(timelockExecutor));
+        voter.acceptExecutor();
     }
 
     function testExecutorCanCreateGaugesForAnyAddress(address a) public {
         hevm.assume(a != address(0));
 
         hevm.startPrank(address(timelockExecutor));
-        voter.createGauge(a, Voter.GaugeType.Staking, uint256(0), zeroAddress);
+        voter.createGauge(a, Voter.GaugeType.Staking);
         hevm.stopPrank();
     }
 

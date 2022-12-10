@@ -10,14 +10,9 @@ interface IGaugeFactory {
         address
     ) external returns (address);
 
-    function createCurveGauge(
-        address,
-        address,
-        uint256,
-        address
-    ) external returns (address);
+    function createCurveGauge(address, address) external returns (address);
 
-    function createPassthroughGauge(
+    function createSushiGauge(
         address,
         address,
         address

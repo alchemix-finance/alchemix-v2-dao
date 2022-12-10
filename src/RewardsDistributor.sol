@@ -402,14 +402,12 @@ contract RewardsDistributor {
 
             return alcxAmount;
         } else {
+            // The fee amount stays in the contract effectively redistributing it to veALCX holders
             uint256 feeAmount = (alcxAmount * IVotingEscrow(votingEscrow).claimFeeBps()) / BPS;
             uint256 claimAmount = alcxAmount - feeAmount;
 
             // Transfer rewards to veALCX owner
             IERC20(rewardsToken).safeTransfer(owner, claimAmount);
-
-            // Reallocate fee to veALCX rewards
-            IERC20(rewardsToken).safeTransfer(address(this), feeAmount);
 
             return claimAmount;
         }

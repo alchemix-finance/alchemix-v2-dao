@@ -18,6 +18,7 @@ contract Voter {
     address public immutable bribefactory;
     address public minter;
     address public executor; // should be set to the timelock executor
+    address public pendingExecutor;
     address public emergencyCouncil; // credibly neutral party similar to Curve's Emergency DAO
 
     uint256 public totalWeight; // total voting weight
@@ -28,7 +29,7 @@ contract Voter {
     // Type of gauge being created
     enum GaugeType {
         Staking,
-        Passthrough,
+        Sushi,
         Curve
     }
 
@@ -97,9 +98,14 @@ contract Voter {
         minter = _minter;
     }
 
-    function setExecutor(address _executor) public {
-        require(msg.sender == executor);
-        executor = _executor;
+    function setExecutor(address _executor) external {
+        require(msg.sender == executor, "not executor");
+        pendingExecutor = _executor;
+    }
+
+    function acceptExecutor() external {
+        require(msg.sender == pendingExecutor, "not pending admin");
+        executor = pendingExecutor;
     }
 
     function setEmergencyCouncil(address _council) public {
@@ -230,14 +236,7 @@ contract Voter {
     /// @dev Index and receiver are votium specific parameters and should be 0 and 0xdead for other gauge types
     /// @param _pool address of the pool the gauge is for
     /// @param _gaugeType type of gauge being created
-    /// @param _index index of the votium pool for a Curve gauge
-    /// @param _receiver votium contract that receives and handles rewards
-    function createGauge(
-        address _pool,
-        GaugeType _gaugeType,
-        uint256 _index,
-        address _receiver
-    ) external returns (address) {
+    function createGauge(address _pool, GaugeType _gaugeType) external returns (address) {
         require(gauges[_pool] == address(0x0), "exists");
         require(msg.sender == executor, "only executor creates gauges");
 
@@ -250,10 +249,10 @@ contract Voter {
             _gauge = IGaugeFactory(gaugefactory).createStakingGauge(_pool, _bribe, veALCX);
         }
         if (_gaugeType == GaugeType.Curve) {
-            _gauge = IGaugeFactory(gaugefactory).createCurveGauge(_bribe, veALCX, _index, _receiver);
+            _gauge = IGaugeFactory(gaugefactory).createCurveGauge(_bribe, veALCX);
         }
-        if (_gaugeType == GaugeType.Passthrough) {
-            _gauge = IGaugeFactory(gaugefactory).createPassthroughGauge(_pool, _bribe, veALCX);
+        if (_gaugeType == GaugeType.Sushi) {
+            _gauge = IGaugeFactory(gaugefactory).createSushiGauge(_pool, _bribe, veALCX);
         }
 
         IERC20(base).approve(_gauge, type(uint256).max);
@@ -376,13 +375,13 @@ contract Voter {
         }
     }
 
-    function distribute(address _gauge, bytes32 _proposal) public lock {
+    function distribute(address _gauge) public lock {
         IMinter(minter).updatePeriod();
         _updateFor(_gauge);
         uint256 _claimable = claimable[_gauge];
         if (_claimable > IBaseGauge(_gauge).left(base) && _claimable / DURATION > 0) {
             claimable[_gauge] = 0;
-            IBaseGauge(_gauge).notifyRewardAmount(base, _claimable, _proposal);
+            IBaseGauge(_gauge).notifyRewardAmount(base, _claimable);
             emit DistributeReward(msg.sender, _gauge, _claimable);
             // distribute bribes & fees too
             IBaseGauge(_gauge).deliverBribes();
@@ -399,13 +398,13 @@ contract Voter {
 
     function distribute(uint256 start, uint256 finish) public {
         for (uint256 x = start; x < finish; x++) {
-            distribute(gauges[pools[x]], bytes32(0));
+            distribute(gauges[pools[x]]);
         }
     }
 
-    function distribute(address[] memory _gauges, bytes32 _proposal) external {
+    function distribute(address[] memory _gauges) external {
         for (uint256 x = 0; x < _gauges.length; x++) {
-            distribute(_gauges[x], _proposal);
+            distribute(_gauges[x]);
         }
     }
 

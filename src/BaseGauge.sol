@@ -15,7 +15,9 @@ abstract contract BaseGauge is IBaseGauge {
     address public bribe;
     address public voter;
     address public admin;
-    address public receiver;
+    address public pendingAdmin;
+    address public rewardToken;
+
     address factory;
 
     uint256 public derivedSupply;
@@ -93,6 +95,16 @@ abstract contract BaseGauge is IBaseGauge {
         _unlocked = 2;
         _;
         _unlocked = 1;
+    }
+
+    function setAdmin(address _admin) external {
+        require(msg.sender == admin, "not admin");
+        pendingAdmin = _admin;
+    }
+
+    function acceptAdmin() external {
+        require(msg.sender == pendingAdmin, "not pending admin");
+        admin = pendingAdmin;
     }
 
     function getVotingStage(uint256 timestamp) public pure returns (VotingStage) {

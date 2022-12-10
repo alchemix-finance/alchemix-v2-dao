@@ -86,13 +86,13 @@ contract PassthroughGaugeTest is BaseTest {
 
         minter.initialize();
 
-        // Create votium gauges
-        voter.createGauge(alUsdPoolAddress, Voter.GaugeType.Curve, alUsdIndex, votiumReceiver);
-        voter.createGauge(alEthPoolAddress, Voter.GaugeType.Curve, alEthIndex, votiumReceiver);
-        voter.createGauge(alUsdFraxBpPoolAddress, Voter.GaugeType.Curve, alUsdFraxBpIndex, votiumReceiver);
+        // Create curve gauges
+        voter.createGauge(alUsdPoolAddress, Voter.GaugeType.Curve);
+        voter.createGauge(alEthPoolAddress, Voter.GaugeType.Curve);
+        voter.createGauge(alUsdFraxBpPoolAddress, Voter.GaugeType.Curve);
 
         // Create sushi gauge
-        voter.createGauge(sushiPoolAddress, Voter.GaugeType.Passthrough, uint256(0), zeroAddress);
+        voter.createGauge(sushiPoolAddress, Voter.GaugeType.Sushi);
 
         // Get address of new gauges
         address alUsdGaugeAddress = voter.gauges(alUsdPoolAddress);
@@ -104,6 +104,10 @@ contract PassthroughGaugeTest is BaseTest {
         alEthGauge = CurveGauge(alEthGaugeAddress);
         alUsdFraxBpGauge = CurveGauge(alUsdFraxBpGaugeAddress);
         sushiGauge = PassthroughGauge(sushiGaugeAddress);
+
+        alUsdGauge.initialize(alUsdIndex, votiumReceiver);
+        alEthGauge.initialize(alEthIndex, votiumReceiver);
+        alUsdFraxBpGauge.initialize(alUsdFraxBpIndex, votiumReceiver);
 
         hevm.stopPrank();
     }
@@ -153,7 +157,11 @@ contract PassthroughGaugeTest is BaseTest {
         uint256 alEthGaugeClaimable = voter.claimable(address(alEthGauge));
         uint256 alUsdFraxBpGaugeClaimable = voter.claimable(address(alUsdFraxBpGauge));
 
-        voter.distribute(gauges, proposal);
+        alUsdGauge.updateProposal(proposal);
+        alEthGauge.updateProposal(proposal);
+        alUsdFraxBpGauge.updateProposal(proposal);
+
+        voter.distribute(gauges);
 
         uint256 sushiBalanceAfter = alcx.balanceOf(sushiPoolAddress);
 
