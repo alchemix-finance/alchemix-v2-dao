@@ -12,7 +12,7 @@ interface IGaugeFactory {
 
     function createCurveGauge(address, address) external returns (address);
 
-    function createSushiGauge(
+    function createPassthroughGauge(
         address,
         address,
         address

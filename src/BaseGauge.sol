@@ -17,6 +17,7 @@ abstract contract BaseGauge is IBaseGauge {
     address public admin;
     address public pendingAdmin;
     address public rewardToken;
+    address public receiver;
 
     address factory;
 
@@ -87,6 +88,7 @@ abstract contract BaseGauge is IBaseGauge {
 
     event NotifyReward(address indexed from, address indexed reward, uint256 amount);
     event ClaimRewards(address indexed from, address indexed reward, uint256 amount);
+    event Passthrough(address indexed from, address token, uint256 amount, address receiver);
 
     // Re-entrancy check
     uint256 internal _unlocked = 1;
@@ -105,6 +107,11 @@ abstract contract BaseGauge is IBaseGauge {
     function acceptAdmin() external {
         require(msg.sender == pendingAdmin, "not pending admin");
         admin = pendingAdmin;
+    }
+
+    function updateReceiver(address _receiver) external {
+        require(msg.sender == admin, "not admin");
+        receiver = _receiver;
     }
 
     function getVotingStage(uint256 timestamp) public pure returns (VotingStage) {
@@ -504,41 +511,47 @@ abstract contract BaseGauge is IBaseGauge {
         return _remaining * rewardRate[token];
     }
 
-    function notifyRewardAmount(address token, uint256 amount) external virtual lock {
-        require(msg.sender == address(0), "override to use function");
-        require(token != stake);
-        require(amount > 0);
-        if (!isReward[token]) {
+    function notifyRewardAmount(address _token, uint256 _amount) external lock {
+        require(msg.sender == voter, "not voter");
+        require(_token != stake);
+        require(_amount > 0);
+        if (!isReward[_token]) {
             require(rewards.length < MAX_REWARD_TOKENS, "too many rewards tokens");
         }
         // rewards accrue only during the bribe period
         uint256 bribeStart = block.timestamp - (block.timestamp % (7 days)) + BRIBE_LAG;
         uint256 adjustedTstamp = block.timestamp < bribeStart ? bribeStart : bribeStart + 7 days;
-        if (rewardRate[token] == 0) _writeRewardPerTokenCheckpoint(token, 0, adjustedTstamp);
-        (rewardPerTokenStored[token], lastUpdateTime[token]) = _updateRewardPerToken(token);
+        if (rewardRate[_token] == 0) _writeRewardPerTokenCheckpoint(_token, 0, adjustedTstamp);
+        (rewardPerTokenStored[_token], lastUpdateTime[_token]) = _updateRewardPerToken(_token);
 
-        if (block.timestamp >= periodFinish[token]) {
-            _safeTransferFrom(token, msg.sender, address(this), amount);
-            rewardRate[token] = amount / DURATION;
+        if (block.timestamp >= periodFinish[_token]) {
+            _safeTransferFrom(_token, msg.sender, address(this), _amount);
+            rewardRate[_token] = _amount / DURATION;
         } else {
-            uint256 _remaining = periodFinish[token] - block.timestamp;
-            uint256 _left = _remaining * rewardRate[token];
-            require(amount > _left);
-            _safeTransferFrom(token, msg.sender, address(this), amount);
-            rewardRate[token] = (amount + _left) / DURATION;
+            uint256 _remaining = periodFinish[_token] - block.timestamp;
+            uint256 _left = _remaining * rewardRate[_token];
+            require(_amount > _left);
+            _safeTransferFrom(_token, msg.sender, address(this), _amount);
+            rewardRate[_token] = (_amount + _left) / DURATION;
         }
-        require(rewardRate[token] > 0);
-        uint256 balance = IERC20(token).balanceOf(address(this));
-        require(rewardRate[token] <= balance / DURATION, "Provided reward too high");
-        periodFinish[token] = adjustedTstamp + DURATION;
-        if (!isReward[token]) {
-            isReward[token] = true;
-            rewards.push(token);
-            IBribe(bribe).addRewardToken(token);
+        require(rewardRate[_token] > 0);
+        uint256 balance = IERC20(_token).balanceOf(address(this));
+        require(rewardRate[_token] <= balance / DURATION, "Provided reward too high");
+        periodFinish[_token] = adjustedTstamp + DURATION;
+        if (!isReward[_token]) {
+            isReward[_token] = true;
+            rewards.push(_token);
+            IBribe(bribe).addRewardToken(_token);
         }
 
-        emit NotifyReward(msg.sender, token, amount);
+        emit NotifyReward(msg.sender, _token, _amount);
+
+        _passthroughRewards(_amount);
     }
+
+    /// @notice Override function to implement passthrough logic
+    /// @param _amount Amount of rewards
+    function _passthroughRewards(uint256 _amount) internal virtual {}
 
     function swapOutRewardToken(
         uint256 i,

@@ -5,14 +5,14 @@ import "src/interfaces/IBribe.sol";
 import "../../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import "src/interfaces/IVotingEscrow.sol";
 import "src/interfaces/IVoter.sol";
-import "src/PassthroughGauge.sol";
+import "src/BaseGauge.sol";
 import { IVotiumBribe } from "src/interfaces/votium/IVotiumBribe.sol";
 import { SafeERC20 } from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /// @title Curve Gauge
 /// @notice Gauge to handle distribution of rewards to a given Curve pool via Votium
 /// @dev Pool index is subject to change and proposal id is located in the snapshot url
-contract CurveGauge is PassthroughGauge {
+contract CurveGauge is BaseGauge {
     using SafeERC20 for IERC20;
 
     // Votium pool index (subject to change)
@@ -28,6 +28,8 @@ contract CurveGauge is PassthroughGauge {
     bool initialized;
 
     event ProposalUpdated(bytes32 indexed newProposal, bool proposalUpdated);
+    event IndexUpdated(uint256 indexed newIndex);
+    event Initialized(uint256 poolIndex, address receiver, bool initialized);
 
     constructor(
         address _bribe,
@@ -59,6 +61,8 @@ contract CurveGauge is PassthroughGauge {
         receiver = _receiver;
         poolIndex = _poolIndex;
         initialized = true;
+
+        emit Initialized(poolIndex, receiver, initialized);
     }
 
     /// @notice Update the pool index
@@ -67,6 +71,8 @@ contract CurveGauge is PassthroughGauge {
     function updateIndex(uint256 _poolIndex) external {
         require(msg.sender == admin, "not admin");
         poolIndex = _poolIndex;
+
+        emit IndexUpdated(poolIndex);
     }
 
     /// @notice Set the proposal id
@@ -80,9 +86,13 @@ contract CurveGauge is PassthroughGauge {
         emit ProposalUpdated(proposal, proposalUpdated);
     }
 
+    /*
+        Internal functions
+    */
+
     /// @notice Pass rewards to votium contract
     /// @param _amount Amount of rewards
-    function passthroughRewards(uint256 _amount) public override {
+    function _passthroughRewards(uint256 _amount) internal override {
         require(initialized, "gauge must me initialized");
         require(_amount > 0, "insufficient amount");
         require(msg.sender == voter, "not voter");

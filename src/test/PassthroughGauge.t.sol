@@ -89,7 +89,7 @@ contract PassthroughGaugeTest is BaseTest {
         voter.createGauge(alUsdFraxBpPoolAddress, Voter.GaugeType.Curve);
 
         // Create sushi gauge
-        voter.createGauge(sushiPoolAddress, Voter.GaugeType.Sushi);
+        voter.createGauge(sushiPoolAddress, Voter.GaugeType.Passthrough);
 
         // Get address of new gauges
         address alUsdGaugeAddress = voter.gauges(alUsdPoolAddress);

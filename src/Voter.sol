@@ -31,7 +31,7 @@ contract Voter {
     // Type of gauge being created
     enum GaugeType {
         Staking,
-        Sushi,
+        Passthrough,
         Curve
     }
 
@@ -273,8 +273,8 @@ contract Voter {
         if (_gaugeType == GaugeType.Curve) {
             _gauge = IGaugeFactory(gaugefactory).createCurveGauge(_bribe, veALCX);
         }
-        if (_gaugeType == GaugeType.Sushi) {
-            _gauge = IGaugeFactory(gaugefactory).createSushiGauge(_pool, _bribe, veALCX);
+        if (_gaugeType == GaugeType.Passthrough) {
+            _gauge = IGaugeFactory(gaugefactory).createPassthroughGauge(_pool, _bribe, veALCX);
         }
 
         IERC20(base).approve(_gauge, type(uint256).max);

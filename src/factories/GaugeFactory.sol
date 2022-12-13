@@ -4,7 +4,6 @@ pragma solidity ^0.8.15;
 import "../StakingGauge.sol";
 import "../PassthroughGauge.sol";
 import "../gauges/CurveGauge.sol";
-import "../gauges/SushiGauge.sol";
 
 contract GaugeFactory {
     address public lastGauge;
@@ -23,12 +22,12 @@ contract GaugeFactory {
         return lastGauge;
     }
 
-    function createSushiGauge(
+    function createPassthroughGauge(
         address _receiver,
         address _bribe,
         address _ve
     ) external returns (address) {
-        lastGauge = address(new SushiGauge(_receiver, _bribe, _ve, msg.sender));
+        lastGauge = address(new PassthroughGauge(_receiver, _bribe, _ve, msg.sender));
         return lastGauge;
     }
 }
