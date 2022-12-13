@@ -67,6 +67,8 @@ interface IVotingEscrow {
 
     function claimableMana(uint256 tokenId) external view returns (uint256);
 
+    function accrueMana(uint256 tokenId, uint256 amount) external;
+
     function claimMana(uint256 tokenId, uint256 amount) external;
 
     function ragequit(uint256 tokenId) external;

@@ -76,6 +76,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     address public MANA;
     uint256 public manaMultiplier;
     uint256 public manaPerVeALCX;
+    mapping(uint256 => uint256) public unclaimedMana; // tokenId => amount of unclaimed mana
 
     address public admin; // the timelock executor
     address public pendingAdmin; // the timelock executor
@@ -1253,14 +1254,24 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         return _balanceOfToken(_tokenId, _time);
     }
 
+    // Amount of mana claimable at current epoch
     function claimableMana(uint256 _tokenId) public view returns (uint256) {
         uint256 votingPower = _balanceOfToken(_tokenId, block.timestamp);
         return votingPower * manaMultiplier;
     }
 
+    // Accrue unclaimed mana for a given veALCX
+    function accrueMana(uint256 _tokenId, uint256 _amount) external {
+        require(msg.sender == voter, "not voter");
+        unclaimedMana[_tokenId] += _amount;
+    }
+
+    // Amount of mana to claim
     function claimMana(uint256 _tokenId, uint256 _amount) external {
-        require(msg.sender == voter);
-        require(claimableMana(_tokenId) >= _amount, "amount greater than unclaimed balance");
+        require(_isApprovedOrOwner(msg.sender, _tokenId));
+        require(unclaimedMana[_tokenId] >= _amount, "amount greater than unclaimed balance");
+
+        unclaimedMana[_tokenId] -= _amount;
 
         // MANA is minted to the veALCX owner's address
         IManaToken(MANA).mint(ownerOf(_tokenId), _amount);

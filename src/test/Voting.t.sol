@@ -136,25 +136,64 @@ contract VotingTest is BaseTest {
         hevm.stopPrank();
     }
 
-    // veALCX holders should be able to claim their unclaimed mana
-    function testClaimMana() public {
+    // veALCX holders should be able to accrue their unclaimed mana over epochs
+    function testAccrueMana() public {
         hevm.startPrank(admin);
 
         uint256 claimedBalance = MANA.balanceOf(admin);
+        uint256 unclaimedBalance = veALCX.unclaimedMana(1);
 
         assertEq(claimedBalance, 0);
+        assertEq(unclaimedBalance, 0);
 
         voter.reset(1);
 
-        claimedBalance = MANA.balanceOf(admin);
+        unclaimedBalance = veALCX.unclaimedMana(1);
 
         // Claimed balance is equal to the amount able to be claimed
-        assertEq(claimedBalance, veALCX.claimableMana(1));
+        assertEq(unclaimedBalance, veALCX.claimableMana(1));
+
+        hevm.warp(block.timestamp + 1 weeks);
+
+        voter.reset(1);
+
+        // Add this voting periods claimable mana to the unclaimed balance
+        unclaimedBalance += veALCX.claimableMana(1);
+
+        // The unclaimed balance should equal the total amount of unclaimed mana
+        assertEq(unclaimedBalance, veALCX.unclaimedMana(1));
 
         hevm.stopPrank();
     }
 
-    // veALCX holders can boost their vote with unclaimed MANA
+    // veALCX holder should be able to mint mana they have accrued
+    function testMintMana() public {
+        hevm.startPrank(admin);
+
+        uint256 claimedBalance = MANA.balanceOf(admin);
+        uint256 unclaimedBalance = veALCX.unclaimedMana(1);
+
+        assertEq(claimedBalance, 0);
+        assertEq(unclaimedBalance, 0);
+
+        hevm.expectRevert(abi.encodePacked("amount greater than unclaimed balance"));
+        veALCX.claimMana(1, TOKEN_1);
+
+        voter.reset(1);
+
+        claimedBalance = veALCX.unclaimedMana(1);
+
+        veALCX.claimMana(1, claimedBalance);
+
+        unclaimedBalance = veALCX.unclaimedMana(1);
+
+        assertEq(unclaimedBalance, 0);
+        assertEq(MANA.balanceOf(admin), claimedBalance);
+
+        hevm.stopPrank();
+    }
+
+    // veALCX holders can boost their vote with unclaimed MANA up to a maximum amount
     function testBoostVoteWithMana() public {
         hevm.startPrank(admin);
 
@@ -168,8 +207,19 @@ contract VotingTest is BaseTest {
         uint256 claimableMana = veALCX.claimableMana(1);
         uint256 votingWeight = veALCX.balanceOfToken(1);
 
-        // Vote with half of claimable MANA
-        voter.vote(1, pools, weights, claimableMana / 2);
+        uint256 maxBoostAmount = voter.maxTotalBoost(1);
+
+        uint256 maxManaAmount = voter.maxManaBoost(1);
+
+        // Max boost amount should be the voting weight plus the boost multiplier
+        assertEq(maxBoostAmount, votingWeight + maxManaAmount);
+
+        // Vote should revert if attempting to boost more than the allowed amount
+        hevm.expectRevert(abi.encodePacked("cannot exceed max boost"));
+        voter.vote(1, pools, weights, claimableMana);
+
+        // Vote with the max boost amount
+        voter.vote(1, pools, weights, maxManaAmount);
 
         // Get weight used from boosting with MANA
         uint256 usedWeight = voter.usedWeights(1);
@@ -177,9 +227,10 @@ contract VotingTest is BaseTest {
         // Used weight should be greater when boosting with unused MANA
         assertGt(usedWeight, votingWeight);
 
-        uint256 manaBalance = MANA.balanceOf(admin);
-        // MANA balance should be remainaing MANA not used to boost
-        assertEq(manaBalance, claimableMana / 2);
+        uint256 unclaimedMana = veALCX.unclaimedMana(1);
+
+        // Unclaimed mana balance should be remainaing mana not used to boost
+        assertEq(unclaimedMana, claimableMana - maxManaAmount);
 
         hevm.stopPrank();
     }

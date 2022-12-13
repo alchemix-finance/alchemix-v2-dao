@@ -22,9 +22,11 @@ contract Voter {
     address public emergencyCouncil; // credibly neutral party similar to Curve's Emergency DAO
 
     uint256 public totalWeight; // total voting weight
+    uint256 public boostMultiplier = 5000; // max bps veALCX voting power can be boosted by
 
     uint256 internal constant DURATION = 7 days; // rewards are released over 7 days
     uint256 internal constant BRIBE_LAG = 1 days;
+    uint256 public constant BPS = 10000;
 
     // Type of gauge being created
     enum GaugeType {
@@ -102,7 +104,7 @@ contract Voter {
     }
 
     function acceptExecutor() external {
-        require(msg.sender == pendingExecutor, "not pending admin");
+        require(msg.sender == pendingExecutor, "not pending executor");
         executor = pendingExecutor;
     }
 
@@ -111,13 +113,30 @@ contract Voter {
         emergencyCouncil = _council;
     }
 
+    function setBoostMultiplier(uint256 _boostMultiplier) external {
+        require(msg.sender == executor, "not executor");
+        boostMultiplier = _boostMultiplier;
+    }
+
+    // Get the maximum boost a given veALCX can have by using MANA
+    function maxTotalBoost(uint256 _tokenId) public view returns (uint256) {
+        return
+            IVotingEscrow(veALCX).balanceOfToken(_tokenId) +
+            ((IVotingEscrow(veALCX).balanceOfToken(_tokenId) * boostMultiplier) / BPS);
+    }
+
+    // Get the maximum amount of mana a given veALCX could use as a boost
+    function maxManaBoost(uint256 _tokenId) public view returns (uint256) {
+        return (IVotingEscrow(veALCX).balanceOfToken(_tokenId) * boostMultiplier) / BPS;
+    }
+
     function reset(uint256 _tokenId) external onlyNewEpoch(_tokenId) {
         require(IVotingEscrow(veALCX).isApprovedOrOwner(msg.sender, _tokenId), "not approved or owner");
 
         lastVoted[_tokenId] = block.timestamp;
         _reset(_tokenId);
         IVotingEscrow(veALCX).abstain(_tokenId);
-        IVotingEscrow(veALCX).claimMana(_tokenId, IVotingEscrow(veALCX).claimableMana(_tokenId));
+        IVotingEscrow(veALCX).accrueMana(_tokenId, IVotingEscrow(veALCX).claimableMana(_tokenId));
     }
 
     function _reset(uint256 _tokenId) internal {
@@ -166,6 +185,7 @@ contract Voter {
         uint256 _boost
     ) internal {
         _reset(_tokenId);
+
         uint256 _poolCnt = _poolVote.length;
         uint256 _totalVoteWeight = 0;
         uint256 _totalWeight = 0;
@@ -200,9 +220,9 @@ contract Voter {
         totalWeight += uint256(_totalWeight);
         usedWeights[_tokenId] = uint256(_usedWeight);
 
-        // Claim any mana not used for vote boost
+        // Accrue any mana not used for vote boost
         if (IVotingEscrow(veALCX).claimableMana(_tokenId) > _boost)
-            IVotingEscrow(veALCX).claimMana(_tokenId, IVotingEscrow(veALCX).claimableMana(_tokenId) - _boost);
+            IVotingEscrow(veALCX).accrueMana(_tokenId, IVotingEscrow(veALCX).claimableMana(_tokenId) - _boost);
     }
 
     function vote(
@@ -214,6 +234,10 @@ contract Voter {
         require(IVotingEscrow(veALCX).isApprovedOrOwner(msg.sender, _tokenId));
         require(_poolVote.length == _weights.length);
         require(IVotingEscrow(veALCX).claimableMana(_tokenId) >= _boost, "insufficient claimable MANA balance");
+        require(
+            (IVotingEscrow(veALCX).balanceOfToken(_tokenId) + _boost) <= maxTotalBoost(_tokenId),
+            "cannot exceed max boost"
+        );
 
         lastVoted[_tokenId] = block.timestamp;
         _vote(_tokenId, _poolVote, _weights, _boost);
