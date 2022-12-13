@@ -207,7 +207,7 @@ contract VotingTest is BaseTest {
         uint256 claimableMana = veALCX.claimableMana(1);
         uint256 votingWeight = veALCX.balanceOfToken(1);
 
-        uint256 maxBoostAmount = voter.maxTotalBoost(1);
+        uint256 maxBoostAmount = voter.maxVotingPower(1);
 
         uint256 maxManaAmount = voter.maxManaBoost(1);
 

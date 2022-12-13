@@ -118,8 +118,8 @@ contract Voter {
         boostMultiplier = _boostMultiplier;
     }
 
-    // Get the maximum boost a given veALCX can have by using MANA
-    function maxTotalBoost(uint256 _tokenId) public view returns (uint256) {
+    // Get the maximum voting power a given veALCX can have by using MANA
+    function maxVotingPower(uint256 _tokenId) public view returns (uint256) {
         return
             IVotingEscrow(veALCX).balanceOfToken(_tokenId) +
             ((IVotingEscrow(veALCX).balanceOfToken(_tokenId) * boostMultiplier) / BPS);
@@ -235,7 +235,7 @@ contract Voter {
         require(_poolVote.length == _weights.length);
         require(IVotingEscrow(veALCX).claimableMana(_tokenId) >= _boost, "insufficient claimable MANA balance");
         require(
-            (IVotingEscrow(veALCX).balanceOfToken(_tokenId) + _boost) <= maxTotalBoost(_tokenId),
+            (IVotingEscrow(veALCX).balanceOfToken(_tokenId) + _boost) <= maxVotingPower(_tokenId),
             "cannot exceed max boost"
         );
 
