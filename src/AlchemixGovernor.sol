@@ -1,22 +1,25 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3
 pragma solidity ^0.8.15;
 
 import { IGovernor } from "../lib/openzeppelin-contracts/contracts/governance/IGovernor.sol";
 import { IVotes } from "../lib/openzeppelin-contracts/contracts/governance/utils/IVotes.sol";
-
 import { L2Governor } from "src/governance/L2Governor.sol";
 import { L2GovernorCountingSimple } from "src/governance/L2GovernorCountingSimple.sol";
 import { L2GovernorVotes } from "src/governance/L2GovernorVotes.sol";
 import { L2GovernorVotesQuorumFraction } from "src/governance/L2GovernorVotesQuorumFraction.sol";
-
 import "src/governance/TimelockExecutor.sol";
 
+/**
+ * @title Alchemix Governor
+ * @notice Alchemix specific governance parameters
+ * @dev Extends the Open Zeppelin governance system
+ */
 contract AlchemixGovernor is L2Governor, L2GovernorVotes, L2GovernorVotesQuorumFraction, L2GovernorCountingSimple {
     address public admin;
     address public pendingAdmin;
-    uint256 public constant MAX_PROPOSAL_NUMERATOR = 50; // max 5%
+    uint256 public constant MAX_PROPOSAL_NUMERATOR = 50; // 5%
     uint256 public constant PROPOSAL_DENOMINATOR = 1000;
-    uint256 public proposalNumerator = 2; // start at 0.02%
+    uint256 public proposalNumerator = 2; // 0.02%
 
     constructor(IVotes _ve, TimelockExecutor timelockAddress)
         L2Governor("Alchemix Governor", timelockAddress)
@@ -25,6 +28,18 @@ contract AlchemixGovernor is L2Governor, L2GovernorVotes, L2GovernorVotesQuorumF
     {
         admin = msg.sender;
     }
+
+    /*
+        View functions
+    */
+
+    function proposalThreshold() public view override(L2Governor) returns (uint256) {
+        return (token.getPastTotalSupply(block.timestamp) * proposalNumerator) / PROPOSAL_DENOMINATOR;
+    }
+
+    /*
+        Admin functions
+    */
 
     function setAdmin(address _admin) external {
         require(msg.sender == admin, "not admin");
@@ -40,9 +55,5 @@ contract AlchemixGovernor is L2Governor, L2GovernorVotes, L2GovernorVotesQuorumF
         require(msg.sender == admin, "not admin");
         require(numerator <= MAX_PROPOSAL_NUMERATOR, "numerator too high");
         proposalNumerator = numerator;
-    }
-
-    function proposalThreshold() public view override(L2Governor) returns (uint256) {
-        return (token.getPastTotalSupply(block.timestamp) * proposalNumerator) / PROPOSAL_DENOMINATOR;
     }
 }
