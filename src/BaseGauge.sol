@@ -8,9 +8,11 @@ import "../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import "./interfaces/IBaseGauge.sol";
 import "./interfaces/IVoter.sol";
 
-/// @title  Base Gauge
-/// @notice Implementation of functionality that various gauge types use or extend
-/// @notice Gauges are used to incentivize pools, they emit or passthrough reward tokens for staked LP tokens
+/**
+ * @title  Base Gauge
+ * @notice Implementation of functionality that various gauge types use or extend
+ * @notice Gauges are used to incentivize pools, they emit or passthrough reward tokens for staked LP tokens
+ */
 abstract contract BaseGauge is IBaseGauge {
     uint256 internal constant DURATION = 5 days; // Rewards released over voting period
     uint256 internal constant BRIBE_LAG = 1 days;

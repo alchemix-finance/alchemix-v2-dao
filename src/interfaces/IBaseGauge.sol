@@ -3,7 +3,7 @@ pragma solidity ^0.8.15;
 
 interface IBaseGauge {
     /**
-     * @notice Emitted when the reward amount is calculated for a given veALCX
+     * @notice Emitted when the reward amount is calculated for a given token
      * @param from     The address who called the function
      * @param reward   The address of the reward token
      * @param amount   The amount of the reward

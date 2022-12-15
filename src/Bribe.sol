@@ -5,20 +5,23 @@ import "../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import "./interfaces/IBribe.sol";
 import "./interfaces/IBaseGauge.sol";
 
+/**
+ * @title  Bribe
+ * @notice Implementation of bribe contract to be used with gauges
+ */
 contract Bribe is IBribe {
-    uint256 internal constant DURATION = 5 days; // rewards are released over the voting period
+    uint256 internal constant DURATION = 5 days; // Rewards released over voting period
     uint256 internal constant BRIBE_LAG = 1 days;
     uint256 internal constant COOLDOWN = 12 hours;
     uint256 internal constant MAX_REWARD_TOKENS = 16;
 
-    address public gauge;
-    mapping(address => mapping(uint256 => uint256)) public tokenRewardsPerEpoch;
+    address public gauge; // Address of the gauge that the bribes are for
     address[] public rewards;
+
     mapping(address => bool) public isReward;
+    mapping(address => mapping(uint256 => uint256)) public tokenRewardsPerEpoch;
 
-    event NotifyReward(address indexed from, address indexed reward, uint256 epoch, uint256 amount);
-
-    // simple re-entrancy check
+    // Re-entrancy check
     uint256 internal _unlocked = 1;
     modifier lock() {
         require(_unlocked == 1);
@@ -27,17 +30,33 @@ contract Bribe is IBribe {
         _unlocked = 1;
     }
 
-    function setGauge(address _gauge) external {
-        require(gauge == address(0), "gauge already set");
-        gauge = _gauge;
-    }
+    /*
+        View functions
+    */
 
+    /// @inheritdoc IBribe
     function getEpochStart(uint256 timestamp) public pure returns (uint256) {
         uint256 bribeStart = timestamp - (timestamp % (7 days)) + BRIBE_LAG;
         uint256 bribeEnd = bribeStart + DURATION - COOLDOWN;
         return timestamp < bribeEnd ? bribeStart : bribeStart + 7 days;
     }
 
+    /// @inheritdoc IBribe
+    function rewardsListLength() external view returns (uint256) {
+        return rewards.length;
+    }
+
+    /*
+        External functions
+    */
+
+    /// @inheritdoc IBribe
+    function setGauge(address _gauge) external {
+        require(gauge == address(0), "gauge already set");
+        gauge = _gauge;
+    }
+
+    /// @inheritdoc IBribe
     function notifyRewardAmount(address token, uint256 amount) external lock {
         require(amount > 0);
         if (!isReward[token]) {
@@ -59,10 +78,7 @@ contract Bribe is IBribe {
         emit NotifyReward(msg.sender, token, adjustedTstamp, amount);
     }
 
-    function rewardsListLength() external view returns (uint256) {
-        return rewards.length;
-    }
-
+    /// @inheritdoc IBribe
     function addRewardToken(address token) external {
         require(msg.sender == gauge);
         if (!isReward[token]) {
@@ -72,6 +88,7 @@ contract Bribe is IBribe {
         }
     }
 
+    /// @inheritdoc IBribe
     function swapOutRewardToken(
         uint256 i,
         address oldToken,
@@ -84,6 +101,7 @@ contract Bribe is IBribe {
         rewards[i] = newToken;
     }
 
+    /// @inheritdoc IBribe
     function deliverReward(address token, uint256 epochStart) external lock returns (uint256) {
         require(msg.sender == gauge);
         uint256 rewardPerEpoch = tokenRewardsPerEpoch[token][epochStart];
@@ -92,6 +110,10 @@ contract Bribe is IBribe {
         }
         return rewardPerEpoch;
     }
+
+    /*
+        Internal functions
+    */
 
     function _safeTransfer(
         address token,
