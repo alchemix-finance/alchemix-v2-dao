@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3
 pragma solidity ^0.8.15;
 
 import "src/interfaces/IBribe.sol";
@@ -7,9 +7,11 @@ import "src/interfaces/IVoter.sol";
 import "src/interfaces/IVotingEscrow.sol";
 import "src/BaseGauge.sol";
 
-/// @title Passthrough Gauge
-/// @notice Generic Gauge to handle distribution of rewards without pool specific passthrough logic
-/// @dev If custom distribution logic is necessary create additional contract
+/**
+ * @title Passthrough Gauge
+ * @notice Generic gauge to handle distribution of rewards without pool specific passthrough logic
+ * @dev If custom distribution logic is necessary create additional contract
+ */
 contract PassthroughGauge is BaseGauge {
     constructor(
         address _receiver,
@@ -17,10 +19,10 @@ contract PassthroughGauge is BaseGauge {
         address _ve,
         address _voter
     ) {
+        receiver = _receiver;
         bribe = _bribe;
         ve = _ve;
         voter = _voter;
-        receiver = _receiver;
 
         admin = IVoter(voter).executor();
 
@@ -31,8 +33,14 @@ contract PassthroughGauge is BaseGauge {
         rewards.push(rewardToken);
     }
 
-    /// @notice Pass rewards to pool
-    /// @param _amount Amount of rewards
+    /*
+        Internal functions
+    */
+
+    /**
+     * @notice Pass rewards to pool
+     * @param _amount Amount of rewards
+     */
     function _passthroughRewards(uint256 _amount) internal override {
         require(_amount > 0, "insufficient amount");
         require(msg.sender == voter, "not voter");

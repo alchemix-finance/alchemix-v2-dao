@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3
 pragma solidity ^0.8.15;
 
 import "./libraries/Math.sol";
@@ -8,45 +8,40 @@ import "./interfaces/IVoter.sol";
 import "./interfaces/IVotingEscrow.sol";
 import "./interfaces/IAlchemixToken.sol";
 
+/**
+ * @dev Data to initialize the minter based on current emissions
+ */
 struct InitializationParams {
-    address voter; // the voting & distribution system
-    address ve; // the ve(3,3) system that will be locked into
-    address rewardsDistributor; // the distribution system that ensures users aren't diluted
-    uint256 supply; // current emissions supply
-    uint256 rewards; // current amount of emissions
-    uint256 stepdown; // rate rewards decreases by
+    address voter; // The voting & distribution system
+    address ve; // veALCX token system
+    address rewardsDistributor; // veALCX distribution system
+    uint256 supply; // Current emissions supply
+    uint256 rewards; // Current amount of emissions
+    uint256 stepdown; // Rate rewards decreases by
 }
 
 contract Minter is IMinter {
     // Allows minting once per epoch (epoch = 1 week, reset every Thursday 00:00 UTC)
-    uint256 internal constant WEEK = 86400 * 7;
-
-    // Tail emissions rate
-    uint256 public constant TAIL_EMISSIONS_RATE = 2194e18;
-
+    uint256 public constant WEEK = 86400 * 7;
+    uint256 public constant TAIL_EMISSIONS_RATE = 2194e18; // Tail emissions rate
     uint256 public constant BPS = 10000;
+
+    uint256 public epochEmissions;
+    uint256 public activePeriod;
+    uint256 public stepdown;
+    uint256 public rewards;
+    uint256 public supply;
+    uint256 public veAlcxEmissionsRate; // bps of emissions going to veALCX holders
+
+    address public admin;
+    address public pendingAdmin;
+
+    address internal initializer;
 
     IAlchemixToken public alcx = IAlchemixToken(0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF);
     IVoter public immutable voter;
     IVotingEscrow public immutable ve;
     IRewardsDistributor public immutable rewardsDistributor;
-
-    uint256 public epochEmissions;
-
-    uint256 public activePeriod;
-
-    address internal initializer;
-    address public admin;
-    address public pendingAdmin;
-
-    uint256 public stepdown;
-    uint256 public rewards;
-    uint256 public supply;
-
-    // bps of emissions going to veALCX holders
-    uint256 public veAlcxEmissionsRate;
-
-    event Mint(address indexed sender, uint256 epoch, uint256 circulatingEmissions);
 
     constructor(InitializationParams memory params) {
         stepdown = params.stepdown;
@@ -61,13 +56,33 @@ contract Minter is IMinter {
         veAlcxEmissionsRate = 5000; // 50%
     }
 
-    // Remove if contract is not upgradeable
-    // Claimants and amounts can be added as params if
-    // the minter is initialized with address that should have veALCX
+    /*
+        View functions
+    */
+
+    /// @inheritdoc IMinter
+    function epochEmission() public view returns (uint256) {
+        return rewards - stepdown;
+    }
+
+    /// @inheritdoc IMinter
+    function circulatingEmissionsSupply() public view returns (uint256) {
+        return supply;
+    }
+
+    /// @inheritdoc IMinter
+    function calculateGrowth(uint256 _minted) public view returns (uint256) {
+        return (_minted * veAlcxEmissionsRate) / BPS;
+    }
+
     function initialize() external {
         require(initializer == msg.sender);
         initializer = address(0);
     }
+
+    /*
+        External functions
+    */
 
     function setAdmin(address _admin) external {
         require(msg.sender == admin, "not admin");
@@ -79,26 +94,13 @@ contract Minter is IMinter {
         admin = pendingAdmin;
     }
 
+    /// @inheritdoc IMinter
     function setVeAlcxEmissionsRate(uint256 _veAlcxEmissionsRate) external {
         require(msg.sender == admin, "not admin");
         veAlcxEmissionsRate = _veAlcxEmissionsRate;
     }
 
-    // Amount of emission for the current epoch
-    function epochEmission() public view returns (uint256) {
-        return rewards - stepdown;
-    }
-
-    function circulatingEmissionsSupply() public view returns (uint256) {
-        return supply;
-    }
-
-    // Governance-defined portion of emissions sent to veALCX stakers
-    function calculateGrowth(uint256 _minted) public view returns (uint256) {
-        return (_minted * veAlcxEmissionsRate) / BPS;
-    }
-
-    // Update period can only be called once per epoch (1 week)
+    /// @inheritdoc IMinter
     function updatePeriod() external returns (uint256) {
         uint256 period = activePeriod;
 
