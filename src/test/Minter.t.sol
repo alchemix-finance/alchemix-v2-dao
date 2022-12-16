@@ -48,7 +48,7 @@ contract MinterTest is BaseTest {
 
         alcx.grantRole(keccak256("MINTER"), address(minter));
 
-        voter.createGauge(alETHPool, Voter.GaugeType.Staking);
+        voter.createGauge(alETHPool, IVoter.GaugeType.Staking);
 
         hevm.roll(block.number + 1);
 

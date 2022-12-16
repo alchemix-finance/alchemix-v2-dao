@@ -84,12 +84,12 @@ contract PassthroughGaugeTest is BaseTest {
         minter.initialize();
 
         // Create curve gauges
-        voter.createGauge(alUsdPoolAddress, Voter.GaugeType.Curve);
-        voter.createGauge(alEthPoolAddress, Voter.GaugeType.Curve);
-        voter.createGauge(alUsdFraxBpPoolAddress, Voter.GaugeType.Curve);
+        voter.createGauge(alUsdPoolAddress, IVoter.GaugeType.Curve);
+        voter.createGauge(alEthPoolAddress, IVoter.GaugeType.Curve);
+        voter.createGauge(alUsdFraxBpPoolAddress, IVoter.GaugeType.Curve);
 
         // Create sushi gauge
-        voter.createGauge(sushiPoolAddress, Voter.GaugeType.Passthrough);
+        voter.createGauge(sushiPoolAddress, IVoter.GaugeType.Passthrough);
 
         // Get address of new gauges
         address alUsdGaugeAddress = voter.gauges(alUsdPoolAddress);

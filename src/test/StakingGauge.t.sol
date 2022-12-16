@@ -46,8 +46,8 @@ contract StakingGaugeTest is BaseTest {
 
         alcx.grantRole(keccak256("MINTER"), address(minter));
 
-        voter.createGauge(address(alcx), Voter.GaugeType.Staking);
-        voter.createGauge(alUSDPool, Voter.GaugeType.Staking);
+        voter.createGauge(address(alcx), IVoter.GaugeType.Staking);
+        voter.createGauge(alUSDPool, IVoter.GaugeType.Staking);
 
         address gaugeAddress = voter.gauges(address(alcx));
         address gaugeAddress2 = voter.gauges(alUSDPool);

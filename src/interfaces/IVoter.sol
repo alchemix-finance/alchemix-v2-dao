@@ -1,14 +1,118 @@
+// SPDX-License-Identifier: GPL-3
 pragma solidity ^0.8.15;
 
 interface IVoter {
+    // Type of gauge being created
+    enum GaugeType {
+        Staking,
+        Passthrough,
+        Curve
+    }
+
+    event GaugeCreated(address indexed gauge, address creator, address indexed bribe, address indexed pool);
+    event GaugeKilled(address indexed gauge);
+    event GaugeRevived(address indexed gauge);
+    event Voted(address indexed voter, uint256 tokenId, uint256 weight);
+    event Abstained(uint256 tokenId, uint256 weight);
+    event Deposit(address indexed account, address indexed gauge, uint256 tokenId, uint256 amount);
+    event Withdraw(address indexed account, address indexed gauge, uint256 tokenId, uint256 amount);
+    event NotifyReward(address indexed sender, address indexed reward, uint256 amount);
+    event DistributeReward(address indexed sender, address indexed gauge, uint256 amount);
+    event Attach(address indexed owner, address indexed gauge, uint256 tokenId);
+    event Detach(address indexed owner, address indexed gauge, uint256 tokenId);
+    event Whitelisted(address indexed whitelister, address indexed token);
+
     function veALCX() external view returns (address);
-    function governor() external view returns (address);
-    function emergencyCouncil() external view returns (address);
+
     function executor() external view returns (address);
+
+    function emergencyCouncil() external view returns (address);
+
+    /**
+     * @notice Get the maximum voting power a given veALCX can have by using MANA
+     * @param _tokenId ID of the token
+     * @return uint256 Maximum voting power
+     */
+    function maxVotingPower(uint256 _tokenId) external view returns (uint256);
+
+    /**
+     * @notice Get the maximum amount of mana a given veALCX could use as a boost
+     * @param _tokenId ID of the token
+     * @return uint256 Maximum mana amount
+     */
+    function maxManaBoost(uint256 _tokenId) external view returns (uint256);
+
+    /**
+     * @notice Set the max veALCX voting power can be boosted by with mana
+     * @param _boostMultiplier BPS of boost
+     * @dev Can only be called by the executor
+     */
+    function setBoostMultiplier(uint256 _boostMultiplier) external;
+
+    /**
+     * @notice Reset the voting status of a veALCX
+     * @param _tokenId ID of the token to reset
+     * @dev Can only be called by the an approved address or the veALCX owner
+     * @dev Accrues any unused mana
+     */
+    function reset(uint256 _tokenId) external;
+
+    /**
+     * @notice Update the voting status of a veALCX to maintain the same voting status
+     * @param _tokenId ID of the token to poke
+     * @param _boost   Amount of mana to boost vote by
+     * @dev Accrues any unused mana
+     */
+    function poke(uint256 _tokenId, uint256 _boost) external;
+
+    /**
+     * @notice Vote on one or multiple pools for a single veALCX
+     * @param _tokenId  ID of the token voting
+     * @param _poolVote Array of the pools being voted
+     * @param _weights  Weights of the pools
+     * @param _boost    Amount of mana to boost vote by
+     * @dev Can only be called once per epoch. Accrues any unused mana
+     */
+    function vote(
+        uint256 _tokenId,
+        address[] calldata _poolVote,
+        uint256[] calldata _weights,
+        uint256 _boost
+    ) external;
+
+    /**
+     * @notice Creates a gauge for a pool
+     * @param _pool      Address of the pool the gauge is for
+     * @param _gaugeType Type of gauge being created
+     * @dev Index and receiver are votium specific parameters and should be 0 and 0xdead for other gauge types
+     */
+    function createGauge(address _pool, GaugeType _gaugeType) external returns (address);
+
+    /**
+     * @notice Attach veALCX token to a gauge
+     * @param _tokenId ID of the token being attached
+     * @param account  Address of owner
+     * @dev Can only be called by an active gauge
+     */
     function attachTokenToGauge(uint256 _tokenId, address account) external;
+
+    /**
+     * @notice Detach veALCX token to a gauge
+     * @param _tokenId ID of the token being detached
+     * @param account  Address of owner
+     * @dev Can only be called by a gauge
+     */
     function detachTokenFromGauge(uint256 _tokenId, address account) external;
-    function emitDeposit(uint256 _tokenId, address account, uint256 amount) external;
-    function emitWithdraw(uint256 _tokenId, address account, uint256 amount) external;
+
+    /**
+     * @notice Send the distribution of emissions to the Voter contract
+     * @param amount Amount of rewards being distributed
+     */
     function notifyRewardAmount(uint256 amount) external;
+
+    /**
+     * @notice Distribute rewards and bribes to a given gauge
+     * @param _gauge Address of gauge receiving rewards and bribes
+     */
     function distribute(address _gauge) external;
 }
