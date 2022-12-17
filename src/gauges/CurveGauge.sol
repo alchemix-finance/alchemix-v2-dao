@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3
 pragma solidity ^0.8.15;
 
 import "src/interfaces/IBribe.sol";
@@ -9,9 +9,11 @@ import "src/BaseGauge.sol";
 import { IVotiumBribe } from "src/interfaces/votium/IVotiumBribe.sol";
 import { SafeERC20 } from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 
-/// @title Curve Gauge
-/// @notice Gauge to handle distribution of rewards to a given Curve pool via Votium
-/// @dev Pool index is subject to change and proposal id is located in the snapshot url
+/**
+ * @title Curve Gauge
+ * @notice Gauge to handle distribution of rewards to a given Curve pool via Votium
+ * @dev Pool index is subject to change and proposal id is located in the snapshot url
+ */
 contract CurveGauge is BaseGauge {
     using SafeERC20 for IERC20;
 
@@ -53,9 +55,11 @@ contract CurveGauge is BaseGauge {
         External functions
     */
 
-    /// @notice Initialize curve gauge specific variables
-    /// @param _poolIndex Index of pool on votium
-    /// @param _receiver Votium contract that is sent rewards
+    /**
+     * @notice Initialize curve gauge specific variables
+     * @param _poolIndex Index of pool on votium
+     * @param _receiver Votium contract that is sent rewards
+     */
     function initialize(uint256 _poolIndex, address _receiver) external {
         require(msg.sender == admin, "not admin");
         receiver = _receiver;
@@ -65,9 +69,11 @@ contract CurveGauge is BaseGauge {
         emit Initialized(poolIndex, receiver, initialized);
     }
 
-    /// @notice Update the pool index
-    /// @param _poolIndex New pool index
-    /// @dev Pool index on votium subject to change
+    /**
+     * @notice Update the pool index
+     * @param _poolIndex New pool index
+     * @dev Pool index on votium subject to change
+     */
     function updateIndex(uint256 _poolIndex) external {
         require(msg.sender == admin, "not admin");
         poolIndex = _poolIndex;
@@ -75,9 +81,11 @@ contract CurveGauge is BaseGauge {
         emit IndexUpdated(poolIndex);
     }
 
-    /// @notice Set the proposal id
-    /// @param _proposal Proposal id from snapshot url
-    /// @dev Proposal id must be set manually every epoch
+    /**
+     * @notice Set the proposal id
+     * @param _proposal Proposal id from snapshot url
+     * @dev Proposal id must be set manually every epoch
+     */
     function updateProposal(bytes32 _proposal) external {
         require(msg.sender == admin, "not admin");
         proposal = _proposal;
@@ -90,8 +98,10 @@ contract CurveGauge is BaseGauge {
         Internal functions
     */
 
-    /// @notice Pass rewards to votium contract
-    /// @param _amount Amount of rewards
+    /**
+     * @notice Pass rewards to votium contract
+     * @param _amount Amount of rewards
+     */
     function _passthroughRewards(uint256 _amount) internal override {
         require(initialized, "gauge must me initialized");
         require(_amount > 0, "insufficient amount");

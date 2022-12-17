@@ -20,6 +20,10 @@ struct InitializationParams {
     uint256 stepdown; // Rate rewards decreases by
 }
 
+/**
+ * @title Minter
+ * @notice Contract to handle ALCX emissions and their distriubtion
+ */
 contract Minter is IMinter {
     // Allows minting once per epoch (epoch = 1 week, reset every Thursday 00:00 UTC)
     uint256 public constant WEEK = 86400 * 7;

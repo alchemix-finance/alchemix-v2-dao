@@ -1,17 +1,16 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.15;
 
 import "./BaseTest.sol";
-import "src/RevenueHandler.sol";
 import "src/CurveMetaPoolAdapter.sol";
 import "src/CurveEthPoolAdapter.sol";
-import "./utils/DSTestPlus.sol";
 import "lib/v2-foundry/src/interfaces/IAlchemistV2.sol";
 import "lib/v2-foundry/src/interfaces/IWhitelist.sol";
 
 contract RevenueHandlerTest is BaseTest {
     uint256 ONE_EPOCH_TIME = 1 weeks;
     uint256 ONE_EPOCH_BLOCKS = (1 weeks) / 12;
+
     address holder = 0x000000000000000000000000000000000000dEaD;
     address alusd = 0xBC6DA0FE9aD5f3b0d58160288917AA56653660E9;
     address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
@@ -21,6 +20,7 @@ contract RevenueHandlerTest is BaseTest {
     address aleth = 0x0100546F2cD4C9D97f798fFC9755E47865FF7Ee6;
     address alusd3crv = 0x43b4FdFD4Ff969587185cDB6f0BD875c5Fc83f8c;
     address alethcrv = 0xC4C319E2D4d66CcA4464C0c2B32c9Bd23ebe784e;
+
     IAlchemistV2 public alusdAlchemist = IAlchemistV2(0x5C6374a2ac4EBC38DeA0Fc1F8716e5Ea1AdD94dd);
     IWhitelist public whitelist = IWhitelist(0x78537a6CeBa16f412E123a90472C6E0e9A8F1132);
 

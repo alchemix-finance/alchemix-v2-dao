@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3
 pragma solidity ^0.8.15;
 
 import "lib/forge-std/src/console2.sol";
@@ -14,9 +14,10 @@ import { Minter, InitializationParams } from "src/Minter.sol";
 import { IAlchemixToken } from "src/interfaces/IAlchemixToken.sol";
 import { RewardsDistributor } from "src/RewardsDistributor.sol";
 import { CurveGauge } from "src/gauges/CurveGauge.sol";
-import { PassthroughGauge } from "src/PassthroughGauge.sol";
+import { PassthroughGauge } from "src/gauges/PassthroughGauge.sol";
+import "src/RevenueHandler.sol";
 import "src/governance/TimelockExecutor.sol";
-import "src/StakingGauge.sol";
+import "src/gauges/StakingGauge.sol";
 import "src/Bribe.sol";
 
 import { WeightedPool2TokensFactory } from "src/interfaces/balancer/WeightedPool2TokensFactory.sol";

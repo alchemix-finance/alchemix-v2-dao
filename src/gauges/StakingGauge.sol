@@ -1,12 +1,16 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3
 pragma solidity ^0.8.15;
 
-import "./interfaces/IBribe.sol";
-import "../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import "./interfaces/IVoter.sol";
-import "./interfaces/IVotingEscrow.sol";
-import "./BaseGauge.sol";
+import "../../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import "src/interfaces/IVoter.sol";
+import "src/interfaces/IBribe.sol";
+import "src/interfaces/IVotingEscrow.sol";
+import "src/BaseGauge.sol";
 
+/**
+ * @title Staking Gauge
+ * @notice Gauge to handle ALCX staking
+ */
 contract StakingGauge is BaseGauge {
     event Deposit(address indexed from, uint256 tokenId, uint256 amount);
     event Withdraw(address indexed from, uint256 tokenId, uint256 amount);

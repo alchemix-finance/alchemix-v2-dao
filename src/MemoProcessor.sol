@@ -5,6 +5,10 @@ import "./interfaces/IMemoProcessor.sol";
 import "../lib/openzeppelin-contracts/contracts/access/Ownable.sol";
 import "../lib/v2-foundry/src/base/ErrorMessages.sol";
 
+/**
+ * @title Memo Processor
+ * @notice Contract to sending, receiving, processing memos
+ */
 contract MemoProcessor is IMemoProcessor, Ownable {
     /// @notice Thrown when a memo fails being sent to a listener.
     error MemoFailed(bytes memoData, address listener);

@@ -13,9 +13,8 @@ import "../../lib/openzeppelin-contracts/contracts/utils/structs/DoubleEndedQueu
 import "../../lib/openzeppelin-contracts/contracts/utils/Address.sol";
 import "../../lib/openzeppelin-contracts/contracts/utils/Context.sol";
 import "../../lib/openzeppelin-contracts/contracts/utils/Timers.sol";
-// import "../lib/openzeppelin-contracts/contracts/governance/IGovernor.sol";
-import "src/interfaces/IGovernor.sol";
 import "./TimelockExecutor.sol";
+import "src/interfaces/IGovernor.sol";
 
 /**
  * @author Modified from RollCall (https://github.com/withtally/rollcall/blob/main/src/standards/L2Governor.sol)
