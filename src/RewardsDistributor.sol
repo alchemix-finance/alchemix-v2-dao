@@ -1,53 +1,53 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3
 pragma solidity ^0.8.15;
 
 import "./libraries/Math.sol";
-import { SafeERC20 } from "../lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
-import { IERC20 } from "../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import { IWETH9 } from "./interfaces/IWETH9.sol";
+import "../lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
+import "../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import "./interfaces/IVotingEscrow.sol";
-import { IVault } from "./interfaces/balancer/IVault.sol";
-import { WeightedPoolUserData } from "./interfaces/balancer/WeightedPoolUserData.sol";
-import { IBasePool } from "./interfaces/balancer/IBasePool.sol";
-import { IAsset } from "./interfaces/balancer/IAsset.sol";
-import { IManagedPool } from "./interfaces/balancer/IManagedPool.sol";
+import "./interfaces/IWETH9.sol";
+import "./interfaces/IRewardsDistributor.sol";
+import "./interfaces/balancer/IVault.sol";
+import "./interfaces/balancer/WeightedPoolUserData.sol";
+import "./interfaces/balancer/IBasePool.sol";
+import "./interfaces/balancer/IAsset.sol";
+import "./interfaces/balancer/IManagedPool.sol";
+import "./interfaces/chainlink/AggregatorV3Interface.sol";
 import { WeightedMath } from "./interfaces/balancer/WeightedMath.sol";
-import { AggregatorV3Interface } from "./interfaces/chainlink/AggregatorV3Interface.sol";
 
-contract RewardsDistributor {
+/**
+ * @title  Rewards Distributor
+ * @notice Contract to facilitate distribution of rewards to veALCX holders
+ */
+contract RewardsDistributor is IRewardsDistributor {
     using SafeERC20 for IERC20;
 
-    event CheckpointToken(uint256 time, uint256 tokens);
-
-    event Claimed(uint256 tokenId, uint256 amount, uint256 claimEpoch, uint256 maxEpoch);
-
-    uint256 constant WEEK = 7 * 86400;
-    address constant BURN_ADDRESS = 0x000000000000000000000000000000000000dEaD;
+    uint256 public constant WEEK = 7 * 86400;
+    address public constant BURN_ADDRESS = 0x000000000000000000000000000000000000dEaD;
     uint256 public constant BPS = 10000;
 
-    IWETH9 public WETH;
-    IVault public balancerVault;
     bytes32 public balancerPoolId;
-    IBasePool public balancerPool;
-    AggregatorV3Interface public priceFeed;
 
     uint256 public startTime;
     uint256 public timeCursor;
-    mapping(uint256 => uint256) public timeCursorOf;
-    mapping(uint256 => uint256) public userEpochOf;
-
     uint256 public lastTokenTime;
-    uint256[1000000000000000] public tokensPerWeek;
+    uint256 public tokenLastBalance;
 
     address public votingEscrow;
     address public rewardsToken;
     address public lockedToken;
-    uint256 public tokenLastBalance;
-
-    uint256[1000000000000000] public veSupply;
-
     address public depositor;
 
+    uint256[1000000000000000] public veSupply;
+    uint256[1000000000000000] public tokensPerWeek;
+
+    mapping(uint256 => uint256) public timeCursorOf;
+    mapping(uint256 => uint256) public userEpochOf;
+
+    IWETH9 public WETH;
+    IVault public balancerVault;
+    IBasePool public balancerPool;
+    AggregatorV3Interface public priceFeed;
     IAsset[] public poolAssets = new IAsset[](2);
 
     constructor(
@@ -83,10 +83,115 @@ contract RewardsDistributor {
         }
     }
 
+    /*
+        View functions
+    */
+
     function timestamp() external view returns (uint256) {
         return (block.timestamp / WEEK) * WEEK;
     }
 
+    function veForAt(uint256 _tokenId, uint256 _timestamp) external view returns (uint256) {
+        address ve = votingEscrow;
+        uint256 maxUserEpoch = IVotingEscrow(ve).userPointEpoch(_tokenId);
+        uint256 epoch = _findTimestampUserEpoch(ve, _tokenId, _timestamp, maxUserEpoch);
+        IVotingEscrow.Point memory pt = IVotingEscrow(ve).userPointHistory(_tokenId, epoch);
+        return Math.max(uint256(pt.bias - pt.slope * (int256(_timestamp - pt.ts))), 0);
+    }
+
+    /// @inheritdoc IRewardsDistributor
+    function claimable(uint256 _tokenId) external view returns (uint256) {
+        uint256 _lastTokenTime = (lastTokenTime / WEEK) * WEEK;
+        return _claimable(_tokenId, votingEscrow, _lastTokenTime);
+    }
+
+    /// @inheritdoc IRewardsDistributor
+    function amountToCompound(uint256 _alcxAmount) public view returns (uint256, uint256[] memory) {
+        (, int256 alcxEthPrice, , , ) = priceFeed.latestRoundData();
+
+        uint256[] memory normalizedWeights = IManagedPool(address(balancerPool)).getNormalizedWeights();
+
+        uint256 amount = (((_alcxAmount * uint256(alcxEthPrice)) / 1 ether) * normalizedWeights[0]) /
+            normalizedWeights[1];
+
+        return (amount, normalizedWeights);
+    }
+
+    /*
+        External functions
+    */
+
+    /**
+     * @notice
+     */
+    function checkpointToken() external {
+        assert(msg.sender == depositor);
+        _checkpointToken();
+    }
+
+    function checkpointTotalSupply() external {
+        _checkpointTotalSupply();
+    }
+
+    /// @inheritdoc IRewardsDistributor
+    function claim(uint256 _tokenId, bool _compound) external payable returns (uint256) {
+        require(IVotingEscrow(votingEscrow).isApprovedOrOwner(msg.sender, _tokenId), "not approved or owner");
+
+        address owner = IVotingEscrow(votingEscrow).ownerOf(_tokenId);
+
+        if (block.timestamp >= timeCursor) _checkpointTotalSupply();
+        uint256 _lastTokenTime = lastTokenTime;
+        _lastTokenTime = (_lastTokenTime / WEEK) * WEEK;
+
+        uint256 alcxAmount = _claim(_tokenId, votingEscrow, _lastTokenTime);
+
+        require(alcxAmount > 0, "nothing to claim");
+
+        tokenLastBalance -= alcxAmount;
+
+        if (_compound) {
+            (uint256 wethAmount, uint256[] memory normalizedWeights) = amountToCompound(alcxAmount);
+
+            require(
+                msg.value >= wethAmount || WETH.balanceOf(msg.sender) >= wethAmount,
+                "insufficient balance to compound"
+            );
+
+            // Wrap eth if necessary
+            if (msg.value > 0) WETH.deposit{ value: msg.value }();
+            else IERC20(address(WETH)).safeTransferFrom(msg.sender, address(this), wethAmount);
+
+            _depositIntoBalancerPool(wethAmount, alcxAmount, normalizedWeights);
+
+            IVotingEscrow(votingEscrow).depositFor(_tokenId, IERC20(lockedToken).balanceOf(address(this)));
+
+            return alcxAmount;
+        } else {
+            // The fee amount stays in the contract effectively redistributing it to veALCX holders
+            uint256 feeAmount = (alcxAmount * IVotingEscrow(votingEscrow).claimFeeBps()) / BPS;
+            uint256 claimAmount = alcxAmount - feeAmount;
+
+            // Transfer rewards to veALCX owner
+            IERC20(rewardsToken).safeTransfer(owner, claimAmount);
+
+            return claimAmount;
+        }
+    }
+
+    /// @dev Once off event on contract initialize
+    function setDepositor(address _depositor) external {
+        require(msg.sender == depositor);
+        depositor = _depositor;
+    }
+
+    /*
+        Internal functions
+    */
+
+    /**
+     * @notice Record data to checkpoint
+     * @dev Records veALCX holder rewards over time
+     */
     function _checkpointToken() internal {
         uint256 tokenBalance = IERC20(rewardsToken).balanceOf(address(this));
         uint256 toDistribute = tokenBalance - tokenLastBalance;
@@ -118,11 +223,6 @@ contract RewardsDistributor {
             thisWeek = nextWeek;
         }
         emit CheckpointToken(block.timestamp, toDistribute);
-    }
-
-    function checkpointToken() external {
-        assert(msg.sender == depositor);
-        _checkpointToken();
     }
 
     function _findTimestampEpoch(address ve, uint256 _timestamp) internal view returns (uint256) {
@@ -162,14 +262,9 @@ contract RewardsDistributor {
         return _min;
     }
 
-    function veForAt(uint256 _tokenId, uint256 _timestamp) external view returns (uint256) {
-        address ve = votingEscrow;
-        uint256 maxUserEpoch = IVotingEscrow(ve).userPointEpoch(_tokenId);
-        uint256 epoch = _findTimestampUserEpoch(ve, _tokenId, _timestamp, maxUserEpoch);
-        IVotingEscrow.Point memory pt = IVotingEscrow(ve).userPointHistory(_tokenId, epoch);
-        return Math.max(uint256(pt.bias - pt.slope * (int256(_timestamp - pt.ts))), 0);
-    }
-
+    /**
+     * @notice Record global data to a checkpoint
+     */
     function _checkpointTotalSupply() internal {
         address ve = votingEscrow;
         uint256 t = timeCursor;
@@ -193,15 +288,13 @@ contract RewardsDistributor {
         timeCursor = t;
     }
 
-    function checkpointTotalSupply() external {
-        _checkpointTotalSupply();
-    }
-
-    /// @notice Get the amount of ALCX rewards a veALCX has earned
-    /// @param _tokenId ID of the token
-    /// @param _ve veALCX address
-    /// @param _lastTokenTime Point in time of veALCX rewards accrual
-    /// @return Amount of ALCX rewards claimable
+    /**
+     * @notice Get the amount of ALCX rewards a veALCX has earned
+     * @param _tokenId ID of the token
+     * @param _ve veALCX address
+     * @param _lastTokenTime Point in time of veALCX rewards accrual
+     * @return uint256 Amount of ALCX rewards claimable
+     */
     function _claim(
         uint256 _tokenId,
         address _ve,
@@ -318,18 +411,12 @@ contract RewardsDistributor {
         return toDistribute;
     }
 
-    /// @notice Amount of ALCX available to be claimed for a veALCX position
-    /// @param _tokenId ID of the token
-    /// @return Amount of ALCX claimable
-    function claimable(uint256 _tokenId) external view returns (uint256) {
-        uint256 _lastTokenTime = (lastTokenTime / WEEK) * WEEK;
-        return _claimable(_tokenId, votingEscrow, _lastTokenTime);
-    }
-
-    /// @notice Claim ALCX rewards for a given veALCX position
-    /// @param _wethAmount Amount of WETH to deposit into pool
-    /// @param _alcxAmount Amount of ALCX to deposit into pool
-    /// @param _normalizedWeights Weight of ALCX and WETH
+    /**
+     * @notice Claim ALCX rewards for a given veALCX position
+     * @param _wethAmount Amount of WETH to deposit into pool
+     * @param _alcxAmount Amount of ALCX to deposit into pool
+     * @param _normalizedWeights Weight of ALCX and WETH
+     */
     function _depositIntoBalancerPool(
         uint256 _wethAmount,
         uint256 _alcxAmount,
@@ -363,74 +450,5 @@ contract RewardsDistributor {
         });
 
         balancerVault.joinPool(balancerPoolId, address(this), address(this), request);
-    }
-
-    /// @notice Claim ALCX rewards for a given veALCX position
-    /// @param _tokenId ID of the token
-    /// @param _compound Indicator that determines if rewards are being compounded
-    /// @return Amount of ALCX that was either claimed or compounded
-    function claim(uint256 _tokenId, bool _compound) external payable returns (uint256) {
-        require(IVotingEscrow(votingEscrow).isApprovedOrOwner(msg.sender, _tokenId), "not approved or owner");
-
-        address owner = IVotingEscrow(votingEscrow).ownerOf(_tokenId);
-
-        if (block.timestamp >= timeCursor) _checkpointTotalSupply();
-        uint256 _lastTokenTime = lastTokenTime;
-        _lastTokenTime = (_lastTokenTime / WEEK) * WEEK;
-
-        uint256 alcxAmount = _claim(_tokenId, votingEscrow, _lastTokenTime);
-
-        require(alcxAmount > 0, "nothing to claim");
-
-        tokenLastBalance -= alcxAmount;
-
-        if (_compound) {
-            (uint256 wethAmount, uint256[] memory normalizedWeights) = amountToCompound(alcxAmount);
-
-            require(
-                msg.value >= wethAmount || WETH.balanceOf(msg.sender) >= wethAmount,
-                "insufficient balance to compound"
-            );
-
-            // Wrap eth if necessary
-            if (msg.value > 0) WETH.deposit{ value: msg.value }();
-            else IERC20(address(WETH)).safeTransferFrom(msg.sender, address(this), wethAmount);
-
-            _depositIntoBalancerPool(wethAmount, alcxAmount, normalizedWeights);
-
-            IVotingEscrow(votingEscrow).depositFor(_tokenId, IERC20(lockedToken).balanceOf(address(this)));
-
-            return alcxAmount;
-        } else {
-            // The fee amount stays in the contract effectively redistributing it to veALCX holders
-            uint256 feeAmount = (alcxAmount * IVotingEscrow(votingEscrow).claimFeeBps()) / BPS;
-            uint256 claimAmount = alcxAmount - feeAmount;
-
-            // Transfer rewards to veALCX owner
-            IERC20(rewardsToken).safeTransfer(owner, claimAmount);
-
-            return claimAmount;
-        }
-    }
-
-    /// @notice Get the amount of ETH or WETH required to create balanced pool deposit
-    /// @param _alcxAmount Amount of ALCX that will make up the balanced deposit
-    /// @return amount of ETH or WETH
-    /// @return normalizedWeights of the pool. Prevents an additional lookup of weights
-    function amountToCompound(uint256 _alcxAmount) public view returns (uint256, uint256[] memory) {
-        (, int256 alcxEthPrice, , , ) = priceFeed.latestRoundData();
-
-        uint256[] memory normalizedWeights = IManagedPool(address(balancerPool)).getNormalizedWeights();
-
-        uint256 amount = (((_alcxAmount * uint256(alcxEthPrice)) / 1 ether) * normalizedWeights[0]) /
-            normalizedWeights[1];
-
-        return (amount, normalizedWeights);
-    }
-
-    // Once off event on contract initialize
-    function setDepositor(address _depositor) external {
-        require(msg.sender == depositor);
-        depositor = _depositor;
     }
 }

@@ -1242,7 +1242,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
             blockSlope = (MULTIPLIER * (block.number - lastPoint.blk)) / (block.timestamp - lastPoint.ts);
         }
         // If last point is already recorded in this block, slope=0
-        // But that's ok b/c we know the block in such case
+        // We know the block in such case
 
         // Go over weeks to fill history and calculate what the current point is
         {
@@ -1301,8 +1301,8 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
         if (_tokenId != 0) {
             // Schedule the slope changes (slope is going down)
-            // We subtract new_user_slope from [newLocked.end]
-            // and add old_user_slope to [oldLocked.end]
+            // We subtract from [newLocked.end]
+            // and add to [oldLocked.end]
             if (oldLocked.end > block.timestamp) {
                 // oldDslope was <something> - oldPoint.slope, so we cancel that
                 oldDslope += oldPoint.slope;
@@ -1319,7 +1319,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
                 }
                 // else: we recorded it already in oldDslope
             }
-            // Now handle user history
+            // Handle user history
             uint256 userEpoch = userPointEpoch[_tokenId] + 1;
 
             userPointEpoch[_tokenId] = userEpoch;
