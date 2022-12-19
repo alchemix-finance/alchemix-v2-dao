@@ -9,19 +9,6 @@ import "./interfaces/IVotingEscrow.sol";
 import "./interfaces/IAlchemixToken.sol";
 
 /**
- * @dev Data to initialize the minter based on current emissions
- */
-struct InitializationParams {
-    address alcx;
-    address voter; // The voting & distribution system
-    address ve; // veALCX token system
-    address rewardsDistributor; // veALCX distribution system
-    uint256 supply; // Current emissions supply
-    uint256 rewards; // Current amount of emissions
-    uint256 stepdown; // Rate rewards decreases by
-}
-
-/**
  * @title Minter
  * @notice Contract to handle ALCX emissions and their distriubtion
  */

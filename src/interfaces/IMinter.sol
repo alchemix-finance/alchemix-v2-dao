@@ -3,6 +3,19 @@ pragma solidity ^0.8.15;
 
 interface IMinter {
     /**
+     * @dev Data to initialize the minter based on current emissions
+     */
+    struct InitializationParams {
+        address alcx;
+        address voter; // The voting & distribution system
+        address ve; // veALCX token system
+        address rewardsDistributor; // veALCX distribution system
+        uint256 supply; // Current emissions supply
+        uint256 rewards; // Current amount of emissions
+        uint256 stepdown; // Rate rewards decreases by
+    }
+
+    /**
      * @notice Emitted when emissions are minted
      * @param sender               Address that triggered the mint for a given period
      * @param epochEmissions       Amount of emissions minted

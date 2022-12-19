@@ -186,7 +186,7 @@ contract RevenueHandlerTest is BaseTest {
         assertEq(balBefore, 0);
         rh.checkpoint();
         uint256 balAfter = IERC20(alusd).balanceOf(address(rh));
-        assertApproxEq(revAmt, balAfter, revAmt / 75);
+        assertApproxEq(revAmt, balAfter, revAmt / 65);
     }
 
     function testCheckpointRunsOncePerEpoch() external {
@@ -217,7 +217,7 @@ contract RevenueHandlerTest is BaseTest {
         assertEq(balBefore, 0);
         rh.checkpoint();
         uint256 balAfter = IERC20(alusd).balanceOf(address(rh));
-        assertApproxEq(2000e18, balAfter, 2000e18 / uint256(75));
+        assertApproxEq(2000e18, balAfter, 2000e18 / uint256(65));
     }
 
     function testClaimOnlyApproved() external {
@@ -234,7 +234,7 @@ contract RevenueHandlerTest is BaseTest {
         uint256 tokenId = _setupClaimableRevenue(revAmt);
 
         uint256 claimable = rh.claimable(tokenId, alusd);
-        assertApproxEq(revAmt, claimable, revAmt / 75);
+        assertApproxEq(revAmt, claimable, revAmt / 65);
 
         uint256 debtAmt = 5000e18;
         _takeDebt(debtAmt);
@@ -254,7 +254,7 @@ contract RevenueHandlerTest is BaseTest {
         _jumpOneEpoch();
 
         uint256 claimable = rh.claimable(tokenId, alusd);
-        assertApproxEq(revAmt * 2, claimable, (revAmt * 2) / 75);
+        assertApproxEq(revAmt * 2, claimable, (revAmt * 2) / 65);
 
         uint256 debtAmt = 5000e18;
         _takeDebt(debtAmt);
@@ -326,7 +326,7 @@ contract RevenueHandlerTest is BaseTest {
         _accrueRevenueAndJumpOneEpoch(revAmt);
         _jumpOneEpoch();
         uint256 claimable = rh.claimable(tokenId, alusd);
-        assertApproxEq(claimable, revAmt, revAmt / 75);
+        assertApproxEq(claimable, revAmt, revAmt / 65);
     }
 
     function testClaimBeforeAndAfterCheckpoint() external {
@@ -340,7 +340,7 @@ contract RevenueHandlerTest is BaseTest {
         // this revenue is not yet checkpointed
         _accrueRevenue(dai, revAmt);
         uint256 claimable = rh.claimable(tokenId, alusd);
-        assertApproxEq(claimable, revAmt, revAmt / 75);
+        assertApproxEq(claimable, revAmt, revAmt / 65);
 
         rh.claim(tokenId, address(alusdAlchemist), claimable, address(this));
 
@@ -350,7 +350,7 @@ contract RevenueHandlerTest is BaseTest {
         // checkpoint the accrued revenue
         rh.checkpoint();
         claimable = rh.claimable(tokenId, alusd);
-        assertApproxEq(claimable, revAmt, revAmt / 75);
+        assertApproxEq(claimable, revAmt, revAmt / 65);
     }
 
     function testIncreaseVeALCXBeforeFirstClaim() external {
@@ -372,7 +372,7 @@ contract RevenueHandlerTest is BaseTest {
         _accrueRevenueAndJumpOneEpoch(revAmt); // this revenue SHOULD be claimable
 
         uint256 claimable = rh.claimable(tokenId, alusd);
-        assertApproxEq(claimable, 2 * revAmt, (2 * revAmt) / 75);
+        assertApproxEq(claimable, 2 * revAmt, (2 * revAmt) / 65);
     }
 
     function testCheckpointETH() external {
@@ -429,7 +429,7 @@ contract RevenueHandlerTest is BaseTest {
 
         _accrueRevenueAndJumpOneEpoch(revAmt);
         uint256 holderClaimable = rh.claimable(holderTokenId, alusd);
-        assertApproxEq(holderClaimable, (2 * revAmt * 4) / 5, ((2 * revAmt * 4) / 5) / 75);
+        assertApproxEq(holderClaimable, (2 * revAmt * 4) / 5, ((2 * revAmt * 4) / 5) / 65);
 
         hevm.startPrank(holder);
         rh.claim(holderTokenId, address(alusdAlchemist), holderClaimable, holder);
