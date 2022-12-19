@@ -12,6 +12,7 @@ import "./interfaces/IAlchemixToken.sol";
  * @dev Data to initialize the minter based on current emissions
  */
 struct InitializationParams {
+    address alcx;
     address voter; // The voting & distribution system
     address ve; // veALCX token system
     address rewardsDistributor; // veALCX distribution system
@@ -42,7 +43,7 @@ contract Minter is IMinter {
 
     address internal initializer;
 
-    IAlchemixToken public alcx = IAlchemixToken(0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF);
+    IAlchemixToken public alcx;
     IVoter public immutable voter;
     IVotingEscrow public immutable ve;
     IRewardsDistributor public immutable rewardsDistributor;
@@ -53,6 +54,7 @@ contract Minter is IMinter {
         supply = params.supply;
         initializer = msg.sender;
         admin = msg.sender;
+        alcx = IAlchemixToken(params.alcx);
         voter = IVoter(params.voter);
         ve = IVotingEscrow(params.ve);
         rewardsDistributor = IRewardsDistributor(params.rewardsDistributor);

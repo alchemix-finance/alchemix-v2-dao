@@ -47,6 +47,7 @@ contract AlchemixGovernorTest is BaseTest {
         distributor = new RewardsDistributor(address(veALCX), address(weth), address(balancerVault), priceFeed);
 
         InitializationParams memory params = InitializationParams(
+            address(alcx),
             address(voter),
             address(veALCX),
             address(distributor),

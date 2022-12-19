@@ -35,12 +35,6 @@ abstract contract BaseGauge is IBaseGauge {
 
     address[] public rewards;
 
-    enum VotingStage {
-        BribesPhase,
-        VotesPhase,
-        RewardsPhase
-    }
-
     mapping(address => uint256) public derivedBalances;
     mapping(address => uint256) public rewardRate;
     mapping(address => uint256) public periodFinish;
@@ -66,25 +60,6 @@ abstract contract BaseGauge is IBaseGauge {
 
     /// @notice The number of checkpoints for each token
     mapping(address => uint256) public rewardPerTokenNumCheckpoints;
-
-    /// @notice A checkpoint for marking balance
-    struct Checkpoint {
-        uint256 timestamp;
-        uint256 balanceOf;
-        bool voted;
-    }
-
-    /// @notice A checkpoint for marking reward rate
-    struct RewardPerTokenCheckpoint {
-        uint256 timestamp;
-        uint256 rewardPerToken;
-    }
-
-    /// @notice A checkpoint for marking supply
-    struct SupplyCheckpoint {
-        uint256 timestamp;
-        uint256 supply;
-    }
 
     // Re-entrancy check
     uint256 internal _unlocked = 1;

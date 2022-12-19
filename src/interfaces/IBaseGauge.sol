@@ -2,6 +2,31 @@
 pragma solidity ^0.8.15;
 
 interface IBaseGauge {
+    enum VotingStage {
+        BribesPhase,
+        VotesPhase,
+        RewardsPhase
+    }
+
+    /// @notice A checkpoint for marking balance
+    struct Checkpoint {
+        uint256 timestamp;
+        uint256 balanceOf;
+        bool voted;
+    }
+
+    /// @notice A checkpoint for marking reward rate
+    struct RewardPerTokenCheckpoint {
+        uint256 timestamp;
+        uint256 rewardPerToken;
+    }
+
+    /// @notice A checkpoint for marking supply
+    struct SupplyCheckpoint {
+        uint256 timestamp;
+        uint256 supply;
+    }
+
     /**
      * @notice Emitted when the reward amount is calculated for a given token
      * @param from     The address who called the function

@@ -64,6 +64,7 @@ contract PassthroughGaugeTest is BaseTest {
         veALCX.setVoter(address(voter));
 
         InitializationParams memory params = InitializationParams(
+            address(alcx),
             address(voter),
             address(veALCX),
             address(distributor),
