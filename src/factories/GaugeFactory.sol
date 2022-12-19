@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3
 pragma solidity ^0.8.15;
 
-import "../gauges/PassthroughGauge.sol";
-import "../gauges/CurveGauge.sol";
-import "../gauges/StakingGauge.sol";
+import "src/gauges/PassthroughGauge.sol";
+import "src/gauges/CurveGauge.sol";
+import "src/gauges/StakingGauge.sol";
 
 contract GaugeFactory {
     address public lastGauge;

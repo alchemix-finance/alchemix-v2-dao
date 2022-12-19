@@ -3,18 +3,18 @@
 
 pragma solidity ^0.8.0;
 
-import "../../lib/openzeppelin-contracts/contracts/token/ERC721/IERC721Receiver.sol";
-import "../../lib/openzeppelin-contracts/contracts/token/ERC1155/IERC1155Receiver.sol";
-import "../../lib/openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol";
-import "../../lib/openzeppelin-contracts/contracts/utils/cryptography/draft-EIP712.sol";
-import "../../lib/openzeppelin-contracts/contracts/utils/introspection/ERC165.sol";
-import "../../lib/openzeppelin-contracts/contracts/utils/math/SafeCast.sol";
-import "../../lib/openzeppelin-contracts/contracts/utils/structs/DoubleEndedQueue.sol";
-import "../../lib/openzeppelin-contracts/contracts/utils/Address.sol";
-import "../../lib/openzeppelin-contracts/contracts/utils/Context.sol";
-import "../../lib/openzeppelin-contracts/contracts/utils/Timers.sol";
 import "./TimelockExecutor.sol";
 import "src/interfaces/IGovernor.sol";
+import "openzeppelin-contracts/contracts/token/ERC721/IERC721Receiver.sol";
+import "openzeppelin-contracts/contracts/token/ERC1155/IERC1155Receiver.sol";
+import "openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol";
+import "openzeppelin-contracts/contracts/utils/cryptography/draft-EIP712.sol";
+import "openzeppelin-contracts/contracts/utils/introspection/ERC165.sol";
+import "openzeppelin-contracts/contracts/utils/math/SafeCast.sol";
+import "openzeppelin-contracts/contracts/utils/structs/DoubleEndedQueue.sol";
+import "openzeppelin-contracts/contracts/utils/Address.sol";
+import "openzeppelin-contracts/contracts/utils/Context.sol";
+import "openzeppelin-contracts/contracts/utils/Timers.sol";
 
 /**
  * @author Modified from RollCall (https://github.com/withtally/rollcall/blob/main/src/standards/L2Governor.sol)

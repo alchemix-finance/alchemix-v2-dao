@@ -3,8 +3,8 @@
 
 pragma solidity ^0.8.0;
 
-import { IVotes } from "../../lib/openzeppelin-contracts/contracts/governance/utils/IVotes.sol";
 import { L2Governor } from "src/governance/L2Governor.sol";
+import "openzeppelin-contracts/contracts/governance/utils/IVotes.sol";
 
 /**
  * @author Modified from RollCall (https://github.com/withtally/rollcall/blob/main/src/standards/L2GovernorVotes.sol)
