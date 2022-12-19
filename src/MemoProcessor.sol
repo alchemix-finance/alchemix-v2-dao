@@ -2,7 +2,7 @@
 pragma solidity ^0.8.15;
 
 import "src/interfaces/IMemoProcessor.sol";
-import "../lib/v2-foundry/src/base/ErrorMessages.sol";
+import "lib/v2-foundry/src/base/ErrorMessages.sol";
 import "openzeppelin-contracts/contracts/access/Ownable.sol";
 
 /**
