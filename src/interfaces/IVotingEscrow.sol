@@ -17,6 +17,13 @@ interface IVotingEscrow {
         uint256 blk; // block
     }
 
+    struct LockedBalance {
+        int256 amount;
+        uint256 end;
+        bool maxLockEnabled;
+        uint256 cooldown;
+    }
+
     event Deposit(
         address indexed provider,
         uint256 tokenId,

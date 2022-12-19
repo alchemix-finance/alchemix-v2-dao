@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: GPL-3
 pragma solidity ^0.8.15;
 
-import { IGovernor } from "../lib/openzeppelin-contracts/contracts/governance/IGovernor.sol";
-import { IVotes } from "../lib/openzeppelin-contracts/contracts/governance/utils/IVotes.sol";
-import { L2Governor } from "src/governance/L2Governor.sol";
-import { L2GovernorCountingSimple } from "src/governance/L2GovernorCountingSimple.sol";
-import { L2GovernorVotes } from "src/governance/L2GovernorVotes.sol";
-import { L2GovernorVotesQuorumFraction } from "src/governance/L2GovernorVotesQuorumFraction.sol";
+import "src/governance/L2GovernorCountingSimple.sol";
+import "src/governance/L2GovernorVotes.sol";
+import "src/governance/L2GovernorVotesQuorumFraction.sol";
 import "src/governance/TimelockExecutor.sol";
+import "openzeppelin-contracts/contracts/governance/IGovernor.sol";
+import "openzeppelin-contracts/contracts/governance/utils/IVotes.sol";
 
 /**
  * @title Alchemix Governor

@@ -137,7 +137,7 @@ contract AlchemixGovernorTest is BaseTest {
         calldatas[0] = abi.encodeWithSelector(voter.whitelist.selector, address(USDC));
         string memory description = "Whitelist USDC";
 
-        governor.propose(targets, values, calldatas, description, mainnet);
+        governor.propose(targets, values, calldatas, description, MAINNET);
         hevm.stopPrank();
     }
 
@@ -154,7 +154,7 @@ contract AlchemixGovernorTest is BaseTest {
 
         // propose
         hevm.startPrank(admin);
-        uint256 pid = governor.propose(targets, values, calldatas, description, mainnet);
+        uint256 pid = governor.propose(targets, values, calldatas, description, MAINNET);
         hevm.warp(block.timestamp + 2 days); // delay
         hevm.stopPrank();
 
@@ -168,7 +168,7 @@ contract AlchemixGovernorTest is BaseTest {
         hevm.startPrank(admin);
         // Proposal unsuccessful due to _quorumReached returning false
         hevm.expectRevert(abi.encodePacked("Governor: proposal not successful"));
-        governor.execute(targets, values, calldatas, keccak256(bytes(description)), mainnet);
+        governor.execute(targets, values, calldatas, keccak256(bytes(description)), MAINNET);
         hevm.stopPrank();
     }
 
@@ -185,7 +185,7 @@ contract AlchemixGovernorTest is BaseTest {
 
         // propose
         hevm.startPrank(admin);
-        uint256 pid = governor.propose(targets, values, calldatas, description, mainnet);
+        uint256 pid = governor.propose(targets, values, calldatas, description, MAINNET);
         hevm.warp(block.timestamp + 2 days); // delay
         hevm.roll(block.number + 1);
         hevm.stopPrank();
@@ -198,7 +198,7 @@ contract AlchemixGovernorTest is BaseTest {
 
         // execute
         hevm.startPrank(admin);
-        governor.execute(targets, values, calldatas, keccak256(bytes(description)), mainnet);
+        governor.execute(targets, values, calldatas, keccak256(bytes(description)), MAINNET);
         hevm.stopPrank();
 
         assertTrue(voter.isWhitelisted(address(USDC)));

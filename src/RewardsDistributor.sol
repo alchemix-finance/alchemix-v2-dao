@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: GPL-3
 pragma solidity ^0.8.15;
 
-import "./libraries/Math.sol";
-import "../lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
-import "../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import "./interfaces/IVotingEscrow.sol";
 import "./interfaces/IWETH9.sol";
 import "./interfaces/IRewardsDistributor.sol";
@@ -13,6 +10,9 @@ import "./interfaces/balancer/IBasePool.sol";
 import "./interfaces/balancer/IAsset.sol";
 import "./interfaces/balancer/IManagedPool.sol";
 import "./interfaces/chainlink/AggregatorV3Interface.sol";
+import "./libraries/Math.sol";
+import "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
+import "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { WeightedMath } from "./interfaces/balancer/WeightedMath.sol";
 
 /**

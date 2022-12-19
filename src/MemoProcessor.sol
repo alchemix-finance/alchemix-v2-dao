@@ -2,8 +2,8 @@
 pragma solidity ^0.8.15;
 
 import "./interfaces/IMemoProcessor.sol";
-import "../lib/openzeppelin-contracts/contracts/access/Ownable.sol";
 import "../lib/v2-foundry/src/base/ErrorMessages.sol";
+import "openzeppelin-contracts/contracts/access/Ownable.sol";
 
 /**
  * @title Memo Processor
