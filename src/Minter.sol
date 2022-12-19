@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3
 pragma solidity ^0.8.15;
 
-import "./interfaces/IMinter.sol";
-import "./interfaces/IRewardsDistributor.sol";
-import "./interfaces/IVoter.sol";
-import "./interfaces/IVotingEscrow.sol";
-import "./interfaces/IAlchemixToken.sol";
-import "./libraries/Math.sol";
+import "src/interfaces/IMinter.sol";
+import "src/interfaces/IRewardsDistributor.sol";
+import "src/interfaces/IVoter.sol";
+import "src/interfaces/IVotingEscrow.sol";
+import "src/interfaces/IAlchemixToken.sol";
+import "src/libraries/Math.sol";
 
 /**
  * @title Minter

@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-3
 pragma solidity ^0.8.15;
 
-import "./interfaces/IBribeFactory.sol";
-import "./interfaces/IBaseGauge.sol";
-import "./interfaces/IGaugeFactory.sol";
-import "./interfaces/IMinter.sol";
-import "./interfaces/IVotingEscrow.sol";
-import "./interfaces/IVoter.sol";
-import "./interfaces/IManaToken.sol";
-import "./libraries/Math.sol";
+import "src/interfaces/IBribeFactory.sol";
+import "src/interfaces/IBaseGauge.sol";
+import "src/interfaces/IGaugeFactory.sol";
+import "src/interfaces/IMinter.sol";
+import "src/interfaces/IVotingEscrow.sol";
+import "src/interfaces/IVoter.sol";
+import "src/interfaces/IManaToken.sol";
+import "src/libraries/Math.sol";
 import "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
 /**

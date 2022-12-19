@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3
 pragma solidity ^0.8.15;
 
-import "./interfaces/IRevenueHandler.sol";
-import "./interfaces/IPoolAdapter.sol";
-import "./interfaces/IVotingEscrow.sol";
+import "src/interfaces/IRevenueHandler.sol";
+import "src/interfaces/IPoolAdapter.sol";
+import "src/interfaces/IVotingEscrow.sol";
 import "../lib/v2-foundry/src/interfaces/IAlchemistV2.sol";
 import "../lib/v2-foundry/src/base/ErrorMessages.sol";
 import "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";

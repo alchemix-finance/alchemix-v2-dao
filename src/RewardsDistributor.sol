@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: GPL-3
 pragma solidity ^0.8.15;
 
-import "./interfaces/IVotingEscrow.sol";
-import "./interfaces/IWETH9.sol";
-import "./interfaces/IRewardsDistributor.sol";
-import "./interfaces/balancer/IVault.sol";
-import "./interfaces/balancer/WeightedPoolUserData.sol";
-import "./interfaces/balancer/IBasePool.sol";
-import "./interfaces/balancer/IAsset.sol";
-import "./interfaces/balancer/IManagedPool.sol";
-import "./interfaces/chainlink/AggregatorV3Interface.sol";
-import "./libraries/Math.sol";
+import "src/interfaces/IVotingEscrow.sol";
+import "src/interfaces/IWETH9.sol";
+import "src/interfaces/IRewardsDistributor.sol";
+import "src/interfaces/balancer/IVault.sol";
+import "src/interfaces/balancer/WeightedPoolUserData.sol";
+import "src/interfaces/balancer/IBasePool.sol";
+import "src/interfaces/balancer/IAsset.sol";
+import "src/interfaces/balancer/IManagedPool.sol";
+import "src/interfaces/chainlink/AggregatorV3Interface.sol";
+import "src/libraries/Math.sol";
 import "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import { WeightedMath } from "./interfaces/balancer/WeightedMath.sol";
+import { WeightedMath } from "src/interfaces/balancer/WeightedMath.sol";
 
 /**
  * @title  Rewards Distributor

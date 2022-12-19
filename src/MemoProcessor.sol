@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3
 pragma solidity ^0.8.15;
 
-import "./interfaces/IMemoProcessor.sol";
+import "src/interfaces/IMemoProcessor.sol";
 import "../lib/v2-foundry/src/base/ErrorMessages.sol";
 import "openzeppelin-contracts/contracts/access/Ownable.sol";
 
