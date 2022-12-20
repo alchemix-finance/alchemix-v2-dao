@@ -1,14 +1,13 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3
 pragma solidity ^0.8.15;
 
-import { IERC721, IERC721Metadata } from "../lib/openzeppelin-contracts/contracts/token/ERC721/extensions/IERC721Metadata.sol";
-import { IVotes } from "../lib/openzeppelin-contracts/contracts/governance/utils/IVotes.sol";
-import { IERC721Receiver } from "../lib/openzeppelin-contracts/contracts/token/ERC721/IERC721Receiver.sol";
-import { IERC20 } from "../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import { IVotingEscrow } from "src/interfaces/IVotingEscrow.sol";
-import { IManaToken } from "./interfaces/IManaToken.sol";
-
-import { Base64 } from "src/libraries/Base64.sol";
+import "src/interfaces/IVotingEscrow.sol";
+import "src/interfaces/IManaToken.sol";
+import "src/libraries/Base64.sol";
+import "openzeppelin-contracts/contracts/token/ERC721/extensions/IERC721Metadata.sol";
+import "openzeppelin-contracts/contracts/governance/utils/IVotes.sol";
+import "openzeppelin-contracts/contracts/token/ERC721/IERC721Receiver.sol";
+import "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
 /// @title Voting Escrow
 /// @notice veALCX implementation that escrows ERC-20 tokens in the form of an ERC-721 token
@@ -47,62 +46,64 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         uint256[] tokenIds;
     }
 
-    event Deposit(
-        address indexed provider,
-        uint256 tokenId,
-        uint256 value,
-        uint256 indexed locktime,
-        bool maxLockEnabled,
-        DepositType depositType,
-        uint256 ts
-    );
-    event Withdraw(address indexed provider, uint256 tokenId, uint256 value, uint256 ts);
-    event Supply(uint256 prevSupply, uint256 supply);
-    event Ragequit(address indexed provider, uint256 tokenId, uint256 ts);
-    event CooldownStarted(address indexed provider, uint256 tokenId, uint256 ts);
-
-    uint256 internal constant WEEK = 1 weeks;
-    uint256 internal constant MAXTIME = 365 days;
-    int256 internal constant iMAXTIME = 365 days;
-    uint256 internal constant MULTIPLIER = 26 ether;
-    int256 internal constant iMULTIPLIER = 26 ether;
-    uint256 public constant EPOCH = 2 weeks;
-
-    address public immutable ALCX;
-    uint256 public supply;
-
-    address public BPT;
-    uint256 public claimFeeBps = 5000; // Fee for claiming early in bps
-
-    address public MANA;
-    uint256 public manaMultiplier;
-    uint256 public manaPerVeALCX;
-
-    address public admin; // the timelock executor
-
-    mapping(uint256 => LockedBalance) public locked;
-
-    mapping(uint256 => uint256) public ownershipChange;
-
-    uint256 public epoch;
-    mapping(uint256 => Point) public pointHistory; // epoch -> unsigned point
-    mapping(uint256 => Point[1000000000]) public userPointHistory; // user -> Point[userEpoch]
-    mapping(uint256 => uint256) public userFirstEpoch; // user -> epoch
-
-    mapping(uint256 => uint256) public userPointEpoch;
-    mapping(uint256 => int256) public slopeChanges; // time -> signed slope change
-
-    mapping(uint256 => uint256) public attachments;
-    mapping(uint256 => bool) public voted;
-    address public voter;
-
     string public constant name = "veALCX";
     string public constant symbol = "veALCX";
     string public constant version = "1.0.0";
     uint8 public constant decimals = 18;
 
+    /// @notice The EIP-712 typehash for the contract's domain
+    bytes32 public constant DOMAIN_TYPEHASH =
+        keccak256("EIP712Domain(string name,uint256 chainId,address verifyingContract)");
+
+    /// @notice The EIP-712 typehash for the delegation struct used by the contract
+    bytes32 public constant DELEGATION_TYPEHASH =
+        keccak256("Delegation(address delegatee,uint256 nonce,uint256 expiry)");
+
+    /// @dev ERC165 interface ID of ERC165
+    bytes4 internal constant ERC165_INTERFACE_ID = 0x01ffc9a7;
+
+    /// @dev ERC165 interface ID of ERC721
+    bytes4 internal constant ERC721_INTERFACE_ID = 0x80ac58cd;
+
+    /// @dev ERC165 interface ID of ERC721Metadata
+    bytes4 internal constant ERC721_METADATA_INTERFACE_ID = 0x5b5e139f;
+
+    uint256 public constant EPOCH = 2 weeks;
+    uint256 public constant MAX_DELEGATES = 1024; // avoid too much gas
+
+    uint256 internal constant WEEK = 1 weeks;
+    uint256 internal constant MAXTIME = 365 days;
+    uint256 internal constant MULTIPLIER = 26 ether;
+
+    int256 internal constant iMAXTIME = 365 days;
+    int256 internal constant iMULTIPLIER = 26 ether;
+
     /// @dev Current count of token
     uint256 internal tokenId;
+
+    address public ALCX;
+    address public MANA;
+    address public BPT;
+    address public admin; // the timelock executor
+    address public pendingAdmin; // the timelock executor
+    address public voter;
+
+    uint256 public supply;
+    uint256 public claimFeeBps = 5000; // Fee for claiming early in bps
+    uint256 public manaMultiplier;
+    uint256 public manaPerVeALCX;
+    uint256 public epoch;
+
+    mapping(uint256 => uint256) public unclaimedMana; // tokenId => amount of unclaimed mana
+    mapping(uint256 => LockedBalance) public locked;
+    mapping(uint256 => uint256) public ownershipChange;
+    mapping(uint256 => Point) public pointHistory; // epoch -> unsigned point
+    mapping(uint256 => Point[1000000000]) public userPointHistory; // user -> Point[userEpoch]
+    mapping(uint256 => uint256) public userFirstEpoch; // user -> epoch
+    mapping(uint256 => uint256) public userPointEpoch;
+    mapping(uint256 => int256) public slopeChanges; // time -> signed slope change
+    mapping(uint256 => uint256) public attachments;
+    mapping(uint256 => bool) public voted;
 
     /// @dev Mapping from token ID to the address that owns it.
     mapping(uint256 => address) internal idToOwner;
@@ -127,7 +128,6 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
     /// @notice A record of each accounts delegate
     mapping(address => address) private _delegates;
-    uint256 public constant MAX_DELEGATES = 1024; // avoid too much gas
 
     /// @notice A record of delegated token checkpoints for each account, by index
     mapping(address => mapping(uint32 => Checkpoint)) public checkpoints;
@@ -138,22 +138,19 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     /// @notice A record of states for signing / validating signatures
     mapping(address => uint256) public nonces;
 
-    /// @notice The EIP-712 typehash for the contract's domain
-    bytes32 public constant DOMAIN_TYPEHASH =
-        keccak256("EIP712Domain(string name,uint256 chainId,address verifyingContract)");
-
-    /// @notice The EIP-712 typehash for the delegation struct used by the contract
-    bytes32 public constant DELEGATION_TYPEHASH =
-        keccak256("Delegation(address delegatee,uint256 nonce,uint256 expiry)");
-
-    /// @dev ERC165 interface ID of ERC165
-    bytes4 internal constant ERC165_INTERFACE_ID = 0x01ffc9a7;
-
-    /// @dev ERC165 interface ID of ERC721
-    bytes4 internal constant ERC721_INTERFACE_ID = 0x80ac58cd;
-
-    /// @dev ERC165 interface ID of ERC721Metadata
-    bytes4 internal constant ERC721_METADATA_INTERFACE_ID = 0x5b5e139f;
+    event Deposit(
+        address indexed provider,
+        uint256 tokenId,
+        uint256 value,
+        uint256 indexed locktime,
+        bool maxLockEnabled,
+        DepositType depositType,
+        uint256 ts
+    );
+    event Withdraw(address indexed provider, uint256 tokenId, uint256 value, uint256 ts);
+    event Supply(uint256 prevSupply, uint256 supply);
+    event Ragequit(address indexed provider, uint256 tokenId, uint256 ts);
+    event CooldownStarted(address indexed provider, uint256 tokenId, uint256 ts);
 
     /// @dev reentrancy guard
     uint8 internal constant NOT_ENTERED = 1;
@@ -166,10 +163,12 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         ENTERED_STATE = NOT_ENTERED;
     }
 
-    /// @notice Contract constructor
-    /// @param _bpt `BPT` token address
-    /// @param _alcx `ALCX` token address
-    /// @param _mana `MANA` token address
+    /**
+     * @notice Contract constructor
+     * @param _bpt `BPT` token address
+     * @param _alcx `ALCX` token address
+     * @param _mana `MANA` token address
+     */
     constructor(
         address _bpt,
         address _alcx,
@@ -196,344 +195,109 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         emit Transfer(address(this), address(0), tokenId);
     }
 
-    /// @dev Interface identification is specified in ERC-165.
-    /// @param _interfaceID Id of the interface
+    /*
+        View functions
+    */
+
+    /**
+     * @notice Interface identification is specified in ERC-165.
+     * @param _interfaceID Id of the interface
+     * @return bool Boolean result of provided interface
+     */
     function supportsInterface(bytes4 _interfaceID) external view returns (bool) {
         return supportedInterfaces[_interfaceID];
     }
 
-    /// @notice Get the most recently recorded rate of voting power decrease for `_tokenId`
-    /// @param _tokenId ID of the token
-    /// @return Value of the slope
+    /**
+     * @notice Get the most recently recorded rate of voting power decrease for `_tokenId`
+     * @param _tokenId ID of the token
+     * @return int256 Value of the slope
+     */
     function getLastUserSlope(uint256 _tokenId) external view returns (int256) {
         uint256 userEpoch = userPointEpoch[_tokenId];
         return userPointHistory[_tokenId][userEpoch].slope;
     }
 
-    /// @notice Get the timestamp for checkpoint `_idx` for `_tokenId`
-    /// @param _tokenId ID of the token
-    /// @param _idx User epoch number
-    /// @return Epoch time of the checkpoint
+    /**
+     * @notice Get the timestamp for checkpoint `_idx` for `_tokenId`
+     * @param _tokenId ID of the token
+     * @param _idx User epoch number
+     * @return Epoch time of the checkpoint
+     */
     function userPointHistoryTimestamp(uint256 _tokenId, uint256 _idx) external view returns (uint256) {
         return userPointHistory[_tokenId][_idx].ts;
     }
 
-    /// @notice Get the timestamp for checkpoint `_idx`
-    /// @param _idx User epoch number
-    /// @return Epoch time of the checkpoint
+    /**
+     * @notice Get the timestamp for checkpoint `_idx`
+     * @param _idx User epoch number
+     * @return Epoch time of the checkpoint
+     */
     function pointHistoryTimestamp(uint256 _idx) external view returns (uint256) {
         return pointHistory[_idx].ts;
     }
 
-    /// @notice Get timestamp when `_tokenId`'s lock finishes
-    /// @param _tokenId ID of the token
-    /// @return Epoch time of the lock end
+    /**
+     * @notice Get timestamp when `_tokenId`'s lock finishes
+     * @param _tokenId ID of the token
+     * @return Epoch time of the lock end
+     */
     function lockEnd(uint256 _tokenId) external view returns (uint256) {
         return locked[_tokenId].end;
     }
 
-    /// @notice Get timestamp when `_tokenId`'s cooldown finishes
-    /// @param _tokenId ID of the token
-    /// @return Epoch time of the cooldown end
+    /**
+     * @notice Get timestamp when `_tokenId`'s cooldown finishes
+     * @param _tokenId ID of the token
+     * @return Epoch time of the cooldown end
+     */
     function cooldownEnd(uint256 _tokenId) external view returns (uint256) {
         return locked[_tokenId].cooldown;
     }
 
-    /// @dev Returns the number of tokens owned by `_owner`.
-    ///      Throws if `_owner` is the zero address. tokens assigned to the zero address are considered invalid.
-    /// @param _owner Address for whom to query the balance.
-    function _balance(address _owner) internal view returns (uint256) {
-        return ownerToTokenCount[_owner];
-    }
-
-    /// @dev Returns the number of tokens owned by `_owner`.
-    ///      Throws if `_owner` is the zero address. tokens assigned to the zero address are considered invalid.
-    /// @param _owner Address for whom to query the balance.
+    /**
+     * @notice Returns the number of tokens owned by `_owner`.
+     * @param _owner Address for whom to query the balance.
+     * @dev Throws if `_owner` is the zero address. tokens assigned to the zero address are considered invalid.
+     */
     function balanceOf(address _owner) external view returns (uint256) {
         return _balance(_owner);
     }
 
-    /// @dev Returns the address of the owner of the token.
-    /// @param _tokenId ID of the token.
+    /**
+     * @notice Returns the address of the owner of the token.
+     * @param _tokenId ID of the token.
+     */
     function ownerOf(uint256 _tokenId) public view returns (address) {
         return idToOwner[_tokenId];
     }
 
-    /// @dev Get the approved address for a single token.
-    /// @param _tokenId ID of the token to query the approval of.
+    /**
+     * @notice Get the approved address for a single token.
+     * @param _tokenId ID of the token to query the approval of.
+     */
     function getApproved(uint256 _tokenId) external view returns (address) {
         return idToApprovals[_tokenId];
     }
 
-    /// @dev Checks if `_operator` is an approved operator for `_owner`.
-    /// @param _owner The address that owns the tokens.
-    /// @param _operator The address that acts on behalf of the owner.
+    /**
+     * @notice Checks if `_operator` is an approved operator for `_owner`.
+     * @param _owner The address that owns the tokens.
+     * @param _operator The address that acts on behalf of the owner.
+     */
     function isApprovedForAll(address _owner, address _operator) external view returns (bool) {
         return (ownerToOperators[_owner])[_operator];
     }
 
-    /// @dev  Get token by index
+    /**
+     * @notice  Get token by index
+     */
     function tokenOfOwnerByIndex(address _owner, uint256 _tokenIndex) external view returns (uint256) {
         return ownerToTokenIdList[_owner][_tokenIndex];
     }
 
-    /// @dev Returns whether the given spender can transfer a given token ID
-    /// @param _spender address of the spender to query
-    /// @param _tokenId ID of the token to be transferred
-    /// @return bool whether the msg.sender is approved for the given token ID, is an operator of the owner, or is the owner of the token
-    function _isApprovedOrOwner(address _spender, uint256 _tokenId) internal view returns (bool) {
-        address owner = idToOwner[_tokenId];
-        bool spenderIsOwner = owner == _spender;
-        bool spenderIsApproved = _spender == idToApprovals[_tokenId];
-        bool spenderIsApprovedForAll = (ownerToOperators[owner])[_spender];
-        return spenderIsOwner || spenderIsApproved || spenderIsApprovedForAll;
-    }
-
     function isApprovedOrOwner(address _spender, uint256 _tokenId) external view returns (bool) {
         return _isApprovedOrOwner(_spender, _tokenId);
-    }
-
-    /// @dev Add a token to an index mapping to a given address
-    /// @param _to address of the receiver
-    /// @param _tokenId ID of the token to be added
-    function _addTokenToOwnerList(address _to, uint256 _tokenId) internal {
-        uint256 currentCount = _balance(_to);
-
-        ownerToTokenIdList[_to][currentCount] = _tokenId;
-        tokenToOwnerIndex[_tokenId] = currentCount;
-    }
-
-    /// @dev Remove a token from an index mapping to a given address
-    /// @param _from address of the sender
-    /// @param _tokenId ID of the token to be removed
-    function _removeTokenFromOwnerList(address _from, uint256 _tokenId) internal {
-        // Delete
-        uint256 currentCount = _balance(_from) - 1;
-        uint256 currentIndex = tokenToOwnerIndex[_tokenId];
-
-        if (currentCount == currentIndex) {
-            // update ownerToTokenIdList
-            ownerToTokenIdList[_from][currentCount] = 0;
-            // update tokenToOwnerIndex
-            tokenToOwnerIndex[_tokenId] = 0;
-        } else {
-            uint256 lastTokenId = ownerToTokenIdList[_from][currentCount];
-
-            // Add
-            // update ownerToTokenIdList
-            ownerToTokenIdList[_from][currentIndex] = lastTokenId;
-            // update tokenToOwnerIndex
-            tokenToOwnerIndex[lastTokenId] = currentIndex;
-
-            // Delete
-            // update ownerToTokenIdList
-            ownerToTokenIdList[_from][currentCount] = 0;
-            // update tokenToOwnerIndex
-            tokenToOwnerIndex[_tokenId] = 0;
-        }
-    }
-
-    /// @dev Add a token to a given address
-    ///      Throws if `_tokenId` is owned by someone.
-    function _addTokenTo(address _to, uint256 _tokenId) internal {
-        // Throws if `_tokenId` is owned by someone
-        require(idToOwner[_tokenId] == address(0));
-        // Change the owner
-        idToOwner[_tokenId] = _to;
-        // Update owner token index tracking
-        _addTokenToOwnerList(_to, _tokenId);
-        // Change count tracking
-        ownerToTokenCount[_to] += 1;
-    }
-
-    /// @dev Remove a token from a given address
-    ///      Throws if `_from` is not the current owner.
-    function _removeTokenFrom(address _from, uint256 _tokenId) internal {
-        // Throws if `_from` is not the current owner
-        require(idToOwner[_tokenId] == _from);
-        // Change the owner
-        idToOwner[_tokenId] = address(0);
-        // Update owner token index tracking
-        _removeTokenFromOwnerList(_from, _tokenId);
-        // Change count tracking
-        ownerToTokenCount[_from] -= 1;
-    }
-
-    /// @dev Clear an approval of a given address
-    ///      Throws if `_owner` is not the current owner.
-    function _clearApproval(address _owner, uint256 _tokenId) internal {
-        // Throws if `_owner` is not the current owner
-        require(idToOwner[_tokenId] == _owner);
-        if (idToApprovals[_tokenId] != address(0)) {
-            // Reset approvals
-            idToApprovals[_tokenId] = address(0);
-        }
-    }
-
-    /// @dev Exeute transfer of a token.
-    ///      Throws unless `msg.sender` is the current owner, an authorized operator, or the approved
-    ///      address for this token. (NOTE: `msg.sender` not allowed in internal function so pass `_sender`.)
-    ///      Throws if `_to` is the zero address.
-    ///      Throws if `_from` is not the current owner.
-    ///      Throws if `_tokenId` is not a valid token.
-    function _transferFrom(
-        address _from,
-        address _to,
-        uint256 _tokenId,
-        address _sender
-    ) internal {
-        require(attachments[_tokenId] == 0 && !voted[_tokenId], "attached");
-        // Check requirements
-        require(_isApprovedOrOwner(_sender, _tokenId));
-        // Clear approval. Throws if `_from` is not the current owner
-        _clearApproval(_from, _tokenId);
-        // Remove token. Throws if `_tokenId` is not a valid token
-        _removeTokenFrom(_from, _tokenId);
-        // Add token
-        _addTokenTo(_to, _tokenId);
-        // Set the block of ownership transfer (for Flash token protection)
-        ownershipChange[_tokenId] = block.number;
-        // Log the transfer
-        emit Transfer(_from, _to, _tokenId);
-    }
-
-    /* TRANSFER FUNCTIONS */
-    /// @dev Throws unless `msg.sender` is the current owner, an authorized operator, or the approved address for this token.
-    ///      Throws if `_from` is not the current owner.
-    ///      Throws if `_to` is the zero address.
-    ///      Throws if `_tokenId` is not a valid token.
-    /// @notice The caller is responsible to confirm that `_to` is capable of receiving tokens or else
-    ///        they maybe be permanently lost.
-    /// @param _from The current owner of the token.
-    /// @param _to The new owner.
-    /// @param _tokenId ID of the token to transfer.
-    function transferFrom(
-        address _from,
-        address _to,
-        uint256 _tokenId
-    ) external {
-        _transferFrom(_from, _to, _tokenId, msg.sender);
-    }
-
-    function _isContract(address account) internal view returns (bool) {
-        // This method relies on extcodesize, which returns 0 for contracts in
-        // construction, since the code is only stored at the end of the
-        // constructor execution.
-        uint256 size;
-        assembly {
-            size := extcodesize(account)
-        }
-        return size > 0;
-    }
-
-    /// @dev Transfers the ownership of an token from one address to another address.
-    ///      Throws unless `msg.sender` is the current owner, an authorized operator, or the
-    ///      approved address for this token.
-    ///      Throws if `_from` is not the current owner.
-    ///      Throws if `_to` is the zero address.
-    ///      Throws if `_tokenId` is not a valid token.
-    ///      If `_to` is a smart contract, it calls `onERC721Received` on `_to` and throws if
-    ///      the return value is not `bytes4(keccak256("onERC721Received(address,address,uint256,bytes)"))`.
-    /// @param _from The current owner of the token.
-    /// @param _to The new owner.
-    /// @param _tokenId ID of the token to transfer.
-    /// @param _data Additional data with no specified format, sent in call to `_to`.
-    function safeTransferFrom(
-        address _from,
-        address _to,
-        uint256 _tokenId,
-        bytes memory _data
-    ) public {
-        _transferFrom(_from, _to, _tokenId, msg.sender);
-
-        if (_isContract(_to)) {
-            // Throws if transfer destination is a contract which does not implement 'onERC721Received'
-            try IERC721Receiver(_to).onERC721Received(msg.sender, _from, _tokenId, _data) returns (bytes4 response) {
-                if (response != IERC721Receiver(_to).onERC721Received.selector) {
-                    revert("ERC721: ERC721Receiver rejected tokens");
-                }
-            } catch (bytes memory reason) {
-                if (reason.length == 0) {
-                    revert("ERC721: transfer to non ERC721Receiver implementer");
-                } else {
-                    assembly {
-                        revert(add(32, reason), mload(reason))
-                    }
-                }
-            }
-        }
-    }
-
-    /// @dev Transfers the ownership of an token from one address to another address.
-    ///      Throws unless `msg.sender` is the current owner, an authorized operator, or the
-    ///      approved address for this token.
-    ///      Throws if `_from` is not the current owner.
-    ///      Throws if `_to` is the zero address.
-    ///      Throws if `_tokenId` is not a valid token.
-    ///      If `_to` is a smart contract, it calls `onERC721Received` on `_to` and throws if
-    ///      the return value is not `bytes4(keccak256("onERC721Received(address,address,uint256,bytes)"))`.
-    /// @param _from The current owner of the token.
-    /// @param _to The new owner.
-    /// @param _tokenId ID of the token to transfer.
-    function safeTransferFrom(
-        address _from,
-        address _to,
-        uint256 _tokenId
-    ) external {
-        safeTransferFrom(_from, _to, _tokenId, "");
-    }
-
-    /// @dev Set or reaffirm the approved address for an token. The zero address indicates there is no approved address.
-    ///      Throws unless `msg.sender` is the current token owner, or an authorized operator of the current owner.
-    ///      Throws if `_tokenId` is not a valid token. (NOTE: This is not written the EIP)
-    ///      Throws if `_approved` is the current owner. (NOTE: This is not written the EIP)
-    /// @param _approved Address to be approved for the given token ID.
-    /// @param _tokenId ID of the token to be approved.
-    function approve(address _approved, uint256 _tokenId) public {
-        address owner = idToOwner[_tokenId];
-        // Throws if `_tokenId` is not a valid token
-        require(owner != address(0));
-        // Throws if `_approved` is the current owner
-        require(_approved != owner);
-        // Check requirements
-        bool senderIsOwner = (idToOwner[_tokenId] == msg.sender);
-        bool senderIsApprovedForAll = (ownerToOperators[owner])[msg.sender];
-        require(senderIsOwner || senderIsApprovedForAll);
-        // Set the approval
-        idToApprovals[_tokenId] = _approved;
-        emit Approval(owner, _approved, _tokenId);
-    }
-
-    /// @dev Enables or disables approval for a third party ("operator") to manage all of
-    ///      `msg.sender`'s assets. It also emits the ApprovalForAll event.
-    ///      Throws if `_operator` is the `msg.sender`. (NOTE: This is not written the EIP)
-    /// @notice This works even if sender doesn't own any tokens at the time.
-    /// @param _operator Address to add to the set of authorized operators.
-    /// @param _approved True if the operators is approved, false to revoke approval.
-    function setApprovalForAll(address _operator, bool _approved) external {
-        // Throws if `_operator` is the `msg.sender`
-        require(_operator != msg.sender);
-        ownerToOperators[msg.sender][_operator] = _approved;
-        emit ApprovalForAll(msg.sender, _operator, _approved);
-    }
-
-    /// @dev Function to mint tokens
-    ///      Throws if `_to` is zero address.
-    ///      Throws if `_tokenId` is owned by someone.
-    /// @param _to The address that will receive the minted tokens.
-    /// @param _tokenId ID of the token to mint.
-    /// @return bool indication if the operation was successful.
-    function _mint(address _to, uint256 _tokenId) internal returns (bool) {
-        // Throws if `_to` is zero address
-        assert(_to != address(0));
-        // checkpoint for gov
-        _moveTokenDelegates(address(0), delegates(_to), _tokenId);
-        // Add token. Throws if `_tokenId` is owned by someone
-        _addTokenTo(_to, _tokenId);
-        // Mark first epoch
-        userFirstEpoch[_tokenId] = epoch;
-        emit Transfer(address(0), _to, _tokenId);
-        return true;
     }
 
     /**
@@ -611,6 +375,695 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
     function getPastTotalSupply(uint256 timestamp) external view returns (uint256) {
         return totalSupplyAtT(timestamp);
+    }
+
+    /**
+     * @notice Amount of MANA required to ragequit for a given token
+     * @param _tokenId ID of token to ragequit
+     */
+    function amountToRagequit(uint256 _tokenId) public view returns (uint256) {
+        return _balanceOfToken(_tokenId, block.timestamp) * manaPerVeALCX;
+    }
+
+    /**
+     * @notice Returns current token URI metadata
+     * @param _tokenId ID of the token to fetch URI for.
+     */
+    function tokenURI(uint256 _tokenId) external view returns (string memory) {
+        require(idToOwner[_tokenId] != address(0), "Query for nonexistent token");
+        LockedBalance memory _locked = locked[_tokenId];
+        return
+            _tokenURI(
+                _tokenId,
+                _balanceOfToken(_tokenId, block.timestamp),
+                _locked.end,
+                uint256(int256(_locked.amount))
+            );
+    }
+
+    function balanceOfToken(uint256 _tokenId) external view returns (uint256) {
+        if (ownershipChange[_tokenId] == block.number) return 0;
+        return _balanceOfToken(_tokenId, block.timestamp);
+    }
+
+    function balanceOfTokenAt(uint256 _tokenId, uint256 _time) external view returns (uint256) {
+        return _balanceOfToken(_tokenId, _time);
+    }
+
+    /**
+     * @notice Amount of mana claimable at current epoch
+     * @param _tokenId ID of the token
+     * @return uint256 Amount of claimable mana for the current epoch
+     */
+    function claimableMana(uint256 _tokenId) public view returns (uint256) {
+        uint256 votingPower = _balanceOfToken(_tokenId, block.timestamp);
+        return votingPower * manaMultiplier;
+    }
+
+    function balanceOfAtToken(uint256 _tokenId, uint256 _block) external view returns (uint256) {
+        return _balanceOfAtToken(_tokenId, _block);
+    }
+
+    /**
+     * @notice Calculate total voting power
+     * @param t Timestamp provided
+     * @return Total voting power
+     * @dev Adheres to the ERC20 `totalSupply` interface for Aragon compatibility
+     */
+    function totalSupplyAtT(uint256 t) public view returns (uint256) {
+        uint256 _epoch = epoch;
+        Point memory lastPoint = pointHistory[_epoch];
+        return _supplyAt(lastPoint, t);
+    }
+
+    /**
+     * @notice Calculate total voting power
+     * @return Total voting power
+     * @dev Adheres to the ERC20 `totalSupply` interface for Aragon compatibility
+     */
+    function totalSupply() external view returns (uint256) {
+        return totalSupplyAtT(block.timestamp);
+    }
+
+    /**
+     * @notice Calculate total voting power at some point in the past
+     * @param _block Block to calculate the total voting power at
+     * @return Total voting power at `_block`
+     */
+    function totalSupplyAt(uint256 _block) external view returns (uint256) {
+        require(_block <= block.number);
+        uint256 _epoch = epoch;
+        uint256 targetEpoch = _findBlockEpoch(_block, _epoch);
+
+        Point memory point = pointHistory[targetEpoch];
+        uint256 dt = 0;
+        if (targetEpoch < _epoch) {
+            Point memory pointNext = pointHistory[targetEpoch + 1];
+            if (point.blk != pointNext.blk) {
+                dt = ((_block - point.blk) * (pointNext.ts - point.ts)) / (pointNext.blk - point.blk);
+            }
+        } else {
+            if (point.blk != block.number) {
+                dt = ((_block - point.blk) * (block.timestamp - point.ts)) / (block.number - point.blk);
+            }
+        }
+        // Now dt contains info on how far are we beyond point
+        return _supplyAt(point, point.ts + dt);
+    }
+
+    /* 
+        External Functions 
+    */
+
+    /**
+     * @dev Throws unless `msg.sender` is the current owner, an authorized operator, or the approved address for this token.
+     *      Throws if `_from` is not the current owner.
+     *      Throws if `_to` is the zero address.
+     *      Throws if `_tokenId` is not a valid token.
+     * @dev The caller is responsible to confirm that `_to` is capable of receiving tokens or else
+     *        they maybe be permanently lost.
+     * @param _from The current owner of the token.
+     * @param _to The new owner.
+     * @param _tokenId ID of the token to transfer.
+     */
+    function transferFrom(
+        address _from,
+        address _to,
+        uint256 _tokenId
+    ) external {
+        _transferFrom(_from, _to, _tokenId, msg.sender);
+    }
+
+    /**
+     * @notice Transfers the ownership of an token from one address to another address.
+     * @param _from The current owner of the token.
+     * @param _to The new owner.
+     * @param _tokenId ID of the token to transfer.
+     * @param _data Additional data with no specified format, sent in call to `_to`.
+     * @dev Throws unless `msg.sender` is the current owner, an authorized operator, or the
+     *      approved address for this token.
+     *      Throws if `_from` is not the current owner.
+     *      Throws if `_to` is the zero address.
+     *      Throws if `_tokenId` is not a valid token.
+     *      If `_to` is a smart contract, it calls `onERC721Received` on `_to` and throws if
+     *      the return value is not `bytes4(keccak256("onERC721Received(address,address,uint256,bytes)"))`.
+     */
+    function safeTransferFrom(
+        address _from,
+        address _to,
+        uint256 _tokenId,
+        bytes memory _data
+    ) public {
+        _transferFrom(_from, _to, _tokenId, msg.sender);
+
+        if (_isContract(_to)) {
+            // Throws if transfer destination is a contract which does not implement 'onERC721Received'
+            try IERC721Receiver(_to).onERC721Received(msg.sender, _from, _tokenId, _data) returns (bytes4 response) {
+                if (response != IERC721Receiver(_to).onERC721Received.selector) {
+                    revert("ERC721: ERC721Receiver rejected tokens");
+                }
+            } catch (bytes memory reason) {
+                if (reason.length == 0) {
+                    revert("ERC721: transfer to non ERC721Receiver implementer");
+                } else {
+                    assembly {
+                        revert(add(32, reason), mload(reason))
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * @notice Transfers the ownership of an token from one address to another address.
+     * @dev Throws unless `msg.sender` is the current owner, an authorized operator, or the
+     *      approved address for this token.
+     *      Throws if `_from` is not the current owner.
+     *      Throws if `_to` is the zero address.
+     *      Throws if `_tokenId` is not a valid token.
+     *      If `_to` is a smart contract, it calls `onERC721Received` on `_to` and throws if
+     *      the return value is not `bytes4(keccak256("onERC721Received(address,address,uint256,bytes)"))`.
+     * @param _from The current owner of the token.
+     * @param _to The new owner.
+     * @param _tokenId ID of the token to transfer.
+     */
+    function safeTransferFrom(
+        address _from,
+        address _to,
+        uint256 _tokenId
+    ) external {
+        safeTransferFrom(_from, _to, _tokenId, "");
+    }
+
+    /**
+     * @notice Set or reaffirm the approved address for an token. The zero address indicates there is no approved address.
+     * @dev Throws unless `msg.sender` is the current token owner, or an authorized operator of the current owner.
+     *      Throws if `_tokenId` is not a valid token. (NOTE: This is not written the EIP)
+     *      Throws if `_approved` is the current owner. (NOTE: This is not written the EIP)
+     * @param _approved Address to be approved for the given token ID.
+     * @param _tokenId ID of the token to be approved.
+     */
+    function approve(address _approved, uint256 _tokenId) public {
+        address owner = idToOwner[_tokenId];
+        // Throws if `_tokenId` is not a valid token
+        require(owner != address(0));
+        // Throws if `_approved` is the current owner
+        require(_approved != owner);
+        // Check requirements
+        bool senderIsOwner = (idToOwner[_tokenId] == msg.sender);
+        bool senderIsApprovedForAll = (ownerToOperators[owner])[msg.sender];
+        require(senderIsOwner || senderIsApprovedForAll);
+        // Set the approval
+        idToApprovals[_tokenId] = _approved;
+        emit Approval(owner, _approved, _tokenId);
+    }
+
+    /**
+     * @notice Enables or disables approval for a third party ("operator") to manage all of `msg.sender`'s assets.
+     * @notice This works even if sender doesn't own any tokens at the time.
+     * @param _operator Address to add to the set of authorized operators.
+     * @param _approved True if the operators is approved, false to revoke approval.
+     * @dev  Throws if `_operator` is the `msg.sender`. (This is not written the EIP)
+     * @dev emits the ApprovalForAll event.
+     */
+    function setApprovalForAll(address _operator, bool _approved) external {
+        // Throws if `_operator` is the `msg.sender`
+        require(_operator != msg.sender);
+        ownerToOperators[msg.sender][_operator] = _approved;
+        emit ApprovalForAll(msg.sender, _operator, _approved);
+    }
+
+    /**
+     * @notice Delegate votes from `msg.sender` to `delegatee`
+     * @param delegatee The address to delegate votes to
+     */
+    function delegate(address delegatee) public {
+        if (delegatee == address(0)) delegatee = msg.sender;
+        return _delegate(msg.sender, delegatee);
+    }
+
+    function delegateBySig(
+        address delegatee,
+        uint256 nonce,
+        uint256 expiry,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) public {
+        bytes32 domainSeparator = keccak256(
+            abi.encode(DOMAIN_TYPEHASH, keccak256(bytes(name)), keccak256(bytes(version)), block.chainid, address(this))
+        );
+        bytes32 structHash = keccak256(abi.encode(DELEGATION_TYPEHASH, delegatee, nonce, expiry));
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
+        address signatory = ecrecover(digest, v, r, s);
+        require(signatory != address(0), "VotingEscrow::delegateBySig: invalid signature");
+        require(nonce == nonces[signatory]++, "VotingEscrow::delegateBySig: invalid nonce");
+        require(block.timestamp <= expiry, "VotingEscrow::delegateBySig: signature expired");
+        return _delegate(signatory, delegatee);
+    }
+
+    function setVoter(address _voter) external {
+        require(msg.sender == voter, "not voter");
+        voter = _voter;
+    }
+
+    function voting(uint256 _tokenId) external {
+        require(msg.sender == voter);
+        voted[_tokenId] = true;
+    }
+
+    function abstain(uint256 _tokenId) external {
+        require(msg.sender == voter);
+        voted[_tokenId] = false;
+    }
+
+    function attach(uint256 _tokenId) external {
+        require(msg.sender == voter);
+        attachments[_tokenId] = attachments[_tokenId] + 1;
+    }
+
+    function detach(uint256 _tokenId) external {
+        require(msg.sender == voter);
+        attachments[_tokenId] = attachments[_tokenId] - 1;
+    }
+
+    function setManaMultiplier(uint256 _manaMultiplier) external {
+        require(msg.sender == admin, "not admin");
+        manaMultiplier = _manaMultiplier;
+    }
+
+    function setAdmin(address _admin) external {
+        require(msg.sender == admin, "not admin");
+        pendingAdmin = _admin;
+    }
+
+    function acceptAdmin() external {
+        require(msg.sender == pendingAdmin, "not pending admin");
+        admin = pendingAdmin;
+    }
+
+    function setManaPerVeALCX(uint256 _manaPerVeALCX) external {
+        require(msg.sender == admin, "not admin");
+        manaPerVeALCX = _manaPerVeALCX;
+    }
+
+    function setClaimFee(uint256 _claimFeeBps) external {
+        require(msg.sender == admin, "not admin");
+        claimFeeBps = _claimFeeBps;
+    }
+
+    function merge(uint256 _from, uint256 _to) external {
+        require(attachments[_from] == 0 && !voted[_from], "attached");
+        require(_from != _to);
+        require(_isApprovedOrOwner(msg.sender, _from));
+        require(_isApprovedOrOwner(msg.sender, _to));
+
+        LockedBalance memory _locked0 = locked[_from];
+        LockedBalance memory _locked1 = locked[_to];
+        uint256 value0 = uint256(_locked0.amount);
+
+        // If max lock is enabled retain the max lock
+        _locked1.maxLockEnabled = _locked0.maxLockEnabled ? _locked0.maxLockEnabled : _locked1.maxLockEnabled;
+
+        // If max lock is enabled end is the max lock time, otherwise it is the greater of the two end times
+        uint256 end = _locked1.maxLockEnabled
+            ? ((block.timestamp + MAXTIME) / WEEK) * WEEK
+            : _locked0.end >= _locked1.end
+            ? _locked0.end
+            : _locked1.end;
+
+        locked[_from] = LockedBalance(0, 0, false, 0);
+        _checkpoint(_from, _locked0, LockedBalance(0, 0, false, 0));
+        _burn(_from);
+        _depositFor(_to, value0, end, _locked1.maxLockEnabled, _locked1, DepositType.MERGE_TYPE);
+    }
+
+    /**
+     * @notice Record global data to checkpoint
+     */
+    function checkpoint() external {
+        _checkpoint(0, LockedBalance(0, 0, false, 0), LockedBalance(0, 0, false, 0));
+    }
+
+    /**
+     * @notice Deposit `_value` tokens for `_tokenId` and add to the lock
+     * @param _tokenId ID of the token to deposit for
+     * @param _value Amount to add to user's lock
+     * @dev Anyone (even a smart contract) can deposit for someone else, but
+     *      cannot extend their locktime and deposit for a brand new user
+     */
+    function depositFor(uint256 _tokenId, uint256 _value) external nonreentrant {
+        LockedBalance memory _locked = locked[_tokenId];
+
+        require(_value > 0); // dev: need non-zero value
+        require(_locked.amount > 0, "No existing lock found");
+        require(_locked.end > block.timestamp, "Cannot add to expired lock. Withdraw");
+        _depositFor(_tokenId, _value, 0, _locked.maxLockEnabled, _locked, DepositType.DEPOSIT_FOR_TYPE);
+    }
+
+    /**
+     * @notice Deposit `_value` tokens for `_to` and lock for `_lockDuration`
+     * @param _value Amount to deposit
+     * @param _lockDuration Number of seconds to lock tokens for (rounded down to nearest week)
+     * @param _maxLockEnabled Is max lock enabled
+     * @param _to Address to deposit
+     */
+    function createLockFor(
+        uint256 _value,
+        uint256 _lockDuration,
+        bool _maxLockEnabled,
+        address _to
+    ) external nonreentrant returns (uint256) {
+        return _createLock(_value, _lockDuration, _maxLockEnabled, _to);
+    }
+
+    /**
+     * @notice Deposit `_value` tokens for `msg.sender` and lock for `_lockDuration`
+     * @param _value Amount to deposit
+     * @param _lockDuration Number of seconds to lock tokens for (rounded down to nearest week)
+     * @param _maxLockEnabled Is max lock enabled
+     */
+    function createLock(
+        uint256 _value,
+        uint256 _lockDuration,
+        bool _maxLockEnabled
+    ) external nonreentrant returns (uint256) {
+        return _createLock(_value, _lockDuration, _maxLockEnabled, msg.sender);
+    }
+
+    /**
+     * @notice Deposit `_value` additional tokens for `_tokenId` without modifying the unlock time
+     * @param _value Amount of tokens to deposit and add to the lock
+     */
+    function increaseAmount(uint256 _tokenId, uint256 _value) external nonreentrant {
+        require(_isApprovedOrOwner(msg.sender, _tokenId));
+
+        LockedBalance memory _locked = locked[_tokenId];
+
+        require(_value > 0); // dev: need non-zero value
+        require(_locked.amount > 0, "No existing lock found");
+        require(_locked.end > block.timestamp, "Cannot add to expired lock. Withdraw");
+
+        _depositFor(_tokenId, _value, 0, _locked.maxLockEnabled, _locked, DepositType.INCREASE_LOCK_AMOUNT);
+    }
+
+    /**
+     * @notice Extend the unlock time for `_tokenId`
+     * @param _lockDuration New number of seconds until tokens unlock
+     * @param _maxLockEnabled Is max lock being enabled
+     */
+    function updateUnlockTime(
+        uint256 _tokenId,
+        uint256 _lockDuration,
+        bool _maxLockEnabled
+    ) external nonreentrant {
+        require(_isApprovedOrOwner(msg.sender, _tokenId));
+
+        LockedBalance memory _locked = locked[_tokenId];
+
+        // If max lock is enabled set to max time
+        // If max lock is being disabled start decay from max time
+        // If max lock is disabled and not being enabled, add unlock time to current end
+        uint256 unlockTime = _maxLockEnabled ? ((block.timestamp + MAXTIME) / WEEK) * WEEK : _locked.maxLockEnabled
+            ? ((block.timestamp + MAXTIME) / WEEK) * WEEK
+            : ((block.timestamp + _lockDuration) / WEEK) * WEEK;
+
+        require(_locked.end > block.timestamp, "Lock expired");
+        require(_locked.amount > 0, "Nothing is locked");
+        require(unlockTime >= _locked.end, "Can only increase lock duration");
+        require(unlockTime <= block.timestamp + MAXTIME, "Voting lock can be 1 year max");
+
+        _depositFor(_tokenId, 0, unlockTime, _maxLockEnabled, _locked, DepositType.INCREASE_UNLOCK_TIME);
+    }
+
+    /**
+     * @notice Withdraw all tokens for `_tokenId`
+     * @dev Only possible if the lock has expired
+     */
+    function withdraw(uint256 _tokenId) public nonreentrant {
+        require(_isApprovedOrOwner(msg.sender, _tokenId));
+        require(attachments[_tokenId] == 0 && !voted[_tokenId], "attached");
+
+        LockedBalance memory _locked = locked[_tokenId];
+
+        require(_locked.cooldown > 0, "Cooldown period has not started");
+        require(block.timestamp >= _locked.cooldown, "Cooldown period in progress");
+
+        uint256 value = uint256(int256(_locked.amount));
+
+        locked[_tokenId] = LockedBalance(0, 0, false, 0);
+        uint256 supplyBefore = supply;
+        supply = supplyBefore - value;
+
+        // oldLocked can have either expired <= timestamp or zero end
+        // _locked has only 0 end
+        // Both can have >= 0 amount
+        _checkpoint(_tokenId, _locked, LockedBalance(0, 0, false, 0));
+
+        require(IERC20(BPT).transfer(msg.sender, value));
+
+        // Burn the token
+        _burn(_tokenId);
+
+        emit Withdraw(msg.sender, _tokenId, value, block.timestamp);
+        emit Supply(supplyBefore, supplyBefore - value);
+    }
+
+    /**
+     * @notice Accrue unclaimed mana for a given veALCX
+     * @param _tokenId ID of the token mana is being accrued to
+     * @param _amount Amount of mana being accrued
+     */
+    function accrueMana(uint256 _tokenId, uint256 _amount) external {
+        require(msg.sender == voter, "not voter");
+        unclaimedMana[_tokenId] += _amount;
+    }
+
+    /**
+     * @notice Claim unclaimed mana for a given veALCX
+     * @param _tokenId ID of the token mana is being accrued to
+     * @param _amount Amount of mana being claimed
+     * @dev mana can be claimed after accrual
+     */
+    function claimMana(uint256 _tokenId, uint256 _amount) external {
+        require(_isApprovedOrOwner(msg.sender, _tokenId));
+        require(unclaimedMana[_tokenId] >= _amount, "amount greater than unclaimed balance");
+
+        unclaimedMana[_tokenId] -= _amount;
+
+        // MANA is minted to the veALCX owner's address
+        IManaToken(MANA).mint(ownerOf(_tokenId), _amount);
+    }
+
+    /**
+     * @notice Starts the cooldown for `_tokenId`
+     * @param _tokenId ID of the token to start cooldown for
+     * @dev If lock is not expired cooldown can only be started by burning MANA
+     */
+    function startCooldown(uint256 _tokenId) external {
+        require(_isApprovedOrOwner(msg.sender, _tokenId));
+        require(attachments[_tokenId] == 0 && !voted[_tokenId], "attached");
+
+        LockedBalance memory _locked = locked[_tokenId];
+
+        // Can only start cooldown period once
+        require(_locked.cooldown == 0, "Cooldown period in progress");
+
+        // Can only start cooldown with max lock disabled
+        require(_locked.maxLockEnabled == false, "Max lock must be disabled");
+
+        locked[_tokenId].cooldown = block.timestamp + WEEK;
+
+        // If lock is not expired, cooldown can only be started by burning MANA
+        if (block.timestamp < _locked.end) {
+            // Amount of MANA required to ragequit
+            uint256 manaToRagequit = amountToRagequit(_tokenId);
+
+            require(IManaToken(MANA).balanceOf(msg.sender) >= manaToRagequit, "insufficient MANA balance");
+
+            locked[_tokenId].end = 0;
+
+            IManaToken(MANA).burnFrom(msg.sender, manaToRagequit);
+
+            emit Ragequit(msg.sender, _tokenId, block.timestamp);
+        }
+
+        emit CooldownStarted(msg.sender, _tokenId, _locked.cooldown);
+    }
+
+    /*
+        Internal functions
+    */
+
+    /**
+     * @notice Returns the number of tokens owned by `_owner`.
+     * @param _owner Address for whom to query the balance.
+     * @dev Throws if `_owner` is the zero address. tokens assigned to the zero address are considered invalid.
+     */
+    function _balance(address _owner) internal view returns (uint256) {
+        return ownerToTokenCount[_owner];
+    }
+
+    /**
+     * @notice Returns whether the given spender can transfer a given token ID
+     * @param _spender address of the spender to query
+     * @param _tokenId ID of the token to be transferred
+     * @return bool whether the msg.sender is approved for the given token ID, is an operator of the owner, or is the owner of the token
+     */
+    function _isApprovedOrOwner(address _spender, uint256 _tokenId) internal view returns (bool) {
+        address owner = idToOwner[_tokenId];
+        bool spenderIsOwner = owner == _spender;
+        bool spenderIsApproved = _spender == idToApprovals[_tokenId];
+        bool spenderIsApprovedForAll = (ownerToOperators[owner])[_spender];
+        return spenderIsOwner || spenderIsApproved || spenderIsApprovedForAll;
+    }
+
+    /**
+     * @notice Add a token to an index mapping to a given address
+     * @param _to address of the receiver
+     * @param _tokenId ID of the token to be added
+     */
+    function _addTokenToOwnerList(address _to, uint256 _tokenId) internal {
+        uint256 currentCount = _balance(_to);
+
+        ownerToTokenIdList[_to][currentCount] = _tokenId;
+        tokenToOwnerIndex[_tokenId] = currentCount;
+    }
+
+    /**
+     * @notice Remove a token from an index mapping to a given address
+     * @param _from address of the sender
+     * @param _tokenId ID of the token to be removed
+     */
+    function _removeTokenFromOwnerList(address _from, uint256 _tokenId) internal {
+        // Delete
+        uint256 currentCount = _balance(_from) - 1;
+        uint256 currentIndex = tokenToOwnerIndex[_tokenId];
+
+        if (currentCount == currentIndex) {
+            // update ownerToTokenIdList
+            ownerToTokenIdList[_from][currentCount] = 0;
+            // update tokenToOwnerIndex
+            tokenToOwnerIndex[_tokenId] = 0;
+        } else {
+            uint256 lastTokenId = ownerToTokenIdList[_from][currentCount];
+
+            // Add
+            // update ownerToTokenIdList
+            ownerToTokenIdList[_from][currentIndex] = lastTokenId;
+            // update tokenToOwnerIndex
+            tokenToOwnerIndex[lastTokenId] = currentIndex;
+
+            // Delete
+            // update ownerToTokenIdList
+            ownerToTokenIdList[_from][currentCount] = 0;
+            // update tokenToOwnerIndex
+            tokenToOwnerIndex[_tokenId] = 0;
+        }
+    }
+
+    /**
+     * @notice Add a token to a given address
+     * @dev Throws if `_tokenId` is owned by someone.
+     */
+    function _addTokenTo(address _to, uint256 _tokenId) internal {
+        // Throws if `_tokenId` is owned by someone
+        require(idToOwner[_tokenId] == address(0));
+        // Change the owner
+        idToOwner[_tokenId] = _to;
+        // Update owner token index tracking
+        _addTokenToOwnerList(_to, _tokenId);
+        // Change count tracking
+        ownerToTokenCount[_to] += 1;
+    }
+
+    /**
+     * @notice Remove a token from a given address
+     * @dev Throws if `_from` is not the current owner.
+     */
+    function _removeTokenFrom(address _from, uint256 _tokenId) internal {
+        // Throws if `_from` is not the current owner
+        require(idToOwner[_tokenId] == _from);
+        // Change the owner
+        idToOwner[_tokenId] = address(0);
+        // Update owner token index tracking
+        _removeTokenFromOwnerList(_from, _tokenId);
+        // Change count tracking
+        ownerToTokenCount[_from] -= 1;
+    }
+
+    /**
+     * @notice Clear an approval of a given address
+     * @dev Throws if `_owner` is not the current owner.
+     */
+    function _clearApproval(address _owner, uint256 _tokenId) internal {
+        // Throws if `_owner` is not the current owner
+        require(idToOwner[_tokenId] == _owner);
+        if (idToApprovals[_tokenId] != address(0)) {
+            // Reset approvals
+            idToApprovals[_tokenId] = address(0);
+        }
+    }
+
+    /**
+     * @notice Exeute transfer of a token.
+     * @dev Throws unless `msg.sender` is the current owner, an authorized operator, or the approved
+     *      address for this token. (NOTE: `msg.sender` not allowed in internal function so pass `_sender`.)
+     *      Throws if `_to` is the zero address.
+     *      Throws if `_from` is not the current owner.
+     *      Throws if `_tokenId` is not a valid token.
+     */
+    function _transferFrom(
+        address _from,
+        address _to,
+        uint256 _tokenId,
+        address _sender
+    ) internal {
+        require(attachments[_tokenId] == 0 && !voted[_tokenId], "attached");
+        // Check requirements
+        require(_isApprovedOrOwner(_sender, _tokenId));
+        // Clear approval. Throws if `_from` is not the current owner
+        _clearApproval(_from, _tokenId);
+        // Remove token. Throws if `_tokenId` is not a valid token
+        _removeTokenFrom(_from, _tokenId);
+        // Add token
+        _addTokenTo(_to, _tokenId);
+        // Set the block of ownership transfer (for Flash token protection)
+        ownershipChange[_tokenId] = block.number;
+        // Log the transfer
+        emit Transfer(_from, _to, _tokenId);
+    }
+
+    function _isContract(address account) internal view returns (bool) {
+        // This method relies on extcodesize, which returns 0 for contracts in
+        // construction, since the code is only stored at the end of the
+        // constructor execution.
+        uint256 size;
+        assembly {
+            size := extcodesize(account)
+        }
+        return size > 0;
+    }
+
+    /**
+     * @notice Function to mint tokens
+     * @dev Throws if `_to` is zero address.
+     *      Throws if `_tokenId` is owned by someone.
+     * @param _to The address that will receive the minted tokens.
+     * @param _tokenId ID of the token to mint.
+     * @return bool indication if the operation was successful.
+     */
+    function _mint(address _to, uint256 _tokenId) internal returns (bool) {
+        // Throws if `_to` is zero address
+        assert(_to != address(0));
+        // checkpoint for gov
+        _moveTokenDelegates(address(0), delegates(_to), _tokenId);
+        // Add token. Throws if `_tokenId` is owned by someone
+        _addTokenTo(_to, _tokenId);
+        // Mark first epoch
+        userFirstEpoch[_tokenId] = epoch;
+        emit Transfer(address(0), _to, _tokenId);
+        return true;
     }
 
     function _moveTokenDelegates(
@@ -729,38 +1182,11 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     }
 
     /**
-     * @notice Delegate votes from `msg.sender` to `delegatee`
-     * @param delegatee The address to delegate votes to
+     * @notice Record global and per-user data to checkpoint
+     * @param _tokenId ID of the token. No user checkpoint if 0
+     * @param oldLocked Pevious locked amount / end lock time for the user
+     * @param newLocked New locked amount / end lock time for the user
      */
-    function delegate(address delegatee) public {
-        if (delegatee == address(0)) delegatee = msg.sender;
-        return _delegate(msg.sender, delegatee);
-    }
-
-    function delegateBySig(
-        address delegatee,
-        uint256 nonce,
-        uint256 expiry,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
-    ) public {
-        bytes32 domainSeparator = keccak256(
-            abi.encode(DOMAIN_TYPEHASH, keccak256(bytes(name)), keccak256(bytes(version)), block.chainid, address(this))
-        );
-        bytes32 structHash = keccak256(abi.encode(DELEGATION_TYPEHASH, delegatee, nonce, expiry));
-        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
-        address signatory = ecrecover(digest, v, r, s);
-        require(signatory != address(0), "VotingEscrow::delegateBySig: invalid signature");
-        require(nonce == nonces[signatory]++, "VotingEscrow::delegateBySig: invalid nonce");
-        require(block.timestamp <= expiry, "VotingEscrow::delegateBySig: signature expired");
-        return _delegate(signatory, delegatee);
-    }
-
-    /// @notice Record global and per-user data to checkpoint
-    /// @param _tokenId ID of the token. No user checkpoint if 0
-    /// @param oldLocked Pevious locked amount / end lock time for the user
-    /// @param newLocked New locked amount / end lock time for the user
     function _checkpoint(
         uint256 _tokenId,
         LockedBalance memory oldLocked,
@@ -816,7 +1242,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
             blockSlope = (MULTIPLIER * (block.number - lastPoint.blk)) / (block.timestamp - lastPoint.ts);
         }
         // If last point is already recorded in this block, slope=0
-        // But that's ok b/c we know the block in such case
+        // We know the block in such case
 
         // Go over weeks to fill history and calculate what the current point is
         {
@@ -875,8 +1301,8 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
         if (_tokenId != 0) {
             // Schedule the slope changes (slope is going down)
-            // We subtract new_user_slope from [newLocked.end]
-            // and add old_user_slope to [oldLocked.end]
+            // We subtract from [newLocked.end]
+            // and add to [oldLocked.end]
             if (oldLocked.end > block.timestamp) {
                 // oldDslope was <something> - oldPoint.slope, so we cancel that
                 oldDslope += oldPoint.slope;
@@ -893,7 +1319,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
                 }
                 // else: we recorded it already in oldDslope
             }
-            // Now handle user history
+            // Handle user history
             uint256 userEpoch = userPointEpoch[_tokenId] + 1;
 
             userPointEpoch[_tokenId] = userEpoch;
@@ -903,12 +1329,14 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         }
     }
 
-    /// @notice Deposit and lock tokens for a user
-    /// @param _tokenId ID of the token that holds lock
-    /// @param _value Amount to deposit
-    /// @param unlockTime New time when to unlock the tokens, or 0 if unchanged
-    /// @param lockedBalance Previous locked amount / timestamp
-    /// @param depositType The type of deposit
+    /**
+     * @notice Deposit and lock tokens for a user
+     * @param _tokenId ID of the token that holds lock
+     * @param _value Amount to deposit
+     * @param unlockTime New time when to unlock the tokens, or 0 if unchanged
+     * @param lockedBalance Previous locked amount / timestamp
+     * @param depositType The type of deposit
+     */
     function _depositFor(
         uint256 _tokenId,
         uint256 _value,
@@ -953,100 +1381,12 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         emit Supply(supplyBefore, supplyBefore + _value);
     }
 
-    function setVoter(address _voter) external {
-        require(msg.sender == voter, "not voter");
-        voter = _voter;
-    }
-
-    function voting(uint256 _tokenId) external {
-        require(msg.sender == voter);
-        voted[_tokenId] = true;
-    }
-
-    function abstain(uint256 _tokenId) external {
-        require(msg.sender == voter);
-        voted[_tokenId] = false;
-    }
-
-    function attach(uint256 _tokenId) external {
-        require(msg.sender == voter);
-        attachments[_tokenId] = attachments[_tokenId] + 1;
-    }
-
-    function detach(uint256 _tokenId) external {
-        require(msg.sender == voter);
-        attachments[_tokenId] = attachments[_tokenId] - 1;
-    }
-
-    function setManaMultiplier(uint256 _manaMultiplier) external {
-        require(msg.sender == admin, "not admin");
-        manaMultiplier = _manaMultiplier;
-    }
-
-    function setAdmin(address _admin) external {
-        require(msg.sender == admin, "not admin");
-        admin = _admin;
-    }
-
-    function setManaPerVeALCX(uint256 _manaPerVeALCX) external {
-        require(msg.sender == admin, "not admin");
-        manaPerVeALCX = _manaPerVeALCX;
-    }
-
-    function setClaimFee(uint256 _claimFeeBps) external {
-        require(msg.sender == admin, "not admin");
-        claimFeeBps = _claimFeeBps;
-    }
-
-    function merge(uint256 _from, uint256 _to) external {
-        require(attachments[_from] == 0 && !voted[_from], "attached");
-        require(_from != _to);
-        require(_isApprovedOrOwner(msg.sender, _from));
-        require(_isApprovedOrOwner(msg.sender, _to));
-
-        LockedBalance memory _locked0 = locked[_from];
-        LockedBalance memory _locked1 = locked[_to];
-        uint256 value0 = uint256(_locked0.amount);
-
-        // If max lock is enabled retain the max lock
-        _locked1.maxLockEnabled = _locked0.maxLockEnabled ? _locked0.maxLockEnabled : _locked1.maxLockEnabled;
-
-        // If max lock is enabled end is the max lock time, otherwise it is the greater of the two end times
-        uint256 end = _locked1.maxLockEnabled
-            ? ((block.timestamp + MAXTIME) / WEEK) * WEEK
-            : _locked0.end >= _locked1.end
-            ? _locked0.end
-            : _locked1.end;
-
-        locked[_from] = LockedBalance(0, 0, false, 0);
-        _checkpoint(_from, _locked0, LockedBalance(0, 0, false, 0));
-        _burn(_from);
-        _depositFor(_to, value0, end, _locked1.maxLockEnabled, _locked1, DepositType.MERGE_TYPE);
-    }
-
-    /// @notice Record global data to checkpoint
-    function checkpoint() external {
-        _checkpoint(0, LockedBalance(0, 0, false, 0), LockedBalance(0, 0, false, 0));
-    }
-
-    /// @notice Deposit `_value` tokens for `_tokenId` and add to the lock
-    /// @dev Anyone (even a smart contract) can deposit for someone else, but
-    ///      cannot extend their locktime and deposit for a brand new user
-    /// @param _tokenId ID of the token to deposit for
-    /// @param _value Amount to add to user's lock
-    function depositFor(uint256 _tokenId, uint256 _value) external nonreentrant {
-        LockedBalance memory _locked = locked[_tokenId];
-
-        require(_value > 0); // dev: need non-zero value
-        require(_locked.amount > 0, "No existing lock found");
-        require(_locked.end > block.timestamp, "Cannot add to expired lock. Withdraw");
-        _depositFor(_tokenId, _value, 0, _locked.maxLockEnabled, _locked, DepositType.DEPOSIT_FOR_TYPE);
-    }
-
-    /// @notice Deposit `_value` tokens for `_to` and lock for `_lockDuration`
-    /// @param _value Amount to deposit
-    /// @param _lockDuration Number of seconds to lock tokens for (rounded down to nearest week)
-    /// @param _to Address to deposit
+    /**
+     * @notice Deposit `_value` tokens for `_to` and lock for `_lockDuration`
+     * @param _value Amount to deposit
+     * @param _lockDuration Number of seconds to lock tokens for (rounded down to nearest week)
+     * @param _to Address to deposit
+     */
     function _createLock(
         uint256 _value,
         uint256 _lockDuration,
@@ -1070,117 +1410,15 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         return _tokenId;
     }
 
-    /// @notice Deposit `_value` tokens for `_to` and lock for `_lockDuration`
-    /// @param _value Amount to deposit
-    /// @param _lockDuration Number of seconds to lock tokens for (rounded down to nearest week)
-    /// @param _maxLockEnabled Is max lock enabled
-    /// @param _to Address to deposit
-    function createLockFor(
-        uint256 _value,
-        uint256 _lockDuration,
-        bool _maxLockEnabled,
-        address _to
-    ) external nonreentrant returns (uint256) {
-        return _createLock(_value, _lockDuration, _maxLockEnabled, _to);
-    }
-
-    /// @notice Deposit `_value` tokens for `msg.sender` and lock for `_lockDuration`
-    /// @param _value Amount to deposit
-    /// @param _lockDuration Number of seconds to lock tokens for (rounded down to nearest week)
-    /// @param _maxLockEnabled Is max lock enabled
-    function createLock(
-        uint256 _value,
-        uint256 _lockDuration,
-        bool _maxLockEnabled
-    ) external nonreentrant returns (uint256) {
-        return _createLock(_value, _lockDuration, _maxLockEnabled, msg.sender);
-    }
-
-    /// @notice Deposit `_value` additional tokens for `_tokenId` without modifying the unlock time
-    /// @param _value Amount of tokens to deposit and add to the lock
-    function increaseAmount(uint256 _tokenId, uint256 _value) external nonreentrant {
-        require(_isApprovedOrOwner(msg.sender, _tokenId));
-
-        LockedBalance memory _locked = locked[_tokenId];
-
-        require(_value > 0); // dev: need non-zero value
-        require(_locked.amount > 0, "No existing lock found");
-        require(_locked.end > block.timestamp, "Cannot add to expired lock. Withdraw");
-
-        _depositFor(_tokenId, _value, 0, _locked.maxLockEnabled, _locked, DepositType.INCREASE_LOCK_AMOUNT);
-    }
-
-    /// @notice Extend the unlock time for `_tokenId`
-    /// @param _lockDuration New number of seconds until tokens unlock
-    /// @param _maxLockEnabled Is max lock being enabled
-    function updateUnlockTime(
-        uint256 _tokenId,
-        uint256 _lockDuration,
-        bool _maxLockEnabled
-    ) external nonreentrant {
-        require(_isApprovedOrOwner(msg.sender, _tokenId));
-
-        LockedBalance memory _locked = locked[_tokenId];
-
-        // If max lock is enabled set to max time
-        // If max lock is being disabled start decay from max time
-        // If max lock is disabled and not being enabled, add unlock time to current end
-        uint256 unlockTime = _maxLockEnabled ? ((block.timestamp + MAXTIME) / WEEK) * WEEK : _locked.maxLockEnabled
-            ? ((block.timestamp + MAXTIME) / WEEK) * WEEK
-            : ((block.timestamp + _lockDuration) / WEEK) * WEEK;
-
-        require(_locked.end > block.timestamp, "Lock expired");
-        require(_locked.amount > 0, "Nothing is locked");
-        require(unlockTime >= _locked.end, "Can only increase lock duration");
-        require(unlockTime <= block.timestamp + MAXTIME, "Voting lock can be 1 year max");
-
-        _depositFor(_tokenId, 0, unlockTime, _maxLockEnabled, _locked, DepositType.INCREASE_UNLOCK_TIME);
-    }
-
-    /// @notice Withdraw all tokens for `_tokenId`
-    /// @dev Only possible if the lock has expired
-    function withdraw(uint256 _tokenId) public nonreentrant {
-        require(_isApprovedOrOwner(msg.sender, _tokenId));
-        require(attachments[_tokenId] == 0 && !voted[_tokenId], "attached");
-
-        LockedBalance memory _locked = locked[_tokenId];
-
-        require(_locked.cooldown > 0, "Cooldown period has not started");
-        require(block.timestamp >= _locked.cooldown, "Cooldown period in progress");
-
-        uint256 value = uint256(int256(_locked.amount));
-
-        locked[_tokenId] = LockedBalance(0, 0, false, 0);
-        uint256 supplyBefore = supply;
-        supply = supplyBefore - value;
-
-        // oldLocked can have either expired <= timestamp or zero end
-        // _locked has only 0 end
-        // Both can have >= 0 amount
-        _checkpoint(_tokenId, _locked, LockedBalance(0, 0, false, 0));
-
-        require(IERC20(BPT).transfer(msg.sender, value));
-
-        // Burn the token
-        _burn(_tokenId);
-
-        emit Withdraw(msg.sender, _tokenId, value, block.timestamp);
-        emit Supply(supplyBefore, supplyBefore - value);
-    }
-
-    // Amount of MANA required to ragequit for a given token
-    function amountToRagequit(uint256 _tokenId) public view returns (uint256) {
-        return _balanceOfToken(_tokenId, block.timestamp) * manaPerVeALCX;
-    }
-
     // The following ERC20/minime-compatible methods are not real balanceOf and supply!
     // They measure the weights for the purpose of voting, so they don't represent
     // real coins.
-
-    /// @notice Binary search to estimate timestamp for block number
-    /// @param _block Block to find
-    /// @param maxEpoch Don't go beyond this epoch
-    /// @return Approximate timestamp for block
+    /**
+     * @notice Binary search to estimate timestamp for block number
+     * @param _block Block to find
+     * @param maxEpoch Don't go beyond this epoch
+     * @return Approximate timestamp for block
+     */
     function _findBlockEpoch(uint256 _block, uint256 maxEpoch) internal view returns (uint256) {
         // Binary search
         uint256 _min = 0;
@@ -1200,11 +1438,13 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         return _min;
     }
 
-    /// @notice Get the current voting power for `_tokenId`
-    /// @dev Adheres to the ERC20 `balanceOf` interface for Aragon compatibility
-    /// @param _tokenId ID of the token
-    /// @param _time Epoch time to return voting power at
-    /// @return User voting power
+    /**
+     * @notice Get the current voting power for `_tokenId`
+     * @param _tokenId ID of the token
+     * @param _time Epoch time to return voting power at
+     * @return User voting power
+     * @dev Adheres to the ERC20 `balanceOf` interface for Aragon compatibility
+     */
     function _balanceOfToken(uint256 _tokenId, uint256 _time) internal view returns (uint256) {
         uint256 _epoch = userPointEpoch[_tokenId];
 
@@ -1225,81 +1465,13 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         }
     }
 
-    /// @dev Returns current token URI metadata
-    /// @param _tokenId ID of the token to fetch URI for.
-    function tokenURI(uint256 _tokenId) external view returns (string memory) {
-        require(idToOwner[_tokenId] != address(0), "Query for nonexistent token");
-        LockedBalance memory _locked = locked[_tokenId];
-        return
-            _tokenURI(
-                _tokenId,
-                _balanceOfToken(_tokenId, block.timestamp),
-                _locked.end,
-                uint256(int256(_locked.amount))
-            );
-    }
-
-    function balanceOfToken(uint256 _tokenId) external view returns (uint256) {
-        if (ownershipChange[_tokenId] == block.number) return 0;
-        return _balanceOfToken(_tokenId, block.timestamp);
-    }
-
-    function balanceOfTokenAt(uint256 _tokenId, uint256 _time) external view returns (uint256) {
-        return _balanceOfToken(_tokenId, _time);
-    }
-
-    function claimableMana(uint256 _tokenId) public view returns (uint256) {
-        uint256 votingPower = _balanceOfToken(_tokenId, block.timestamp);
-        return votingPower * manaMultiplier;
-    }
-
-    function claimMana(uint256 _tokenId, uint256 _amount) external {
-        require(msg.sender == voter);
-        require(claimableMana(_tokenId) >= _amount, "amount greater than unclaimed balance");
-
-        // MANA is minted to the veALCX owner's address
-        IManaToken(MANA).mint(ownerOf(_tokenId), _amount);
-    }
-
-    /// @notice Starts the cooldown for `_tokenId`
-    /// @dev If lock is not expired cooldown can only be started by burning MANA
-    /// @param _tokenId ID of the token to start cooldown for
-    function startCooldown(uint256 _tokenId) external {
-        require(_isApprovedOrOwner(msg.sender, _tokenId));
-        require(attachments[_tokenId] == 0 && !voted[_tokenId], "attached");
-
-        LockedBalance memory _locked = locked[_tokenId];
-
-        // Can only start cooldown period once
-        require(_locked.cooldown == 0, "Cooldown period in progress");
-
-        // Can only start cooldown with max lock disabled
-        require(_locked.maxLockEnabled == false, "Max lock must be disabled");
-
-        locked[_tokenId].cooldown = block.timestamp + WEEK;
-
-        // If lock is not expired, cooldown can only be started by burning MANA
-        if (block.timestamp < _locked.end) {
-            // Amount of MANA required to ragequit
-            uint256 manaToRagequit = amountToRagequit(_tokenId);
-
-            require(IManaToken(MANA).balanceOf(msg.sender) >= manaToRagequit, "insufficient MANA balance");
-
-            locked[_tokenId].end = 0;
-
-            IManaToken(MANA).burnFrom(msg.sender, manaToRagequit);
-
-            emit Ragequit(msg.sender, _tokenId, block.timestamp);
-        }
-
-        emit CooldownStarted(msg.sender, _tokenId, _locked.cooldown);
-    }
-
-    /// @notice Measure voting power of `_tokenId` at block height `_block`
-    /// @dev Adheres to MiniMe `balanceOfAt` interface: https://github.com/Giveth/minime
-    /// @param _tokenId ID of the token
-    /// @param _block Block to calculate the voting power at
-    /// @return Voting power
+    /**
+     * @notice Measure voting power of `_tokenId` at block height `_block`
+     * @param _tokenId ID of the token
+     * @param _block Block to calculate the voting power at
+     * @return Voting power
+     * @dev Adheres to MiniMe `balanceOfAt` interface: https://github.com/Giveth/minime
+     */
     function _balanceOfAtToken(uint256 _tokenId, uint256 _block) internal view returns (uint256) {
         // totalSupply code because Vyper cannot pass by reference yet
         require(_block <= block.number);
@@ -1348,14 +1520,12 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         }
     }
 
-    function balanceOfAtToken(uint256 _tokenId, uint256 _block) external view returns (uint256) {
-        return _balanceOfAtToken(_tokenId, _block);
-    }
-
-    /// @notice Calculate total voting power at some point in the past
-    /// @param point The point (bias/slope) to start search from
-    /// @param t Time to calculate the total voting power at
-    /// @return Total voting power at that time
+    /**
+     * @notice Calculate total voting power at some point in the past
+     * @param point The point (bias/slope) to start search from
+     * @param t Time to calculate the total voting power at
+     * @return Total voting power at that time
+     */
     function _supplyAt(Point memory point, uint256 t) internal view returns (uint256) {
         Point memory lastPoint = point;
 
@@ -1381,43 +1551,6 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
             lastPoint.bias = 0;
         }
         return uint256(lastPoint.bias);
-    }
-
-    /// @notice Calculate total voting power
-    /// @dev Adheres to the ERC20 `totalSupply` interface for Aragon compatibility
-    /// @return Total voting power
-    function totalSupplyAtT(uint256 t) public view returns (uint256) {
-        uint256 _epoch = epoch;
-        Point memory lastPoint = pointHistory[_epoch];
-        return _supplyAt(lastPoint, t);
-    }
-
-    function totalSupply() external view returns (uint256) {
-        return totalSupplyAtT(block.timestamp);
-    }
-
-    /// @notice Calculate total voting power at some point in the past
-    /// @param _block Block to calculate the total voting power at
-    /// @return Total voting power at `_block`
-    function totalSupplyAt(uint256 _block) external view returns (uint256) {
-        require(_block <= block.number);
-        uint256 _epoch = epoch;
-        uint256 targetEpoch = _findBlockEpoch(_block, _epoch);
-
-        Point memory point = pointHistory[targetEpoch];
-        uint256 dt = 0;
-        if (targetEpoch < _epoch) {
-            Point memory pointNext = pointHistory[targetEpoch + 1];
-            if (point.blk != pointNext.blk) {
-                dt = ((_block - point.blk) * (pointNext.ts - point.ts)) / (pointNext.blk - point.blk);
-            }
-        } else {
-            if (point.blk != block.number) {
-                dt = ((_block - point.blk) * (block.timestamp - point.ts)) / (block.number - point.blk);
-            }
-        }
-        // Now dt contains info on how far are we beyond point
-        return _supplyAt(point, point.ts + dt);
     }
 
     function _tokenURI(

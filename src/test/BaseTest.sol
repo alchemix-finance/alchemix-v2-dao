@@ -1,50 +1,44 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3
 pragma solidity ^0.8.15;
 
 import "lib/forge-std/src/console2.sol";
-import { Test } from "lib/forge-std/src/Test.sol";
-import { DSTestPlus } from "./utils/DSTestPlus.sol";
-import { VotingEscrow } from "src/VotingEscrow.sol";
-import { AlchemixGovernor } from "src/AlchemixGovernor.sol";
-import { ManaToken } from "src/ManaToken.sol";
-import { Voter } from "src/Voter.sol";
-import { GaugeFactory } from "src/factories/GaugeFactory.sol";
-import { BribeFactory } from "src/factories/BribeFactory.sol";
-import { Minter, InitializationParams } from "src/Minter.sol";
-import { IAlchemixToken } from "src/interfaces/IAlchemixToken.sol";
-import { RewardsDistributor } from "src/RewardsDistributor.sol";
-import "src/governance/TimelockExecutor.sol";
-import "src/StakingGauge.sol";
-import "src/Bribe.sol";
+import "lib/forge-std/src/Test.sol";
+import "./utils/DSTestPlus.sol";
 
-import { WeightedPool2TokensFactory } from "src/interfaces/balancer/WeightedPool2TokensFactory.sol";
-import { WeightedPoolUserData } from "src/interfaces/balancer/WeightedPoolUserData.sol";
-import { IVault } from "src/interfaces/balancer/IVault.sol";
-import { IBasePool } from "src/interfaces/balancer/IBasePool.sol";
-import { IAsset } from "src/interfaces/balancer/IAsset.sol";
-import { IWETH9 } from "src/interfaces/IWETH9.sol";
+import "src/VotingEscrow.sol";
+import "src/AlchemixGovernor.sol";
+import "src/ManaToken.sol";
+import "src/Voter.sol";
+import "src/Minter.sol";
+import "src/RewardsDistributor.sol";
+import "src/RevenueHandler.sol";
+import "src/Bribe.sol";
+import "src/gauges/CurveGauge.sol";
+import "src/gauges/PassthroughGauge.sol";
+import "src/gauges/StakingGauge.sol";
+import "src/governance/TimelockExecutor.sol";
+import "src/factories/BribeFactory.sol";
+import "src/factories/GaugeFactory.sol";
+
+import "src/interfaces/IAlchemixToken.sol";
+import "src/interfaces/IMinter.sol";
+import "src/interfaces/balancer/WeightedPool2TokensFactory.sol";
+import "src/interfaces/balancer/WeightedPoolUserData.sol";
+import "src/interfaces/balancer/IVault.sol";
+import "src/interfaces/balancer/IBasePool.sol";
+import "src/interfaces/balancer/IAsset.sol";
+import "src/interfaces/IWETH9.sol";
 
 contract BaseTest is DSTestPlus {
-    IAlchemixToken public alcx = IAlchemixToken(0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF);
-    IERC20 public galcx = IERC20(0x93Dede06AE3B5590aF1d4c111BC54C3f717E4b35);
-    WeightedPool2TokensFactory poolFactory = WeightedPool2TokensFactory(0xA5bf2ddF098bb0Ef6d120C98217dD6B141c74EE0);
-    address constant admin = 0x8392F6669292fA56123F71949B52d883aE57e225;
-    address constant devmsig = 0x9e2b6378ee8ad2A4A95Fe481d63CAba8FB0EBBF9;
-    address account = address(0xbeef);
+    address public admin = 0x8392F6669292fA56123F71949B52d883aE57e225;
+    address public devmsig = 0x9e2b6378ee8ad2A4A95Fe481d63CAba8FB0EBBF9;
+    address public account = address(0xbeef);
     address public alETHPool = 0xC4C319E2D4d66CcA4464C0c2B32c9Bd23ebe784e;
     address public alUSDPool = 0x9735F7d3Ea56b454b24fFD74C58E9bD85cfaD31B;
     address public USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address public priceFeed = 0x194a9AaF2e0b67c35915cD01101585A33Fe25CAa;
-    IERC20 public weth = IERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
+    address public zeroAddress = address(0xdead);
     address public bpt;
-    IVault public balancerVault = IVault(0xBA12222222228d8Ba445958a75a0704d566BF2C8);
-    ManaToken public MANA = new ManaToken(admin);
-    VotingEscrow public veALCX;
-
-    uint256 internal constant MAXTIME = 365 days;
-    uint256 internal constant MULTIPLIER = 26 ether;
-
-    uint256 public mainnet = 1;
 
     // Values for the current epoch (emissions to be manually minted)
     uint256 public supply = 1793678e18;
@@ -52,11 +46,23 @@ contract BaseTest is DSTestPlus {
     uint256 public stepdown = 130e18;
     uint256 public supplyAtTail = 2392609e18;
 
+    uint256 constant MAINNET = 1;
     uint256 constant TOKEN_1 = 1e18;
     uint256 constant TOKEN_100K = 1e23; // 1e5 = 100K tokens with 18 decimals
     uint256 constant TOKEN_1M = 1e24; // 1e6 = 1M tokens with 18 decimals
     uint256 constant TOKEN_100M = 1e26; // 1e8 = 100M tokens with 18 decimals
     uint256 constant TOKEN_10B = 1e28; // 1e10 = 10B tokens with 18 decimals
+
+    uint256 internal constant MAXTIME = 365 days;
+    uint256 internal constant MULTIPLIER = 26 ether;
+
+    WeightedPool2TokensFactory poolFactory = WeightedPool2TokensFactory(0xA5bf2ddF098bb0Ef6d120C98217dD6B141c74EE0);
+    IAlchemixToken public alcx = IAlchemixToken(0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF);
+    IERC20 public galcx = IERC20(0x93Dede06AE3B5590aF1d4c111BC54C3f717E4b35);
+    IERC20 public weth = IERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
+    IVault public balancerVault = IVault(0xBA12222222228d8Ba445958a75a0704d566BF2C8);
+    ManaToken public MANA = new ManaToken(admin);
+    VotingEscrow public veALCX;
 
     function setupBaseTest() public {
         bpt = createBalancerPool();

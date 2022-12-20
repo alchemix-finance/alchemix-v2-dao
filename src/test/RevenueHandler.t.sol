@@ -1,17 +1,16 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.15;
 
 import "./BaseTest.sol";
-import "src/RevenueHandler.sol";
 import "src/CurveMetaPoolAdapter.sol";
 import "src/CurveEthPoolAdapter.sol";
-import "./utils/DSTestPlus.sol";
 import "lib/v2-foundry/src/interfaces/IAlchemistV2.sol";
 import "lib/v2-foundry/src/interfaces/IWhitelist.sol";
 
 contract RevenueHandlerTest is BaseTest {
     uint256 ONE_EPOCH_TIME = 1 weeks;
     uint256 ONE_EPOCH_BLOCKS = (1 weeks) / 12;
+
     address holder = 0x000000000000000000000000000000000000dEaD;
     address alusd = 0xBC6DA0FE9aD5f3b0d58160288917AA56653660E9;
     address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
@@ -21,6 +20,7 @@ contract RevenueHandlerTest is BaseTest {
     address aleth = 0x0100546F2cD4C9D97f798fFC9755E47865FF7Ee6;
     address alusd3crv = 0x43b4FdFD4Ff969587185cDB6f0BD875c5Fc83f8c;
     address alethcrv = 0xC4C319E2D4d66CcA4464C0c2B32c9Bd23ebe784e;
+
     IAlchemistV2 public alusdAlchemist = IAlchemistV2(0x5C6374a2ac4EBC38DeA0Fc1F8716e5Ea1AdD94dd);
     IWhitelist public whitelist = IWhitelist(0x78537a6CeBa16f412E123a90472C6E0e9A8F1132);
 
@@ -38,13 +38,13 @@ contract RevenueHandlerTest is BaseTest {
 
         cpa = new CurveMetaPoolAdapter(alusd3crv, alusd3crvTokenIds);
         rh = new RevenueHandler(address(veALCX));
-        
+
         rh.addDebtToken(alusd);
 
         rh.addRevenueToken(dai);
         rh.setDebtToken(dai, alusd);
         rh.setPoolAdapter(dai, address(cpa));
-        
+
         rh.addRevenueToken(usdc);
         rh.setDebtToken(usdc, alusd);
         rh.setPoolAdapter(usdc, address(cpa));
@@ -80,12 +80,12 @@ contract RevenueHandlerTest is BaseTest {
 
     function _accrueRevenueAndJumpOneEpoch(uint256 revAmt) internal {
         rh.checkpoint();
-        
+
         _jumpOneEpoch();
 
         _accrueRevenue(dai, revAmt);
         rh.checkpoint();
-        
+
         _jumpOneEpoch();
     }
 
@@ -181,18 +181,18 @@ contract RevenueHandlerTest is BaseTest {
     function testCheckpoint() external {
         uint256 revAmt = 1000e18;
         _accrueRevenue(dai, revAmt);
-        
+
         uint256 balBefore = IERC20(alusd).balanceOf(address(rh));
         assertEq(balBefore, 0);
         rh.checkpoint();
         uint256 balAfter = IERC20(alusd).balanceOf(address(rh));
-        assertApproxEq(revAmt, balAfter, revAmt/100);
+        assertApproxEq(revAmt, balAfter, revAmt / 65);
     }
 
     function testCheckpointRunsOncePerEpoch() external {
         uint256 revAmt = 1000e18;
         _accrueRevenue(dai, revAmt);
-        
+
         rh.checkpoint();
         uint256 balBefore = IERC20(alusd).balanceOf(address(rh));
 
@@ -212,12 +212,12 @@ contract RevenueHandlerTest is BaseTest {
 
         uint256 usdcRevAmt = 1000e6;
         _accrueRevenue(usdc, usdcRevAmt);
-        
+
         uint256 balBefore = IERC20(alusd).balanceOf(address(rh));
         assertEq(balBefore, 0);
         rh.checkpoint();
         uint256 balAfter = IERC20(alusd).balanceOf(address(rh));
-        assertApproxEq(2000e18, balAfter, 2000e18/100);
+        assertApproxEq(2000e18, balAfter, 2000e18 / uint256(65));
     }
 
     function testClaimOnlyApproved() external {
@@ -234,7 +234,7 @@ contract RevenueHandlerTest is BaseTest {
         uint256 tokenId = _setupClaimableRevenue(revAmt);
 
         uint256 claimable = rh.claimable(tokenId, alusd);
-        assertApproxEq(revAmt, claimable, revAmt/100);
+        assertApproxEq(revAmt, claimable, revAmt / 65);
 
         uint256 debtAmt = 5000e18;
         _takeDebt(debtAmt);
@@ -250,11 +250,11 @@ contract RevenueHandlerTest is BaseTest {
 
         _accrueRevenue(dai, revAmt);
         rh.checkpoint();
-        
+
         _jumpOneEpoch();
 
         uint256 claimable = rh.claimable(tokenId, alusd);
-        assertApproxEq(revAmt * 2, claimable, revAmt * 2 /100);
+        assertApproxEq(revAmt * 2, claimable, (revAmt * 2) / 65);
 
         uint256 debtAmt = 5000e18;
         _takeDebt(debtAmt);
@@ -326,7 +326,7 @@ contract RevenueHandlerTest is BaseTest {
         _accrueRevenueAndJumpOneEpoch(revAmt);
         _jumpOneEpoch();
         uint256 claimable = rh.claimable(tokenId, alusd);
-        assertApproxEq(claimable, revAmt, revAmt/100);
+        assertApproxEq(claimable, revAmt, revAmt / 65);
     }
 
     function testClaimBeforeAndAfterCheckpoint() external {
@@ -340,17 +340,17 @@ contract RevenueHandlerTest is BaseTest {
         // this revenue is not yet checkpointed
         _accrueRevenue(dai, revAmt);
         uint256 claimable = rh.claimable(tokenId, alusd);
-        assertApproxEq(claimable, revAmt, revAmt/100);
+        assertApproxEq(claimable, revAmt, revAmt / 65);
 
         rh.claim(tokenId, address(alusdAlchemist), claimable, address(this));
 
         claimable = rh.claimable(tokenId, alusd);
         assertEq(claimable, 0);
-        
+
         // checkpoint the accrued revenue
         rh.checkpoint();
         claimable = rh.claimable(tokenId, alusd);
-        assertApproxEq(claimable, revAmt, revAmt/100);
+        assertApproxEq(claimable, revAmt, revAmt / 65);
     }
 
     function testIncreaseVeALCXBeforeFirstClaim() external {
@@ -372,7 +372,7 @@ contract RevenueHandlerTest is BaseTest {
         _accrueRevenueAndJumpOneEpoch(revAmt); // this revenue SHOULD be claimable
 
         uint256 claimable = rh.claimable(tokenId, alusd);
-        assertApproxEq(claimable, 2*revAmt, 2*revAmt/100);
+        assertApproxEq(claimable, 2 * revAmt, (2 * revAmt) / 65);
     }
 
     function testCheckpointETH() external {
@@ -390,12 +390,12 @@ contract RevenueHandlerTest is BaseTest {
 
         uint256 revAmt = 10e18;
         _accrueRevenue(address(weth), revAmt);
-        
+
         uint256 balBefore = IERC20(aleth).balanceOf(address(rh));
         assertEq(balBefore, 0);
         rh.checkpoint();
         uint256 balAfter = IERC20(aleth).balanceOf(address(rh));
-        assertApproxEq(revAmt, balAfter, revAmt/75);
+        assertApproxEq(revAmt, balAfter, revAmt / 55);
     }
 
     function testMultipleClaimers() external {
@@ -429,7 +429,7 @@ contract RevenueHandlerTest is BaseTest {
 
         _accrueRevenueAndJumpOneEpoch(revAmt);
         uint256 holderClaimable = rh.claimable(holderTokenId, alusd);
-        assertApproxEq(holderClaimable, 2 * revAmt * 4 / 5, (2 * revAmt * 4 / 5) / 100);
+        assertApproxEq(holderClaimable, (2 * revAmt * 4) / 5, ((2 * revAmt * 4) / 5) / 65);
 
         hevm.startPrank(holder);
         rh.claim(holderTokenId, address(alusdAlchemist), holderClaimable, holder);
@@ -445,7 +445,7 @@ contract RevenueHandlerTest is BaseTest {
     function testDisableRevenueToken() external {
         uint256 revAmt = 1000e18;
         _accrueRevenue(dai, revAmt);
-        
+
         uint256 balBefore = IERC20(alusd).balanceOf(address(rh));
         assertEq(balBefore, 0);
         rh.disableRevenueToken(dai);

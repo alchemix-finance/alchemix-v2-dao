@@ -1,12 +1,16 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3
 pragma solidity ^0.8.15;
 
-import "./interfaces/IBribe.sol";
-import "../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import "./interfaces/IVoter.sol";
-import "./interfaces/IVotingEscrow.sol";
-import "./BaseGauge.sol";
+import "src/BaseGauge.sol";
+import "src/interfaces/IVoter.sol";
+import "src/interfaces/IBribe.sol";
+import "src/interfaces/IVotingEscrow.sol";
+import "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
+/**
+ * @title Staking Gauge
+ * @notice Gauge to handle ALCX staking
+ */
 contract StakingGauge is BaseGauge {
     event Deposit(address indexed from, uint256 tokenId, uint256 amount);
     event Withdraw(address indexed from, uint256 tokenId, uint256 amount);
@@ -21,8 +25,6 @@ contract StakingGauge is BaseGauge {
         bribe = _bribe;
         ve = _ve;
         voter = _voter;
-
-        factory = msg.sender;
 
         IBribe(bribe).setGauge(address(this));
         address _token = IVotingEscrow(ve).ALCX();
@@ -64,7 +66,6 @@ contract StakingGauge is BaseGauge {
         _writeCheckpoint(msg.sender, _derivedBalance);
         _writeSupplyCheckpoint();
 
-        IVoter(voter).emitDeposit(tokenId, msg.sender, amount);
         emit Deposit(msg.sender, tokenId, amount);
     }
 
@@ -104,42 +105,6 @@ contract StakingGauge is BaseGauge {
         _writeCheckpoint(msg.sender, derivedBalances[msg.sender]);
         _writeSupplyCheckpoint();
 
-        IVoter(voter).emitWithdraw(tokenId, msg.sender, amount);
         emit Withdraw(msg.sender, tokenId, amount);
-    }
-
-    function notifyRewardAmount(address token, uint256 amount) external override lock {
-        require(token != stake);
-        require(amount > 0);
-        if (!isReward[token]) {
-            require(rewards.length < MAX_REWARD_TOKENS, "too many rewards tokens");
-        }
-        // rewards accrue only during the bribe period
-        uint256 bribeStart = block.timestamp - (block.timestamp % (7 days)) + BRIBE_LAG;
-        uint256 adjustedTstamp = block.timestamp < bribeStart ? bribeStart : bribeStart + 7 days;
-        if (rewardRate[token] == 0) _writeRewardPerTokenCheckpoint(token, 0, adjustedTstamp);
-        (rewardPerTokenStored[token], lastUpdateTime[token]) = _updateRewardPerToken(token);
-
-        if (block.timestamp >= periodFinish[token]) {
-            _safeTransferFrom(token, msg.sender, address(this), amount);
-            rewardRate[token] = amount / DURATION;
-        } else {
-            uint256 _remaining = periodFinish[token] - block.timestamp;
-            uint256 _left = _remaining * rewardRate[token];
-            require(amount > _left);
-            _safeTransferFrom(token, msg.sender, address(this), amount);
-            rewardRate[token] = (amount + _left) / DURATION;
-        }
-        require(rewardRate[token] > 0);
-        uint256 balance = IERC20(token).balanceOf(address(this));
-        require(rewardRate[token] <= balance / DURATION, "Provided reward too high");
-        periodFinish[token] = adjustedTstamp + DURATION;
-        if (!isReward[token]) {
-            isReward[token] = true;
-            rewards.push(token);
-            IBribe(bribe).addRewardToken(token);
-        }
-
-        emit NotifyReward(msg.sender, token, amount);
     }
 }

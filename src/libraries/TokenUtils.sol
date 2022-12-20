@@ -1,7 +1,8 @@
-pragma solidity ^0.8.13;
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.15;
 
-import "../../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import "../../lib/openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "../interfaces/IERC20Burnable.sol";
 import "../interfaces/IERC20Mintable.sol";
 
@@ -24,9 +25,7 @@ library TokenUtils {
     ///
     /// @return The amount of decimals of the token.
     function expectDecimals(address token) internal view returns (uint8) {
-        (bool success, bytes memory data) = token.staticcall(
-            abi.encodeWithSelector(IERC20Metadata.decimals.selector)
-        );
+        (bool success, bytes memory data) = token.staticcall(abi.encodeWithSelector(IERC20Metadata.decimals.selector));
 
         if (token.code.length == 0 || !success || data.length < 32) {
             revert ERC20CallFailed(token, success, data);
@@ -62,7 +61,11 @@ library TokenUtils {
     /// @param token     The token to transfer.
     /// @param recipient The address of the recipient.
     /// @param amount    The amount of tokens to transfer.
-    function safeTransfer(address token, address recipient, uint256 amount) internal {
+    function safeTransfer(
+        address token,
+        address recipient,
+        uint256 amount
+    ) internal {
         (bool success, bytes memory data) = token.call(
             abi.encodeWithSelector(IERC20.transfer.selector, recipient, amount)
         );
@@ -79,10 +82,12 @@ library TokenUtils {
     /// @param token   The token to approve.
     /// @param spender The contract to spend the tokens.
     /// @param value   The amount of tokens to approve.
-    function safeApprove(address token, address spender, uint256 value) internal {
-        (bool success, bytes memory data) = token.call(
-            abi.encodeWithSelector(IERC20.approve.selector, spender, value)
-        );
+    function safeApprove(
+        address token,
+        address spender,
+        uint256 value
+    ) internal {
+        (bool success, bytes memory data) = token.call(abi.encodeWithSelector(IERC20.approve.selector, spender, value));
 
         if (token.code.length == 0 || !success || (data.length != 0 && !abi.decode(data, (bool)))) {
             revert ERC20CallFailed(token, success, data);
@@ -97,7 +102,12 @@ library TokenUtils {
     /// @param owner     The address of the owner.
     /// @param recipient The address of the recipient.
     /// @param amount    The amount of tokens to transfer.
-    function safeTransferFrom(address token, address owner, address recipient, uint256 amount) internal {
+    function safeTransferFrom(
+        address token,
+        address owner,
+        address recipient,
+        uint256 amount
+    ) internal {
         (bool success, bytes memory data) = token.call(
             abi.encodeWithSelector(IERC20.transferFrom.selector, owner, recipient, amount)
         );
@@ -114,7 +124,11 @@ library TokenUtils {
     /// @param token     The token to mint.
     /// @param recipient The address of the recipient.
     /// @param amount    The amount of tokens to mint.
-    function safeMint(address token, address recipient, uint256 amount) internal {
+    function safeMint(
+        address token,
+        address recipient,
+        uint256 amount
+    ) internal {
         (bool success, bytes memory data) = token.call(
             abi.encodeWithSelector(IERC20Mintable.mint.selector, recipient, amount)
         );
@@ -131,9 +145,7 @@ library TokenUtils {
     /// @param token  The token to burn.
     /// @param amount The amount of tokens to burn.
     function safeBurn(address token, uint256 amount) internal {
-        (bool success, bytes memory data) = token.call(
-            abi.encodeWithSelector(IERC20Burnable.burn.selector, amount)
-        );
+        (bool success, bytes memory data) = token.call(abi.encodeWithSelector(IERC20Burnable.burn.selector, amount));
 
         if (token.code.length == 0 || !success || (data.length != 0 && !abi.decode(data, (bool)))) {
             revert ERC20CallFailed(token, success, data);
@@ -147,7 +159,11 @@ library TokenUtils {
     /// @param token  The token to burn.
     /// @param owner  The owner of the tokens.
     /// @param amount The amount of tokens to burn.
-    function safeBurnFrom(address token, address owner, uint256 amount) internal {
+    function safeBurnFrom(
+        address token,
+        address owner,
+        uint256 amount
+    ) internal {
         (bool success, bytes memory data) = token.call(
             abi.encodeWithSelector(IERC20Burnable.burnFrom.selector, owner, amount)
         );

@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-3
 pragma solidity ^0.8.15;
 
-import "./interfaces/IRevenueHandler.sol";
-import "./interfaces/IPoolAdapter.sol";
-import "../lib/openzeppelin-contracts/contracts/access/Ownable.sol";
-import "../lib/v2-foundry/src/interfaces/IAlchemistV2.sol";
-import "../lib/v2-foundry/src/base/ErrorMessages.sol";
-import "./interfaces/IVotingEscrow.sol";
-import "../lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
-import "../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import "src/interfaces/IRevenueHandler.sol";
+import "src/interfaces/IPoolAdapter.sol";
+import "src/interfaces/IVotingEscrow.sol";
+import "lib/v2-foundry/src/interfaces/IAlchemistV2.sol";
+import "lib/v2-foundry/src/base/ErrorMessages.sol";
+import "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
+import "openzeppelin-contracts/contracts/access/Ownable.sol";
+import "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
 /// @title RevenueHandler
 /*
@@ -51,9 +51,12 @@ contract RevenueHandler is IRevenueHandler, Ownable {
     address public veALCX;
     address[] public debtTokens;
     address[] public revenueTokens;
-    mapping(address /* token */ => RevenueTokenConfig) public revenueTokenConfigs;
-    mapping(uint256 /* epoch */ => mapping(address /* debtToken */ => uint256 /* epoch revenue */)) public epochRevenues;
-    mapping(uint256 /* tokenId */ => mapping(address /* debtToken */ => Claimable)) public userCheckpoints;
+    mapping(address => RevenueTokenConfig) /* token */
+        public revenueTokenConfigs;
+    mapping(uint256 => mapping(address => uint256)) /* epoch */ /* debtToken */ /* epoch revenue */
+        public epochRevenues;
+    mapping(uint256 => mapping(address => Claimable)) /* tokenId */ /* debtToken */
+        public userCheckpoints;
     uint256 public currentEpoch;
 
     constructor(address _veALCX) Ownable() {
@@ -146,7 +149,12 @@ contract RevenueHandler is IRevenueHandler, Ownable {
     */
 
     /// @inheritdoc IRevenueHandler
-    function claim(uint256 tokenId, address alchemist, uint256 amount, address recipient) external override {
+    function claim(
+        uint256 tokenId,
+        address alchemist,
+        uint256 amount,
+        address recipient
+    ) external override {
         require(IVotingEscrow(veALCX).isApprovedOrOwner(msg.sender, tokenId), "Not approved or owner");
 
         address debtToken = IAlchemistV2(alchemist).debtToken();
@@ -172,7 +180,9 @@ contract RevenueHandler is IRevenueHandler, Ownable {
     /// @inheritdoc IRevenueHandler
     function checkpoint() public {
         // only run checkpoint() once per epoch
-        if (block.timestamp >= currentEpoch + WEEK /* && initializer == address(0) */) {
+        if (
+            block.timestamp >= currentEpoch + WEEK /* && initializer == address(0) */
+        ) {
             currentEpoch = (block.timestamp / WEEK) * WEEK;
 
             for (uint256 i = 0; i < revenueTokens.length; i++) {
@@ -201,8 +211,14 @@ contract RevenueHandler is IRevenueHandler, Ownable {
             minimumAmountOut == inputAmount
             Here we are making the assumption that the price of the alAsset will always be at or below the price of the revenue token.
             This is currently a safe assumption since this imbalance has always held true for alUSD and alETH since their inceptions.
-        */ 
-        return IPoolAdapter(poolAdapter).melt(revenueToken, tokenConfig.debtToken, revenueTokenBalance, revenueTokenBalance);
+        */
+        return
+            IPoolAdapter(poolAdapter).melt(
+                revenueToken,
+                tokenConfig.debtToken,
+                revenueTokenBalance,
+                revenueTokenBalance
+            );
     }
 
     function _claimable(uint256 tokenId, address debtToken) internal view returns (uint256) {
@@ -224,7 +240,7 @@ contract RevenueHandler is IRevenueHandler, Ownable {
             uint256 epochRevenue = epochRevenues[epoch][debtToken];
             uint256 epochUserVeBalance = IVotingEscrow(veALCX).balanceOfTokenAt(tokenId, epoch);
             uint256 epochTotalVeSupply = IVotingEscrow(veALCX).totalSupplyAtT(epoch);
-            totalClaimable += epochRevenue * epochUserVeBalance / epochTotalVeSupply;
+            totalClaimable += (epochRevenue * epochUserVeBalance) / epochTotalVeSupply;
         }
         return totalClaimable + userCheckpoints[tokenId][debtToken].unclaimed;
     }

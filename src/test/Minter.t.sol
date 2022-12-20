@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.15;
 
 import "./BaseTest.sol";
@@ -26,16 +26,15 @@ contract MinterTest is BaseTest {
         bribeFactory = new BribeFactory();
         voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory), address(MANA));
 
-        address[] memory tokens = new address[](1);
-        tokens[0] = address(alcx);
-        voter.initialize(tokens, admin);
+        voter.initialize(address(alcx), admin);
 
         veALCX.createLock(TOKEN_1, MAXTIME, false);
 
         distributor = new RewardsDistributor(address(veALCX), address(weth), address(balancerVault), priceFeed);
         veALCX.setVoter(address(voter));
 
-        InitializationParams memory params = InitializationParams(
+        IMinter.InitializationParams memory params = IMinter.InitializationParams(
+            address(alcx),
             address(voter),
             address(veALCX),
             address(distributor),
@@ -50,7 +49,7 @@ contract MinterTest is BaseTest {
 
         alcx.grantRole(keccak256("MINTER"), address(minter));
 
-        voter.createGauge(alETHPool, Voter.GaugeType.Staking);
+        voter.createGauge(alETHPool, IVoter.GaugeType.Staking);
 
         hevm.roll(block.number + 1);
 
@@ -169,7 +168,7 @@ contract MinterTest is BaseTest {
         assertGt(distributor.claimable(1), 0);
     }
 
-    // Claiming rewards early should result in a penalty
+    // Claiming rewards early should result in a penalty that is returned to veALCX holders
     function testClaimRewardsEarly() public {
         initializeVotingEscrow();
 
@@ -189,7 +188,10 @@ contract MinterTest is BaseTest {
 
         minter.updatePeriod();
 
-        // Amount claimable
+        // Initial ALCX balance of the rewards distributor
+        uint256 distributorBalanceBefore = alcx.balanceOf(address(distributor));
+
+        // Total amount of rewards claimable
         uint256 claimable = distributor.claimable(1);
 
         // Claim ALCX rewards early without compounding
@@ -198,21 +200,30 @@ contract MinterTest is BaseTest {
         // Balance after claiming ALCX rewards
         uint256 alcxBalanceAfter = alcx.balanceOf(admin);
 
-        // Amount claimed should be the claimable amount minus fee
-        assertEq(
-            amountClaimed,
-            claimable - ((claimable * veALCX.claimFeeBps()) / distributor.BPS()),
-            "incorrect amount claimed"
-        );
+        // ALCX Balance of rewards distributor after receiving fee for claiming early
+        uint256 distributorBalanceAfter = alcx.balanceOf(address(distributor));
 
-        // Accounts ALCX balance should increase by the amount claimed
-        assertEq(alcxBalanceAfter - alcxBalanceBefore, amountClaimed, "unexpected ALCX balance");
+        // Fee for claiming rewards early
+        uint256 claimFee = ((claimable * veALCX.claimFeeBps()) / distributor.BPS());
+
+        // Amount claimed should be the claimable amount minus fee
+        assertEq(amountClaimed, claimable - claimFee, "incorrect amount claimed");
+
+        // veALCX owner balance should increase by the amount claimed
+        assertEq(alcxBalanceAfter - alcxBalanceBefore, amountClaimed, "unexpected account ALCX balance");
+
+        // Rewards distributor ALCX balance should increase by the fee amount
+        assertEq(
+            distributorBalanceAfter,
+            distributorBalanceBefore + claimFee - claimable,
+            "unexpected distributor ALCX balance"
+        );
 
         // Amount claimable should be reset after claiming
         assertEq(distributor.claimable(1), 0, "amount claimable should be 0");
     }
 
-    // Users can add ALCX rewards into their exisiting veALCX position
+    // Compound claiming adds ALCX rewards into their exisiting veALCX position
     function testCompoundRewards() public {
         initializeVotingEscrow();
 
@@ -258,6 +269,7 @@ contract MinterTest is BaseTest {
 
         minter.updatePeriod();
 
+        // Make sure account has enough eth to compound
         (amount, ) = distributor.amountToCompound(distributor.claimable(1));
         hevm.deal(admin, amount);
 
@@ -267,6 +279,7 @@ contract MinterTest is BaseTest {
         assertEq(distributor.claimable(1), 0, "amount claimable should be 0");
     }
 
+    // Compound claiming should revert if user doesn't provide enough weth
     function testCompoundRewardsFailure() public {
         initializeVotingEscrow();
 
@@ -286,10 +299,9 @@ contract MinterTest is BaseTest {
         minter.updatePeriod();
 
         // Set weth balance to 0
-        weth.transfer(address(0xdead), weth.balanceOf(admin));
+        weth.transfer(zeroAddress, weth.balanceOf(admin));
 
-        // Compound claiming should revert if user doesn't provide enough weth
-        hevm.expectRevert(abi.encodePacked("insufficient eth to compound"));
+        hevm.expectRevert(abi.encodePacked("insufficient balance to compound"));
         distributor.claim(1, true);
     }
 }

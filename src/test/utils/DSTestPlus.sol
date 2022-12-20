@@ -1,17 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity >=0.8.0;
 
-import {Test} from "lib/forge-std/src/Test.sol";
-
-import {Hevm} from "./Hevm.sol";
+import { Test } from "lib/forge-std/src/Test.sol";
+import { Hevm } from "./Hevm.sol";
 
 /// @notice Extended testing framework for DappTools projects.
 /// @author Solmate (https://github.com/Rari-Capital/solmate/blob/main/src/test/utils/DSTestPlus.sol)
 contract DSTestPlus is Test {
     Hevm internal constant hevm = Hevm(HEVM_ADDRESS);
 
-    address internal constant DEAD_ADDRESS =
-        0xDeaDbeefdEAdbeefdEadbEEFdeadbeEFdEaDbeeF;
+    address internal constant DEAD_ADDRESS = 0xDeaDbeefdEAdbeefdEadbEEFdeadbeEFdEaDbeeF;
 
     string private checkpointLabel;
     uint256 private checkpointGasLeft;
@@ -26,10 +24,7 @@ contract DSTestPlus is Test {
 
         string memory label = checkpointLabel;
 
-        emit log_named_uint(
-            string(abi.encodePacked(label, " Gas")),
-            checkpointGasLeft - checkpointGasLeft2
-        );
+        emit log_named_uint(string(abi.encodePacked(label, " Gas")), checkpointGasLeft - checkpointGasLeft2);
     }
 
     function assertUint128Eq(uint128 a, uint128 b) internal virtual {
@@ -98,10 +93,7 @@ contract DSTestPlus is Test {
         }
     }
 
-    function assertUintArrayEq(uint256[] memory a, uint256[] memory b)
-        internal
-        virtual
-    {
+    function assertUintArrayEq(uint256[] memory a, uint256[] memory b) internal virtual {
         require(a.length == b.length, "LENGTH_MISMATCH");
 
         for (uint256 i = 0; i < a.length; i++) {

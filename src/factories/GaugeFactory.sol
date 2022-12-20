@@ -1,7 +1,9 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3
 pragma solidity ^0.8.15;
 
-import "../StakingGauge.sol";
+import "src/gauges/PassthroughGauge.sol";
+import "src/gauges/CurveGauge.sol";
+import "src/gauges/StakingGauge.sol";
 
 contract GaugeFactory {
     address public lastGauge;
@@ -12,6 +14,20 @@ contract GaugeFactory {
         address _ve
     ) external returns (address) {
         lastGauge = address(new StakingGauge(_pool, _bribe, _ve, msg.sender));
+        return lastGauge;
+    }
+
+    function createCurveGauge(address _bribe, address _ve) external returns (address) {
+        lastGauge = address(new CurveGauge(_bribe, _ve, msg.sender));
+        return lastGauge;
+    }
+
+    function createPassthroughGauge(
+        address _receiver,
+        address _bribe,
+        address _ve
+    ) external returns (address) {
+        lastGauge = address(new PassthroughGauge(_receiver, _bribe, _ve, msg.sender));
         return lastGauge;
     }
 }

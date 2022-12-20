@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: GPL-3
 pragma solidity ^0.8.15;
 
 import "./BaseTest.sol";
@@ -22,13 +22,14 @@ contract StakingGaugeTest is BaseTest {
         bribeFactory = new BribeFactory();
         voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory), address(MANA));
 
-        alcx.approve(address(veALCX), 2e25);
+        IERC20(bpt).approve(address(veALCX), 2e25);
         veALCX.createLock(TOKEN_1, 365 days, false);
 
         distributor = new RewardsDistributor(address(veALCX), address(weth), address(balancerVault), priceFeed);
         veALCX.setVoter(address(voter));
 
-        InitializationParams memory params = InitializationParams(
+        IMinter.InitializationParams memory params = IMinter.InitializationParams(
+            address(alcx),
             address(voter),
             address(veALCX),
             address(distributor),
@@ -39,18 +40,15 @@ contract StakingGaugeTest is BaseTest {
 
         minter = new Minter(params);
 
-        address[] memory tokens = new address[](1);
-        tokens[0] = address(alcx);
-
         // Initialize after minter is created to set minter address
-        voter.initialize(tokens, address(minter));
+        voter.initialize(address(alcx), address(minter));
 
         distributor.setDepositor(address(minter));
 
         alcx.grantRole(keccak256("MINTER"), address(minter));
 
-        voter.createGauge(address(alcx), Voter.GaugeType.Staking);
-        voter.createGauge(alUSDPool, Voter.GaugeType.Staking);
+        voter.createGauge(address(alcx), IVoter.GaugeType.Staking);
+        voter.createGauge(alUSDPool, IVoter.GaugeType.Staking);
 
         address gaugeAddress = voter.gauges(address(alcx));
         address gaugeAddress2 = voter.gauges(alUSDPool);
