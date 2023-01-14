@@ -3,7 +3,7 @@
 
 pragma solidity ^0.8.0;
 
-import {L2GovernorVotes} from "src/governance/L2GovernorVotes.sol";
+import { L2GovernorVotes } from "src/governance/L2GovernorVotes.sol";
 
 /**
  * @author Modified from RollCall (https://github.com/withtally/rollcall/blob/main/src/standards/L2GovernorVotesQuorumFraction.sol)

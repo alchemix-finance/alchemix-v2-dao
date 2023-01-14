@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.15;
 
 import "./BaseTest.sol";
@@ -45,7 +46,8 @@ contract AlchemixGovernorTest is BaseTest {
 
         distributor = new RewardsDistributor(address(veALCX), address(weth), address(balancerVault), priceFeed);
 
-        InitializationParams memory params = InitializationParams(
+        IMinter.InitializationParams memory params = IMinter.InitializationParams(
+            address(alcx),
             address(voter),
             address(veALCX),
             address(distributor),
@@ -61,29 +63,32 @@ contract AlchemixGovernorTest is BaseTest {
         alcx.grantRole(keccak256("MINTER"), address(minter));
 
         alcx.approve(address(gaugeFactory), 15 * TOKEN_100K);
-        voter.createGauge(alETHPool, Voter.GaugeType.Staking);
+        voter.createGauge(alETHPool, IVoter.GaugeType.Staking);
         address gaugeAddress = voter.gauges(alETHPool);
         address bribeAddress = voter.bribes(gaugeAddress);
         gauge = StakingGauge(gaugeAddress);
         bribe = Bribe(bribeAddress);
 
         timelockExecutor = new TimelockExecutor(1 days);
-
         governor = new AlchemixGovernor(veALCX, TimelockExecutor(timelockExecutor));
-        voter.setExecutor(address(timelockExecutor));
+
         timelockExecutor.setAdmin(address(governor));
+        voter.setExecutor(address(timelockExecutor));
+
         hevm.stopPrank();
 
-        hevm.startPrank(address(governor));
+        hevm.prank(address(governor));
         timelockExecutor.acceptAdmin();
-        hevm.stopPrank();
+
+        hevm.prank(address(timelockExecutor));
+        voter.acceptExecutor();
     }
 
     function testExecutorCanCreateGaugesForAnyAddress(address a) public {
         hevm.assume(a != address(0));
 
         hevm.startPrank(address(timelockExecutor));
-        voter.createGauge(a, Voter.GaugeType.Staking);
+        voter.createGauge(a, IVoter.GaugeType.Staking);
         hevm.stopPrank();
     }
 
@@ -132,7 +137,7 @@ contract AlchemixGovernorTest is BaseTest {
         calldatas[0] = abi.encodeWithSelector(voter.whitelist.selector, address(USDC));
         string memory description = "Whitelist USDC";
 
-        governor.propose(targets, values, calldatas, description, mainnet);
+        governor.propose(targets, values, calldatas, description, MAINNET);
         hevm.stopPrank();
     }
 
@@ -149,7 +154,7 @@ contract AlchemixGovernorTest is BaseTest {
 
         // propose
         hevm.startPrank(admin);
-        uint256 pid = governor.propose(targets, values, calldatas, description, mainnet);
+        uint256 pid = governor.propose(targets, values, calldatas, description, MAINNET);
         hevm.warp(block.timestamp + 2 days); // delay
         hevm.stopPrank();
 
@@ -163,7 +168,7 @@ contract AlchemixGovernorTest is BaseTest {
         hevm.startPrank(admin);
         // Proposal unsuccessful due to _quorumReached returning false
         hevm.expectRevert(abi.encodePacked("Governor: proposal not successful"));
-        governor.execute(targets, values, calldatas, keccak256(bytes(description)), mainnet);
+        governor.execute(targets, values, calldatas, keccak256(bytes(description)), MAINNET);
         hevm.stopPrank();
     }
 
@@ -180,7 +185,7 @@ contract AlchemixGovernorTest is BaseTest {
 
         // propose
         hevm.startPrank(admin);
-        uint256 pid = governor.propose(targets, values, calldatas, description, mainnet);
+        uint256 pid = governor.propose(targets, values, calldatas, description, MAINNET);
         hevm.warp(block.timestamp + 2 days); // delay
         hevm.roll(block.number + 1);
         hevm.stopPrank();
@@ -193,7 +198,7 @@ contract AlchemixGovernorTest is BaseTest {
 
         // execute
         hevm.startPrank(admin);
-        governor.execute(targets, values, calldatas, keccak256(bytes(description)), mainnet);
+        governor.execute(targets, values, calldatas, keccak256(bytes(description)), MAINNET);
         hevm.stopPrank();
 
         assertTrue(voter.isWhitelisted(address(USDC)));
