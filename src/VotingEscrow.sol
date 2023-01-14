@@ -1619,7 +1619,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         // Checkpoint for gov
         _moveTokenDelegates(delegates(owner), address(0), _tokenId);
         // Remove token
-        _removeTokenFrom(msg.sender, _tokenId);
+        _removeTokenFrom(owner, _tokenId);
         emit Transfer(owner, address(0), _tokenId);
     }
 }
