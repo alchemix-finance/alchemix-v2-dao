@@ -1,88 +1,65 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3
 pragma solidity ^0.8.15;
 
-import "./libraries/Math.sol";
-import "./interfaces/IBribe.sol";
-import "./interfaces/IGaugeFactory.sol";
-import "./interfaces/IERC20.sol";
-import "./interfaces/IBaseGauge.sol";
-import "./interfaces/IVoter.sol";
+import "src/libraries/Math.sol";
+import "src/interfaces/IBribe.sol";
+import "src/interfaces/IGaugeFactory.sol";
+import "src/interfaces/IBaseGauge.sol";
+import "src/interfaces/IVoter.sol";
+import "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
-// Gauges are used to incentivize pools, they emit reward tokens every 7 days for staked LP tokens
+/**
+ * @title  Base Gauge
+ * @notice Implementation of functionality that various gauge types use or extend
+ * @notice Gauges are used to incentivize pools, they emit or passthrough reward tokens for staked LP tokens
+ */
 abstract contract BaseGauge is IBaseGauge {
+    uint256 internal constant DURATION = 5 days; // Rewards released over voting period
+    uint256 internal constant BRIBE_LAG = 1 days;
+    uint256 internal constant MAX_REWARD_TOKENS = 16;
+    uint256 internal constant PRECISION = 10**18;
+
     address public stake; // LP token that needs to be staked for rewards
     address public ve; // Ve token used for gauges
     address public bribe;
     address public voter;
-    address factory;
+    address public admin;
+    address public pendingAdmin;
+    address public rewardToken;
+    address public receiver;
+    address public gaugeFactory;
 
     uint256 public derivedSupply;
+    uint256 public totalSupply;
+    uint256 public supplyNumCheckpoints; // The number of checkpoints
+
+    address[] public rewards;
+
     mapping(address => uint256) public derivedBalances;
-
-    // Rewards are released over the voting period
-    uint256 internal constant DURATION = 5 days;
-    uint256 internal constant BRIBE_LAG = 1 days;
-    uint256 internal constant MAX_REWARD_TOKENS = 16;
-
-    enum VotingStage {
-        BribesPhase,
-        VotesPhase,
-        RewardsPhase
-    }
-
-    uint256 internal constant PRECISION = 10**18;
-
-    // Default snx staking contract implementation
     mapping(address => uint256) public rewardRate;
     mapping(address => uint256) public periodFinish;
     mapping(address => uint256) public lastUpdateTime;
     mapping(address => uint256) public rewardPerTokenStored;
-
     mapping(address => mapping(address => uint256)) public lastEarn;
     mapping(address => mapping(address => uint256)) public userRewardPerTokenStored;
-
     mapping(address => uint256) public tokenIds;
-
-    uint256 public totalSupply;
     mapping(address => uint256) public balanceOf;
-
-    address[] public rewards;
     mapping(address => bool) public isReward;
-
-    /// @notice A checkpoint for marking balance
-    struct Checkpoint {
-        uint256 timestamp;
-        uint256 balanceOf;
-        bool voted;
-    }
-
-    /// @notice A checkpoint for marking reward rate
-    struct RewardPerTokenCheckpoint {
-        uint256 timestamp;
-        uint256 rewardPerToken;
-    }
-
-    /// @notice A checkpoint for marking supply
-    struct SupplyCheckpoint {
-        uint256 timestamp;
-        uint256 supply;
-    }
 
     /// @notice A record of balance checkpoints for each account, by index
     mapping(address => mapping(uint256 => Checkpoint)) public checkpoints;
+
     /// @notice The number of checkpoints for each account
     mapping(address => uint256) public numCheckpoints;
+
     /// @notice A record of balance checkpoints for each token, by index
     mapping(uint256 => SupplyCheckpoint) public supplyCheckpoints;
-    /// @notice The number of checkpoints
-    uint256 public supplyNumCheckpoints;
+
     /// @notice A record of balance checkpoints for each token, by index
     mapping(address => mapping(uint256 => RewardPerTokenCheckpoint)) public rewardPerTokenCheckpoints;
+
     /// @notice The number of checkpoints for each token
     mapping(address => uint256) public rewardPerTokenNumCheckpoints;
-
-    event NotifyReward(address indexed from, address indexed reward, uint256 amount);
-    event ClaimRewards(address indexed from, address indexed reward, uint256 amount);
 
     // Re-entrancy check
     uint256 internal _unlocked = 1;
@@ -93,6 +70,10 @@ abstract contract BaseGauge is IBaseGauge {
         _unlocked = 1;
     }
 
+    /*
+        View functions
+    */
+
     function getVotingStage(uint256 timestamp) public pure returns (VotingStage) {
         uint256 modTime = timestamp % (7 days);
         if (modTime < BRIBE_LAG) {
@@ -101,59 +82,6 @@ abstract contract BaseGauge is IBaseGauge {
             return VotingStage.RewardsPhase;
         }
         return VotingStage.VotesPhase;
-    }
-
-    function deliverBribes() external lock {
-        require(msg.sender == voter);
-        IBribe sb = IBribe(bribe);
-        uint256 bribeStart = block.timestamp - (block.timestamp % (7 days)) + BRIBE_LAG;
-        uint256 numRewards = sb.rewardsListLength();
-
-        for (uint256 i = 0; i < numRewards; i++) {
-            address token = sb.rewards(i);
-            uint256 epochRewards = sb.deliverReward(token, bribeStart);
-            if (epochRewards > 0) {
-                _notifyBribeAmount(token, epochRewards, bribeStart);
-            }
-        }
-    }
-
-    function setVoteStatus(address account, bool voted) external {
-        require(msg.sender == voter);
-        uint256 nCheckpoints = numCheckpoints[account];
-        if (nCheckpoints == 0) {
-            checkpoints[account][0] = Checkpoint(block.timestamp, 0, voted);
-            numCheckpoints[account] = 1;
-        } else {
-            checkpoints[account][nCheckpoints - 1].voted = voted;
-        }
-    }
-
-    function getReward(address account, address[] memory tokens) external lock {
-        require(msg.sender == account || msg.sender == voter);
-        _unlocked = 1;
-        IVoter(voter).distribute(address(this));
-        _unlocked = 2;
-
-        for (uint256 i = 0; i < tokens.length; i++) {
-            (rewardPerTokenStored[tokens[i]], lastUpdateTime[tokens[i]]) = _updateRewardPerToken(tokens[i]);
-
-            uint256 _reward = earned(tokens[i], account);
-            lastEarn[tokens[i]][account] = block.timestamp;
-            userRewardPerTokenStored[tokens[i]][account] = rewardPerTokenStored[tokens[i]];
-            if (_reward > 0) _safeTransfer(tokens[i], account, _reward);
-
-            emit ClaimRewards(msg.sender, tokens[i], _reward);
-        }
-
-        uint256 _derivedBalance = derivedBalances[account];
-        derivedSupply -= _derivedBalance;
-        _derivedBalance = derivedBalance(account);
-        derivedBalances[account] = _derivedBalance;
-        derivedSupply += _derivedBalance;
-
-        _writeCheckpoint(account, derivedBalances[account]);
-        _writeSupplyCheckpoint();
     }
 
     /**
@@ -265,6 +193,231 @@ abstract contract BaseGauge is IBaseGauge {
         );
     }
 
+    function rewardsListLength() external view returns (uint256) {
+        return rewards.length;
+    }
+
+    // Returns the last time the reward was modified or periodFinish if the reward has ended
+    function lastTimeRewardApplicable(address token) public view returns (uint256) {
+        return Math.min(block.timestamp, periodFinish[token]);
+    }
+
+    function rewardPerToken(address token) public view returns (uint256) {
+        if (derivedSupply == 0) {
+            return rewardPerTokenStored[token];
+        }
+        return
+            rewardPerTokenStored[token] +
+            (((lastTimeRewardApplicable(token) - Math.min(lastUpdateTime[token], periodFinish[token])) *
+                rewardRate[token] *
+                PRECISION) / derivedSupply);
+    }
+
+    function derivedBalance(address account) public view returns (uint256) {
+        return balanceOf[account];
+    }
+
+    // Earned is an estimation, it won't be exact till the supply > rewardPerToken calculations have run
+    function earned(address token, address account) public view returns (uint256) {
+        uint256 _startTimestamp = Math.max(lastEarn[token][account], rewardPerTokenCheckpoints[token][0].timestamp);
+        if (numCheckpoints[account] == 0) {
+            return 0;
+        }
+
+        uint256 _startIndex = getPriorBalanceIndex(account, _startTimestamp);
+        uint256 _endIndex = numCheckpoints[account] - 1;
+
+        uint256 reward = 0;
+
+        if (_endIndex > 0) {
+            for (uint256 i = _startIndex; i < _endIndex; i++) {
+                Checkpoint memory cp0 = checkpoints[account][i];
+                Checkpoint memory cp1 = checkpoints[account][i + 1];
+                (uint256 _rewardPerTokenStored0, ) = getPriorRewardPerToken(token, cp0.timestamp);
+                (uint256 _rewardPerTokenStored1, ) = getPriorRewardPerToken(token, cp1.timestamp);
+                if (cp0.voted) {
+                    reward += (cp0.balanceOf * (_rewardPerTokenStored1 - _rewardPerTokenStored0)) / PRECISION;
+                }
+            }
+        }
+
+        Checkpoint memory cp = checkpoints[account][_endIndex];
+        uint256 lastCpWeeksVoteEnd = cp.timestamp - (cp.timestamp % (7 days)) + BRIBE_LAG + DURATION;
+        if (block.timestamp > lastCpWeeksVoteEnd) {
+            (uint256 _rewardPerTokenStored, ) = getPriorRewardPerToken(token, cp.timestamp);
+            if (cp.voted) {
+                reward +=
+                    (cp.balanceOf *
+                        (rewardPerToken(token) -
+                            Math.max(_rewardPerTokenStored, userRewardPerTokenStored[token][account]))) /
+                    PRECISION;
+            }
+        }
+
+        return reward;
+    }
+
+    /// @inheritdoc IBaseGauge
+    function left(address token) public view returns (uint256) {
+        if (block.timestamp >= periodFinish[token]) return 0;
+        uint256 _remaining = periodFinish[token] - block.timestamp;
+        return _remaining * rewardRate[token];
+    }
+
+    /*
+        External functions
+    */
+
+    function setAdmin(address _admin) external {
+        require(msg.sender == admin, "not admin");
+        pendingAdmin = _admin;
+    }
+
+    function acceptAdmin() external {
+        require(msg.sender == pendingAdmin, "not pending admin");
+        admin = pendingAdmin;
+    }
+
+    function updateReceiver(address _receiver) external {
+        require(msg.sender == admin, "not admin");
+        receiver = _receiver;
+    }
+
+    /// @inheritdoc IBaseGauge
+    function deliverBribes() external lock {
+        require(msg.sender == voter);
+        IBribe sb = IBribe(bribe);
+        uint256 bribeStart = block.timestamp - (block.timestamp % (7 days)) + BRIBE_LAG;
+        uint256 numRewards = sb.rewardsListLength();
+
+        for (uint256 i = 0; i < numRewards; i++) {
+            address token = sb.rewards(i);
+            uint256 epochRewards = sb.deliverReward(token, bribeStart);
+            if (epochRewards > 0) {
+                _notifyBribeAmount(token, epochRewards, bribeStart);
+            }
+        }
+    }
+
+    /// @inheritdoc IBaseGauge
+    function setVoteStatus(address account, bool voted) external {
+        require(msg.sender == voter);
+        uint256 nCheckpoints = numCheckpoints[account];
+        if (nCheckpoints == 0) {
+            checkpoints[account][0] = Checkpoint(block.timestamp, 0, voted);
+            numCheckpoints[account] = 1;
+        } else {
+            checkpoints[account][nCheckpoints - 1].voted = voted;
+        }
+    }
+
+    /// @inheritdoc IBaseGauge
+    function getReward(address account, address[] memory tokens) external lock {
+        require(msg.sender == account || msg.sender == voter);
+        _unlocked = 1;
+        IVoter(voter).distribute(address(this));
+        _unlocked = 2;
+
+        for (uint256 i = 0; i < tokens.length; i++) {
+            (rewardPerTokenStored[tokens[i]], lastUpdateTime[tokens[i]]) = _updateRewardPerToken(tokens[i]);
+
+            uint256 _reward = earned(tokens[i], account);
+            lastEarn[tokens[i]][account] = block.timestamp;
+            userRewardPerTokenStored[tokens[i]][account] = rewardPerTokenStored[tokens[i]];
+            if (_reward > 0) _safeTransfer(tokens[i], account, _reward);
+
+            emit ClaimRewards(msg.sender, tokens[i], _reward);
+        }
+
+        uint256 _derivedBalance = derivedBalances[account];
+        derivedSupply -= _derivedBalance;
+        _derivedBalance = derivedBalance(account);
+        derivedBalances[account] = _derivedBalance;
+        derivedSupply += _derivedBalance;
+
+        _writeCheckpoint(account, derivedBalances[account]);
+        _writeSupplyCheckpoint();
+    }
+
+    function batchRewardPerToken(address token, uint256 maxRuns) external {
+        (rewardPerTokenStored[token], lastUpdateTime[token]) = _batchRewardPerToken(token, maxRuns);
+    }
+
+    /// @inheritdoc IBaseGauge
+    function notifyRewardAmount(address _token, uint256 _amount) external lock {
+        require(msg.sender == voter, "not voter");
+        require(_token != stake);
+        require(_amount > 0);
+        if (!isReward[_token]) {
+            require(rewards.length < MAX_REWARD_TOKENS, "too many rewards tokens");
+        }
+        // rewards accrue only during the bribe period
+        uint256 bribeStart = block.timestamp - (block.timestamp % (7 days)) + BRIBE_LAG;
+        uint256 adjustedTstamp = block.timestamp < bribeStart ? bribeStart : bribeStart + 7 days;
+        if (rewardRate[_token] == 0) _writeRewardPerTokenCheckpoint(_token, 0, adjustedTstamp);
+        (rewardPerTokenStored[_token], lastUpdateTime[_token]) = _updateRewardPerToken(_token);
+
+        if (block.timestamp >= periodFinish[_token]) {
+            _safeTransferFrom(_token, msg.sender, address(this), _amount);
+            rewardRate[_token] = _amount / DURATION;
+        } else {
+            uint256 _remaining = periodFinish[_token] - block.timestamp;
+            uint256 _left = _remaining * rewardRate[_token];
+            require(_amount > _left);
+            _safeTransferFrom(_token, msg.sender, address(this), _amount);
+            rewardRate[_token] = (_amount + _left) / DURATION;
+        }
+        require(rewardRate[_token] > 0);
+        uint256 balance = IERC20(_token).balanceOf(address(this));
+        require(rewardRate[_token] <= balance / DURATION, "Provided reward too high");
+        periodFinish[_token] = adjustedTstamp + DURATION;
+        if (!isReward[_token]) {
+            isReward[_token] = true;
+            rewards.push(_token);
+            IBribe(bribe).addRewardToken(_token);
+        }
+
+        emit NotifyReward(msg.sender, _token, _amount);
+
+        _passthroughRewards(_amount);
+    }
+
+    function swapOutRewardToken(
+        uint256 i,
+        address oldToken,
+        address newToken
+    ) external {
+        require(msg.sender == IGaugeFactory(gaugeFactory).admin(), "only admin");
+        require(rewards[i] == oldToken);
+        isReward[oldToken] = false;
+        isReward[newToken] = true;
+        rewards[i] = newToken;
+    }
+
+    function swapOutBribeRewardToken(
+        uint256 i,
+        address oldToken,
+        address newToken
+    ) external {
+        require(msg.sender == IGaugeFactory(gaugeFactory).admin(), "only admin");
+        IBribe(bribe).swapOutRewardToken(i, oldToken, newToken);
+    }
+
+    /// @inheritdoc IBaseGauge
+    function addBribeRewardToken(address token) external {
+        require(msg.sender == bribe);
+        if (!isReward[token]) {
+            require(rewards.length < MAX_REWARD_TOKENS, "too many rewards tokens");
+            isReward[token] = true;
+            rewards.push(token);
+        }
+    }
+
+    /*
+        Internal functions
+    */
+
+    /// Update the balance checkpoint of a given account
     function _writeCheckpoint(address account, uint256 balance) internal {
         uint256 _timestamp = block.timestamp;
         uint256 _nCheckPoints = numCheckpoints[account];
@@ -303,34 +456,6 @@ abstract contract BaseGauge is IBaseGauge {
             supplyCheckpoints[_nCheckPoints] = SupplyCheckpoint(_timestamp, derivedSupply);
             supplyNumCheckpoints = _nCheckPoints + 1;
         }
-    }
-
-    function rewardsListLength() external view returns (uint256) {
-        return rewards.length;
-    }
-
-    // Returns the last time the reward was modified or periodFinish if the reward has ended
-    function lastTimeRewardApplicable(address token) public view returns (uint256) {
-        return Math.min(block.timestamp, periodFinish[token]);
-    }
-
-    function rewardPerToken(address token) public view returns (uint256) {
-        if (derivedSupply == 0) {
-            return rewardPerTokenStored[token];
-        }
-        return
-            rewardPerTokenStored[token] +
-            (((lastTimeRewardApplicable(token) - Math.min(lastUpdateTime[token], periodFinish[token])) *
-                rewardRate[token] *
-                PRECISION) / derivedSupply);
-    }
-
-    function derivedBalance(address account) public view returns (uint256) {
-        return balanceOf[account];
-    }
-
-    function batchRewardPerToken(address token, uint256 maxRuns) external {
-        (rewardPerTokenStored[token], lastUpdateTime[token]) = _batchRewardPerToken(token, maxRuns);
     }
 
     function _batchRewardPerToken(address token, uint256 maxRuns) internal returns (uint256, uint256) {
@@ -444,118 +569,6 @@ abstract contract BaseGauge is IBaseGauge {
         return (reward, _startTimestamp);
     }
 
-    // Earned is an estimation, it won't be exact till the supply > rewardPerToken calculations have run
-    function earned(address token, address account) public view returns (uint256) {
-        uint256 _startTimestamp = Math.max(lastEarn[token][account], rewardPerTokenCheckpoints[token][0].timestamp);
-        if (numCheckpoints[account] == 0) {
-            return 0;
-        }
-
-        uint256 _startIndex = getPriorBalanceIndex(account, _startTimestamp);
-        uint256 _endIndex = numCheckpoints[account] - 1;
-
-        uint256 reward = 0;
-
-        if (_endIndex > 0) {
-            for (uint256 i = _startIndex; i < _endIndex; i++) {
-                Checkpoint memory cp0 = checkpoints[account][i];
-                Checkpoint memory cp1 = checkpoints[account][i + 1];
-                (uint256 _rewardPerTokenStored0, ) = getPriorRewardPerToken(token, cp0.timestamp);
-                (uint256 _rewardPerTokenStored1, ) = getPriorRewardPerToken(token, cp1.timestamp);
-                if (cp0.voted) {
-                    reward += (cp0.balanceOf * (_rewardPerTokenStored1 - _rewardPerTokenStored0)) / PRECISION;
-                }
-            }
-        }
-
-        Checkpoint memory cp = checkpoints[account][_endIndex];
-        uint256 lastCpWeeksVoteEnd = cp.timestamp - (cp.timestamp % (7 days)) + BRIBE_LAG + DURATION;
-        if (block.timestamp > lastCpWeeksVoteEnd) {
-            (uint256 _rewardPerTokenStored, ) = getPriorRewardPerToken(token, cp.timestamp);
-            if (cp.voted) {
-                reward +=
-                    (cp.balanceOf *
-                        (rewardPerToken(token) -
-                            Math.max(_rewardPerTokenStored, userRewardPerTokenStored[token][account]))) /
-                    PRECISION;
-            }
-        }
-
-        return reward;
-    }
-
-    function left(address token) external view returns (uint256) {
-        if (block.timestamp >= periodFinish[token]) return 0;
-        uint256 _remaining = periodFinish[token] - block.timestamp;
-        return _remaining * rewardRate[token];
-    }
-
-    function notifyRewardAmount(address token, uint256 amount) external virtual lock {
-        require(msg.sender == address(0), "override to use function");
-        require(token != stake);
-        require(amount > 0);
-        if (!isReward[token]) {
-            require(rewards.length < MAX_REWARD_TOKENS, "too many rewards tokens");
-        }
-        // rewards accrue only during the bribe period
-        uint256 bribeStart = block.timestamp - (block.timestamp % (7 days)) + BRIBE_LAG;
-        uint256 adjustedTstamp = block.timestamp < bribeStart ? bribeStart : bribeStart + 7 days;
-        if (rewardRate[token] == 0) _writeRewardPerTokenCheckpoint(token, 0, adjustedTstamp);
-        (rewardPerTokenStored[token], lastUpdateTime[token]) = _updateRewardPerToken(token);
-
-        if (block.timestamp >= periodFinish[token]) {
-            _safeTransferFrom(token, msg.sender, address(this), amount);
-            rewardRate[token] = amount / DURATION;
-        } else {
-            uint256 _remaining = periodFinish[token] - block.timestamp;
-            uint256 _left = _remaining * rewardRate[token];
-            require(amount > _left);
-            _safeTransferFrom(token, msg.sender, address(this), amount);
-            rewardRate[token] = (amount + _left) / DURATION;
-        }
-        require(rewardRate[token] > 0);
-        uint256 balance = IERC20(token).balanceOf(address(this));
-        require(rewardRate[token] <= balance / DURATION, "Provided reward too high");
-        periodFinish[token] = adjustedTstamp + DURATION;
-        if (!isReward[token]) {
-            isReward[token] = true;
-            rewards.push(token);
-            IBribe(bribe).addRewardToken(token);
-        }
-
-        emit NotifyReward(msg.sender, token, amount);
-    }
-
-    function swapOutRewardToken(
-        uint256 i,
-        address oldToken,
-        address newToken
-    ) external {
-        require(msg.sender == IGaugeFactory(factory).admin(), "only admin");
-        require(rewards[i] == oldToken);
-        isReward[oldToken] = false;
-        isReward[newToken] = true;
-        rewards[i] = newToken;
-    }
-
-    function swapOutBribeRewardToken(
-        uint256 i,
-        address oldToken,
-        address newToken
-    ) external {
-        require(msg.sender == IGaugeFactory(factory).admin(), "only admin");
-        IBribe(bribe).swapOutRewardToken(i, oldToken, newToken);
-    }
-
-    function addBribeRewardToken(address token) external {
-        require(msg.sender == bribe);
-        if (!isReward[token]) {
-            require(rewards.length < MAX_REWARD_TOKENS, "too many rewards tokens");
-            isReward[token] = true;
-            rewards.push(token);
-        }
-    }
-
     function _notifyBribeAmount(
         address token,
         uint256 amount,
@@ -608,4 +621,10 @@ abstract contract BaseGauge is IBaseGauge {
         (bool success, bytes memory data) = token.call(abi.encodeWithSelector(IERC20.approve.selector, spender, value));
         require(success && (data.length == 0 || abi.decode(data, (bool))));
     }
+
+    /**
+     * @notice Override function to implement passthrough logic
+     * @param _amount Amount of rewards
+     */
+    function _passthroughRewards(uint256 _amount) internal virtual {}
 }

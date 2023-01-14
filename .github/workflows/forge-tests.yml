@@ -1,6 +1,6 @@
 name: Forge Tests
 
-on: [push, pull_request]
+on: [pull_request]
 
 jobs:
     forge-tests:
@@ -16,9 +16,6 @@ jobs:
 
             - name: Install dependencies
               run: forge install
-
-            - name: Install submodules
-              run: git submodule update --init --recursive
 
             - run: chmod 755 ./test.sh
 
