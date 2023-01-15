@@ -1,12 +1,9 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.15;
 
 import { MemoProcessor } from "src/MemoProcessor.sol";
 import { VotingEscrow } from "src/VotingEscrow.sol";
-
-import { DSTest } from "ds-test/test.sol";
-import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-
+import { IERC20 } from "lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { DSTestPlus } from "./utils/DSTestPlus.sol";
 import { Hevm } from "./utils/Hevm.sol";
 
