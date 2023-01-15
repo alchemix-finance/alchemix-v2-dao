@@ -12,7 +12,6 @@ interface IBaseGauge {
     struct Checkpoint {
         uint256 timestamp;
         uint256 balanceOf;
-        bool voted;
     }
 
     /// @notice A checkpoint for marking reward rate
@@ -86,11 +85,4 @@ interface IBaseGauge {
      * @return uint256  Remaining duration of a rewards period
      */
     function left(address token) external view returns (uint256);
-
-    /**
-     * @notice Set the vote status of an account
-     * @param account  The account being updated
-     * @param voted    Whether or not the account has voted
-     */
-    function setVoteStatus(address account, bool voted) external;
 }

@@ -235,24 +235,16 @@ abstract contract BaseGauge is IBaseGauge {
                 Checkpoint memory cp1 = checkpoints[account][i + 1];
                 (uint256 _rewardPerTokenStored0, ) = getPriorRewardPerToken(token, cp0.timestamp);
                 (uint256 _rewardPerTokenStored1, ) = getPriorRewardPerToken(token, cp1.timestamp);
-                if (cp0.voted) {
-                    reward += (cp0.balanceOf * (_rewardPerTokenStored1 - _rewardPerTokenStored0)) / PRECISION;
-                }
+                reward += (cp0.balanceOf * (_rewardPerTokenStored1 - _rewardPerTokenStored0)) / PRECISION;
             }
         }
 
         Checkpoint memory cp = checkpoints[account][_endIndex];
-        uint256 lastCpWeeksVoteEnd = cp.timestamp - (cp.timestamp % (7 days)) + BRIBE_LAG + DURATION;
-        if (block.timestamp > lastCpWeeksVoteEnd) {
-            (uint256 _rewardPerTokenStored, ) = getPriorRewardPerToken(token, cp.timestamp);
-            if (cp.voted) {
-                reward +=
-                    (cp.balanceOf *
-                        (rewardPerToken(token) -
-                            Math.max(_rewardPerTokenStored, userRewardPerTokenStored[token][account]))) /
-                    PRECISION;
-            }
-        }
+        (uint256 _rewardPerTokenStored, ) = getPriorRewardPerToken(token, cp.timestamp);
+        reward +=
+            (cp.balanceOf *
+                (rewardPerToken(token) - Math.max(_rewardPerTokenStored, userRewardPerTokenStored[token][account]))) /
+            PRECISION;
 
         return reward;
     }
@@ -300,18 +292,6 @@ abstract contract BaseGauge is IBaseGauge {
     }
 
     /// @inheritdoc IBaseGauge
-    function setVoteStatus(address account, bool voted) external {
-        require(msg.sender == voter);
-        uint256 nCheckpoints = numCheckpoints[account];
-        if (nCheckpoints == 0) {
-            checkpoints[account][0] = Checkpoint(block.timestamp, 0, voted);
-            numCheckpoints[account] = 1;
-        } else {
-            checkpoints[account][nCheckpoints - 1].voted = voted;
-        }
-    }
-
-    /// @inheritdoc IBaseGauge
     function getReward(address account, address[] memory tokens) external lock {
         require(msg.sender == account || msg.sender == voter);
         _unlocked = 1;
@@ -341,6 +321,16 @@ abstract contract BaseGauge is IBaseGauge {
 
     function batchRewardPerToken(address token, uint256 maxRuns) external {
         (rewardPerTokenStored[token], lastUpdateTime[token]) = _batchRewardPerToken(token, maxRuns);
+    }
+
+    /// @inheritdoc IBaseGauge
+    function addBribeRewardToken(address token) external {
+        require(msg.sender == bribe);
+        if (!isReward[token]) {
+            require(rewards.length < MAX_REWARD_TOKENS, "too many rewards tokens");
+            isReward[token] = true;
+            rewards.push(token);
+        }
     }
 
     /// @inheritdoc IBaseGauge
@@ -382,37 +372,6 @@ abstract contract BaseGauge is IBaseGauge {
         _passthroughRewards(_amount);
     }
 
-    function swapOutRewardToken(
-        uint256 i,
-        address oldToken,
-        address newToken
-    ) external {
-        require(msg.sender == IGaugeFactory(gaugeFactory).admin(), "only admin");
-        require(rewards[i] == oldToken);
-        isReward[oldToken] = false;
-        isReward[newToken] = true;
-        rewards[i] = newToken;
-    }
-
-    function swapOutBribeRewardToken(
-        uint256 i,
-        address oldToken,
-        address newToken
-    ) external {
-        require(msg.sender == IGaugeFactory(gaugeFactory).admin(), "only admin");
-        IBribe(bribe).swapOutRewardToken(i, oldToken, newToken);
-    }
-
-    /// @inheritdoc IBaseGauge
-    function addBribeRewardToken(address token) external {
-        require(msg.sender == bribe);
-        if (!isReward[token]) {
-            require(rewards.length < MAX_REWARD_TOKENS, "too many rewards tokens");
-            isReward[token] = true;
-            rewards.push(token);
-        }
-    }
-
     /*
         Internal functions
     */
@@ -425,8 +384,7 @@ abstract contract BaseGauge is IBaseGauge {
         if (_nCheckPoints > 0 && checkpoints[account][_nCheckPoints - 1].timestamp == _timestamp) {
             checkpoints[account][_nCheckPoints - 1].balanceOf = balance;
         } else {
-            bool prevVoteStatus = (_nCheckPoints > 0) ? checkpoints[account][_nCheckPoints].voted : false;
-            checkpoints[account][_nCheckPoints] = Checkpoint(_timestamp, balance, prevVoteStatus);
+            checkpoints[account][_nCheckPoints] = Checkpoint(_timestamp, balance);
             numCheckpoints[account] = _nCheckPoints + 1;
         }
     }

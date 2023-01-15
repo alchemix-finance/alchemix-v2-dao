@@ -148,6 +148,30 @@ contract Voter is IVoter {
         IVotingEscrow(veALCX).accrueMana(_tokenId, IVotingEscrow(veALCX).claimableMana(_tokenId));
     }
 
+    function _reset(uint256 _tokenId) internal {
+        address[] storage _poolVote = poolVote[_tokenId];
+        uint256 _poolVoteCnt = _poolVote.length;
+        uint256 _totalWeight = 0;
+
+        for (uint256 i = 0; i < _poolVoteCnt; i++) {
+            address _pool = _poolVote[i];
+            uint256 _votes = votes[_tokenId][_pool];
+
+            if (_votes != 0) {
+                _updateFor(gauges[_pool]);
+                weights[_pool] -= _votes;
+                votes[_tokenId][_pool] -= _votes;
+                if (_votes > 0) {
+                    _totalWeight += _votes;
+                }
+                emit Abstained(_tokenId, _votes);
+            }
+        }
+        totalWeight -= uint256(_totalWeight);
+        usedWeights[_tokenId] = 0;
+        delete poolVote[_tokenId];
+    }
+
     /// @inheritdoc IVoter
     function poke(uint256 _tokenId, uint256 _boost) external {
         require(IVotingEscrow(veALCX).claimableMana(_tokenId) >= _boost, "insufficient claimable MANA balance");
@@ -358,7 +382,6 @@ contract Voter is IVoter {
                 votes[_tokenId][_pool] += _poolWeight;
                 _usedWeight += _poolWeight;
                 _totalWeight += _poolWeight;
-                IBaseGauge(gauges[_pool]).setVoteStatus(IVotingEscrow(veALCX).ownerOf(_tokenId), true);
                 emit Voted(msg.sender, _tokenId, _poolWeight);
             }
         }
@@ -375,31 +398,6 @@ contract Voter is IVoter {
         require(!isWhitelisted[_token]);
         isWhitelisted[_token] = true;
         emit Whitelisted(msg.sender, _token);
-    }
-
-    function _reset(uint256 _tokenId) internal {
-        address[] storage _poolVote = poolVote[_tokenId];
-        uint256 _poolVoteCnt = _poolVote.length;
-        uint256 _totalWeight = 0;
-
-        for (uint256 i = 0; i < _poolVoteCnt; i++) {
-            address _pool = _poolVote[i];
-            uint256 _votes = votes[_tokenId][_pool];
-
-            if (_votes != 0) {
-                _updateFor(gauges[_pool]);
-                weights[_pool] -= _votes;
-                votes[_tokenId][_pool] -= _votes;
-                if (_votes > 0) {
-                    _totalWeight += _votes;
-                }
-                IBaseGauge(gauges[_pool]).setVoteStatus(IVotingEscrow(veALCX).ownerOf(_tokenId), false);
-                emit Abstained(_tokenId, _votes);
-            }
-        }
-        totalWeight -= uint256(_totalWeight);
-        usedWeights[_tokenId] = 0;
-        delete poolVote[_tokenId];
     }
 
     function _updateFor(address _gauge) internal {
