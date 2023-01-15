@@ -145,7 +145,7 @@ contract Voter is IVoter {
         lastVoted[_tokenId] = block.timestamp;
         _reset(_tokenId);
         IVotingEscrow(veALCX).abstain(_tokenId);
-        IVotingEscrow(veALCX).claimMana(_tokenId, IVotingEscrow(veALCX).claimableMana(_tokenId));
+        IVotingEscrow(veALCX).accrueMana(_tokenId, IVotingEscrow(veALCX).claimableMana(_tokenId));
     }
 
     function _reset(uint256 _tokenId) internal {
