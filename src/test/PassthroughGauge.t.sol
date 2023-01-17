@@ -10,13 +10,6 @@ contract PassthroughGaugeTest is BaseTest {
     uint256 platformFee = 400; // 4%
     uint256 DENOMINATOR = 10000; // denominates weights 10000 = 100%
 
-    // Proposal id from snapshot url
-    // https://snapshot.org/#/cvx.eth/proposal/0xd7db40d1ca142cb5ca24bce5d0f78f3b037fde6c7ebb3c3650a317e910278b1f
-    bytes32 public proposal = 0xd7db40d1ca142cb5ca24bce5d0f78f3b037fde6c7ebb3c3650a317e910278b1f;
-
-    // Votium contract that receives rewards (via the receiver)
-    address votiumStash = 0x378Ba9B73309bE80BF4C2c027aAD799766a7ED5A;
-
     function setUp() public {
         setupBaseTest(snapshotWeek - 3 weeks);
     }
@@ -25,7 +18,6 @@ contract PassthroughGaugeTest is BaseTest {
     function testPassthroughGaugeRewards() public {
         hevm.startPrank(admin);
 
-        IERC20(bpt).approve(address(veALCX), 2e25);
         veALCX.createLock(TOKEN_1, MAXTIME, false);
 
         uint256 period = minter.activePeriod();

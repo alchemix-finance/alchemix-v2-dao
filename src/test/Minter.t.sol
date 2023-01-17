@@ -12,13 +12,11 @@ contract MinterTest is BaseTest {
 
         hevm.startPrank(admin);
 
-        veALCX.createLock(TOKEN_1, MAXTIME, false);
+        uint256 tokenId = veALCX.createLock(TOKEN_1, MAXTIME, false);
 
-        hevm.roll(block.number + 1);
+        uint256 maxVotingPower = getMaxVotingPower(TOKEN_1, veALCX.lockEnd(tokenId));
 
-        uint256 maxVotingPower = getMaxVotingPower(TOKEN_1, veALCX.lockEnd(1));
-
-        assertEq(veALCX.balanceOfToken(1), maxVotingPower);
+        assertEq(veALCX.balanceOfToken(tokenId), maxVotingPower);
         assertEq(IERC20(bpt).balanceOf(address(veALCX)), TOKEN_1);
 
         hevm.stopPrank();
@@ -252,7 +250,7 @@ contract MinterTest is BaseTest {
         minter.updatePeriod();
 
         // Set weth balance to 0
-        weth.transfer(zeroAddress, weth.balanceOf(admin));
+        weth.transfer(dead, weth.balanceOf(admin));
 
         hevm.expectRevert(abi.encodePacked("insufficient balance to compound"));
         distributor.claim(1, true);

@@ -7,10 +7,11 @@ contract AlchemixGovernorTest is BaseTest {
     function setUp() public {
         setupBaseTest(block.timestamp);
 
-        hevm.startPrank(admin);
+        deal(bpt, beef, TOKEN_1);
+        deal(bpt, dead, TOKEN_1);
 
-        IERC20(bpt).transfer(address(0xbeef), TOKEN_1);
-        IERC20(bpt).transfer(address(0xdead), TOKEN_1);
+        // Create veALCX for admin
+        hevm.startPrank(admin);
 
         veALCX.createLock(90 * TOKEN_1, MAXTIME, false);
         hevm.roll(block.number + 1);
@@ -18,19 +19,13 @@ contract AlchemixGovernorTest is BaseTest {
         hevm.stopPrank();
 
         // Create veALCX for 0xbeef
-        hevm.startPrank(address(0xbeef));
+        hevm.startPrank(beef);
 
         IERC20(bpt).approve(address(veALCX), TOKEN_1);
         veALCX.createLock(TOKEN_1, MAXTIME, false);
         hevm.roll(block.number + 1);
 
         hevm.stopPrank();
-
-        hevm.prank(address(governor));
-        timelockExecutor.acceptAdmin();
-
-        hevm.prank(address(timelockExecutor));
-        voter.acceptExecutor();
     }
 
     function testExecutorCanCreateGaugesForAnyAddress(address a) public {
@@ -43,30 +38,30 @@ contract AlchemixGovernorTest is BaseTest {
 
     function testVeAlcxMergesAutoDelegates() public {
         // 0xbeef + 0xdead > quorum
-        hevm.startPrank(address(0xdead));
+        hevm.startPrank(dead);
 
         IERC20(bpt).approve(address(veALCX), TOKEN_1 / 3);
         veALCX.createLock(TOKEN_1 / 3, MAXTIME, false);
 
         hevm.roll(block.number + 1);
 
-        uint256 pre2 = veALCX.getVotes(address(0xbeef));
-        uint256 pre3 = veALCX.getVotes(address(0xdead));
+        uint256 pre2 = veALCX.getVotes(beef);
+        uint256 pre3 = veALCX.getVotes(dead);
 
         // merge
-        veALCX.approve(address(0xbeef), 3);
-        veALCX.transferFrom(address(0xdead), address(0xbeef), 3);
+        veALCX.approve(beef, 3);
+        veALCX.transferFrom(dead, beef, 3);
 
         hevm.stopPrank();
 
-        hevm.startPrank(address(0xbeef));
+        hevm.startPrank(beef);
 
         veALCX.merge(3, 2);
 
         hevm.stopPrank();
 
         // assert vote balances
-        uint256 post2 = veALCX.getVotes(address(0xbeef));
+        uint256 post2 = veALCX.getVotes(beef);
 
         assertApproxEq(
             pre2 + pre3,
@@ -77,7 +72,7 @@ contract AlchemixGovernorTest is BaseTest {
 
     function testFailCannotProposeWithoutSufficientBalance() public {
         // propose
-        hevm.startPrank(address(0xdead));
+        hevm.startPrank(dead);
         address[] memory targets = new address[](1);
         targets[0] = address(voter);
         uint256[] memory values = new uint256[](1);
@@ -108,7 +103,7 @@ contract AlchemixGovernorTest is BaseTest {
         hevm.stopPrank();
 
         // vote
-        hevm.startPrank(address(0xbeef));
+        hevm.startPrank(beef);
         governor.castVote(pid, 1);
         hevm.warp(block.timestamp + 1 weeks); // voting period
         hevm.stopPrank();

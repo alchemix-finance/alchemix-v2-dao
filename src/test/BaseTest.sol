@@ -32,27 +32,34 @@ import "src/interfaces/IWETH9.sol";
 contract BaseTest is DSTestPlus {
     address public admin = 0x8392F6669292fA56123F71949B52d883aE57e225;
     address public devmsig = 0x9e2b6378ee8ad2A4A95Fe481d63CAba8FB0EBBF9;
-    address public account = address(0xbeef);
     address public alETHPool = 0xC4C319E2D4d66CcA4464C0c2B32c9Bd23ebe784e;
     address public alUSDPool = 0x9735F7d3Ea56b454b24fFD74C58E9bD85cfaD31B;
     address public USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address public priceFeed = 0x194a9AaF2e0b67c35915cD01101585A33Fe25CAa;
-    address public zeroAddress = address(0xdead);
+    address public beef = address(0xbeef);
+    address public dead = address(0xdead);
     address public bpt;
 
     // Pool addresses
-    address alUsdPoolAddress = 0x43b4FdFD4Ff969587185cDB6f0BD875c5Fc83f8c;
-    address alEthPoolAddress = 0xC4C319E2D4d66CcA4464C0c2B32c9Bd23ebe784e;
-    address alUsdFraxBpPoolAddress = 0xB30dA2376F63De30b42dC055C93fa474F31330A5;
-    address sushiPoolAddress = 0x7519C93fC5073E15d89131fD38118D73A72370F8;
+    address public alUsdPoolAddress = 0x43b4FdFD4Ff969587185cDB6f0BD875c5Fc83f8c;
+    address public alEthPoolAddress = 0xC4C319E2D4d66CcA4464C0c2B32c9Bd23ebe784e;
+    address public alUsdFraxBpPoolAddress = 0xB30dA2376F63De30b42dC055C93fa474F31330A5;
+    address public sushiPoolAddress = 0x7519C93fC5073E15d89131fD38118D73A72370F8;
 
     // Votium pool indexes
-    uint256 alUsdIndex = 34;
-    uint256 alEthIndex = 46;
-    uint256 alUsdFraxBpIndex = 105;
+    uint256 public alUsdIndex = 34;
+    uint256 public alEthIndex = 46;
+    uint256 public alUsdFraxBpIndex = 105;
 
     // Votium contract that is sent rewards
-    address votiumReceiver = 0x19BBC3463Dd8d07f55438014b021Fb457EBD4595;
+    address public votiumReceiver = 0x19BBC3463Dd8d07f55438014b021Fb457EBD4595;
+
+    // Votium contract that receives rewards (via the receiver)
+    address public votiumStash = 0x378Ba9B73309bE80BF4C2c027aAD799766a7ED5A;
+
+    // Proposal id from snapshot url
+    // https://snapshot.org/#/cvx.eth/proposal/0xd7db40d1ca142cb5ca24bce5d0f78f3b037fde6c7ebb3c3650a317e910278b1f
+    bytes32 public proposal = 0xd7db40d1ca142cb5ca24bce5d0f78f3b037fde6c7ebb3c3650a317e910278b1f;
 
     // Values for the current epoch (emissions to be manually minted)
     uint256 public supply = 1793678e18;
@@ -97,6 +104,7 @@ contract BaseTest is DSTestPlus {
     function setupBaseTest(uint256 _time) public {
         bpt = createBalancerPool();
 
+        // Run contracts at specific point in time
         hevm.warp(_time);
 
         veALCX = new VotingEscrow(bpt, address(alcx), address(MANA));
@@ -106,9 +114,9 @@ contract BaseTest is DSTestPlus {
 
         hevm.startPrank(admin);
 
-        ManaToken(MANA).setMinter(address(veALCX));
-
         IERC20(bpt).approve(address(veALCX), type(uint256).max);
+
+        ManaToken(MANA).setMinter(address(veALCX));
 
         revenueHandler = new RevenueHandler(address(veALCX));
         gaugeFactory = new GaugeFactory();
@@ -137,10 +145,8 @@ contract BaseTest is DSTestPlus {
 
         minter = new Minter(params);
 
-        voter.initialize(address(alcx), address(minter));
-
         distributor.setDepositor(address(minter));
-
+        voter.initialize(address(alcx), address(minter));
         alcx.grantRole(keccak256("MINTER"), address(minter));
 
         minter.initialize();
@@ -177,30 +183,18 @@ contract BaseTest is DSTestPlus {
         alUsdFraxBpGauge.initialize(alUsdFraxBpIndex, votiumReceiver);
 
         hevm.stopPrank();
-    }
 
-    function mintAlcx(address _account, uint256 _amount) public {
-        hevm.startPrank(admin);
+        hevm.prank(address(governor));
+        timelockExecutor.acceptAdmin();
 
-        alcx.grantRole(keccak256("MINTER"), admin);
-        alcx.mint(_account, _amount);
-
-        hevm.stopPrank();
-    }
-
-    function mintWeth(address _account, uint256 _amount) public {
-        hevm.deal(_account, _amount);
-        hevm.startPrank(_account);
-
-        IWETH9(address(weth)).deposit{ value: _amount }();
-
-        hevm.stopPrank();
+        hevm.prank(address(timelockExecutor));
+        voter.acceptExecutor();
     }
 
     // Initializes 80 ALCX 20 WETH Balancer pool and makes an initial deposit
     function createBalancerPool() public returns (address) {
-        mintAlcx(admin, TOKEN_100M);
-        mintWeth(admin, TOKEN_100M);
+        deal(address(alcx), admin, TOKEN_100M);
+        deal(address(weth), admin, TOKEN_100M);
 
         hevm.startPrank(admin);
 
@@ -255,14 +249,6 @@ contract BaseTest is DSTestPlus {
         hevm.stopPrank();
 
         return balancerPool;
-    }
-
-    function setMinter(address _minter) public {
-        hevm.startPrank(admin);
-
-        alcx.grantRole(keccak256("MINTER"), address(_minter));
-
-        hevm.stopPrank();
     }
 
     // Returns the max voting power given a deposit amount and length

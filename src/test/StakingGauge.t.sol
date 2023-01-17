@@ -32,13 +32,13 @@ contract StakingGaugeTest is BaseTest {
     function testFailCouncilCannotKillNonExistentGauge() public {
         hevm.startPrank(admin);
 
-        voter.killGauge(address(0xDEAD));
+        voter.killGauge(dead);
 
         hevm.stopPrank();
     }
 
     function testFailNoOneElseCanKillGauges() public {
-        hevm.prank(address(0xbeef));
+        hevm.prank(beef);
 
         address gaugeAddress = address(stakingGauge);
 
