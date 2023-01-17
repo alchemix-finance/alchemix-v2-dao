@@ -5,14 +5,9 @@ import "./BaseTest.sol";
 
 contract StakingGaugeTest is BaseTest {
     function setUp() public {
-        setupBaseTest(block.timestamp);
+        setupContracts(block.timestamp);
 
-        hevm.startPrank(admin);
-
-        IERC20(bpt).approve(address(veALCX), 2e25);
-        veALCX.createLock(TOKEN_1, MAXTIME, false);
-
-        hevm.stopPrank();
+        createVeAlcx(admin, TOKEN_1, MAXTIME, false);
     }
 
     function testEmergencyCouncilCanKillAndReviveGauges() public {

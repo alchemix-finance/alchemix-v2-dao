@@ -29,7 +29,7 @@ contract RevenueHandlerTest is BaseTest {
 
     /// @dev Deploy the contract
     function setUp() public {
-        setupBaseTest(block.timestamp);
+        setupContracts(block.timestamp);
         address[] memory alusd3crvTokenIds = new address[](4);
         alusd3crvTokenIds[0] = alusd;
         alusd3crvTokenIds[1] = dai; // dai

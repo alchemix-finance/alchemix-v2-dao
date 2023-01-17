@@ -1402,6 +1402,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
      * @param _value Amount to deposit
      * @param _lockDuration Number of seconds to lock tokens for (rounded down to nearest week)
      * @param _to Address to deposit
+     * @return uint256 tokenId of the newly created veALCX
      */
     function _createLock(
         uint256 _value,

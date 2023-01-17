@@ -11,14 +11,14 @@ contract PassthroughGaugeTest is BaseTest {
     uint256 DENOMINATOR = 10000; // denominates weights 10000 = 100%
 
     function setUp() public {
-        setupBaseTest(snapshotWeek - 3 weeks);
+        setupContracts(snapshotWeek - 3 weeks);
     }
 
     // Rewards should be passed through to votium and sushi pools
     function testPassthroughGaugeRewards() public {
-        hevm.startPrank(admin);
+        uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
 
-        veALCX.createLock(TOKEN_1, MAXTIME, false);
+        hevm.startPrank(admin);
 
         uint256 period = minter.activePeriod();
         hevm.warp(period);
@@ -40,7 +40,7 @@ contract PassthroughGaugeTest is BaseTest {
         // Move forward epoch
         hevm.warp(period + 1 weeks);
 
-        voter.vote(1, pools, weights, 0);
+        voter.vote(tokenId, pools, weights, 0);
 
         address[] memory gauges = new address[](4);
         gauges[0] = address(alUsdGauge);

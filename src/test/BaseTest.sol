@@ -101,7 +101,7 @@ contract BaseTest is DSTestPlus {
     StakingGauge public stakingGauge2;
 
     // Initialize all DAO contracts and their dependencies
-    function setupBaseTest(uint256 _time) public {
+    function setupContracts(uint256 _time) public {
         bpt = createBalancerPool();
 
         // Run contracts at specific point in time
@@ -249,6 +249,28 @@ contract BaseTest is DSTestPlus {
         hevm.stopPrank();
 
         return balancerPool;
+    }
+
+    // Creates a veALCX position for a given account
+    function createVeAlcx(
+        address _account,
+        uint256 _amount,
+        uint256 _time,
+        bool _maxLockEnabled
+    ) public returns (uint256) {
+        deal(bpt, address(this), _amount);
+
+        IERC20(bpt).approve(address(veALCX), _amount);
+
+        uint256 tokenId = veALCX.createLockFor(_amount, _time, _maxLockEnabled, _account);
+
+        uint256 maxVotingPower = getMaxVotingPower(_amount, veALCX.lockEnd(tokenId));
+
+        assertEq(veALCX.balanceOfToken(tokenId), maxVotingPower);
+
+        assertEq(veALCX.ownerOf(tokenId), _account);
+
+        return tokenId;
     }
 
     // Returns the max voting power given a deposit amount and length

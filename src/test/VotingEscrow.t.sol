@@ -8,7 +8,7 @@ contract VotingEscrowTest is BaseTest {
     uint256 maxDuration = ((block.timestamp + MAXTIME) / ONE_WEEK) * ONE_WEEK;
 
     function setUp() public {
-        setupBaseTest(block.timestamp);
+        setupContracts(block.timestamp);
     }
 
     // Create veALCX
@@ -17,10 +17,10 @@ contract VotingEscrowTest is BaseTest {
 
         assertEq(veALCX.balanceOf(admin), 0);
 
-        veALCX.createLock(TOKEN_1, ONE_WEEK, false);
+        uint256 tokenId = veALCX.createLock(TOKEN_1, ONE_WEEK, false);
 
-        assertEq(veALCX.ownerOf(1), admin);
-        assertEq(veALCX.balanceOf(admin), 1);
+        assertEq(veALCX.ownerOf(tokenId), admin);
+        assertEq(veALCX.balanceOf(admin), tokenId);
 
         hevm.stopPrank();
     }
@@ -28,23 +28,23 @@ contract VotingEscrowTest is BaseTest {
     function testUpdateLockDuration() public {
         hevm.startPrank(admin);
 
-        veALCX.createLock(TOKEN_1, 5 weeks, true);
+        uint256 tokenId = veALCX.createLock(TOKEN_1, 5 weeks, true);
 
-        uint256 lockEnd = veALCX.lockEnd(1);
+        uint256 lockEnd = veALCX.lockEnd(tokenId);
 
         // Lock end should be max time when max lock is enabled
         assertEq(lockEnd, maxDuration);
 
-        veALCX.updateUnlockTime(1, 1 days, true);
+        veALCX.updateUnlockTime(tokenId, 1 days, true);
 
-        lockEnd = veALCX.lockEnd(1);
+        lockEnd = veALCX.lockEnd(tokenId);
 
         // Lock duration should be unchanged
         assertEq(lockEnd, maxDuration);
 
-        veALCX.updateUnlockTime(1, 1 days, false);
+        veALCX.updateUnlockTime(tokenId, 1 days, false);
 
-        lockEnd = veALCX.lockEnd(1);
+        lockEnd = veALCX.lockEnd(tokenId);
 
         // Lock duration should be unchanged
         assertEq(lockEnd, maxDuration);
@@ -52,17 +52,17 @@ contract VotingEscrowTest is BaseTest {
         // Now that max lock is disabled lock duration can be set again
         hevm.expectRevert(abi.encodePacked("Voting lock can be 1 year max"));
 
-        veALCX.updateUnlockTime(1, MAXTIME + ONE_WEEK, false);
+        veALCX.updateUnlockTime(tokenId, MAXTIME + ONE_WEEK, false);
 
         hevm.warp(block.timestamp + 260 days);
 
-        lockEnd = veALCX.lockEnd(1);
+        lockEnd = veALCX.lockEnd(tokenId);
 
         // Able to increase lock end now that previous lock end is closer
-        veALCX.updateUnlockTime(1, 200 days, false);
+        veALCX.updateUnlockTime(tokenId, 200 days, false);
 
         // Updated lock end should be greater than previous lockEnd
-        assertGt(veALCX.lockEnd(1), lockEnd);
+        assertGt(veALCX.lockEnd(tokenId), lockEnd);
 
         hevm.stopPrank();
     }
@@ -113,7 +113,7 @@ contract VotingEscrowTest is BaseTest {
         hevm.expectRevert(abi.encodePacked("Cooldown period has not started"));
         veALCX.withdraw(tokenId);
 
-        voter.reset(1);
+        voter.reset(tokenId);
 
         hevm.warp(block.timestamp + 2 weeks);
 

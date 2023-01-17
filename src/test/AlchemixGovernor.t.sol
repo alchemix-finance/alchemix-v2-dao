@@ -5,27 +5,13 @@ import "./BaseTest.sol";
 
 contract AlchemixGovernorTest is BaseTest {
     function setUp() public {
-        setupBaseTest(block.timestamp);
-
-        deal(bpt, beef, TOKEN_1);
-        deal(bpt, dead, TOKEN_1);
+        setupContracts(block.timestamp);
 
         // Create veALCX for admin
-        hevm.startPrank(admin);
-
-        veALCX.createLock(90 * TOKEN_1, MAXTIME, false);
-        hevm.roll(block.number + 1);
-
-        hevm.stopPrank();
+        createVeAlcx(admin, 90 * TOKEN_1, MAXTIME, false);
 
         // Create veALCX for 0xbeef
-        hevm.startPrank(beef);
-
-        IERC20(bpt).approve(address(veALCX), TOKEN_1);
-        veALCX.createLock(TOKEN_1, MAXTIME, false);
-        hevm.roll(block.number + 1);
-
-        hevm.stopPrank();
+        createVeAlcx(beef, TOKEN_1, MAXTIME, false);
     }
 
     function testExecutorCanCreateGaugesForAnyAddress(address a) public {
@@ -38,12 +24,9 @@ contract AlchemixGovernorTest is BaseTest {
 
     function testVeAlcxMergesAutoDelegates() public {
         // 0xbeef + 0xdead > quorum
+        createVeAlcx(dead, TOKEN_1 / 3, MAXTIME, false);
+
         hevm.startPrank(dead);
-
-        IERC20(bpt).approve(address(veALCX), TOKEN_1 / 3);
-        veALCX.createLock(TOKEN_1 / 3, MAXTIME, false);
-
-        hevm.roll(block.number + 1);
 
         uint256 pre2 = veALCX.getVotes(beef);
         uint256 pre3 = veALCX.getVotes(dead);
