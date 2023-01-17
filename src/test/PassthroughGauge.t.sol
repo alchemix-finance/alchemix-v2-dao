@@ -4,18 +4,12 @@ pragma solidity ^0.8.15;
 import "./BaseTest.sol";
 
 contract PassthroughGaugeTest is BaseTest {
-    Voter voter;
-    GaugeFactory gaugeFactory;
-    BribeFactory bribeFactory;
-    RewardsDistributor distributor;
-    Minter minter;
-    RevenueHandler revenueHandler;
     CurveGauge alUsdGauge;
     CurveGauge alEthGauge;
     CurveGauge alUsdFraxBpGauge;
     PassthroughGauge sushiGauge;
 
-    uint256 nextEpoch = 86400 * 14;
+    uint256 nextEpoch = 2 weeks;
     uint256 snapshotWeek = 15948915;
 
     uint256 platformFee = 400; // 4%
@@ -43,49 +37,9 @@ contract PassthroughGaugeTest is BaseTest {
     uint256 alUsdFraxBpIndex = 105;
 
     function setUp() public {
-        setupBaseTest();
-
-        // Setup specific time to test snapshot period
-        hevm.warp(snapshotWeek - 3 weeks);
-
-        veALCX.setVoter(admin);
+        setupBaseTest(snapshotWeek - 3 weeks);
 
         hevm.startPrank(admin);
-
-        ManaToken(MANA).setMinter(address(veALCX));
-
-        revenueHandler = new RevenueHandler(address(veALCX));
-        gaugeFactory = new GaugeFactory();
-        bribeFactory = new BribeFactory();
-        voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory), address(MANA));
-
-        IERC20(bpt).approve(address(veALCX), 2e25);
-        veALCX.createLock(TOKEN_1, 365 days, false);
-
-        distributor = new RewardsDistributor(address(veALCX), address(weth), address(balancerVault), priceFeed);
-        veALCX.setVoter(address(voter));
-
-        IMinter.InitializationParams memory params = IMinter.InitializationParams(
-            address(alcx),
-            address(voter),
-            address(veALCX),
-            address(distributor),
-            address(revenueHandler),
-            supply,
-            rewards,
-            stepdown
-        );
-
-        minter = new Minter(params);
-
-        // Initialize after minter is created to set minter address
-        voter.initialize(address(alcx), address(minter));
-
-        distributor.setDepositor(address(minter));
-
-        alcx.grantRole(keccak256("MINTER"), address(minter));
-
-        minter.initialize();
 
         // Create curve gauges
         voter.createGauge(alUsdPoolAddress, IVoter.GaugeType.Curve);
@@ -116,6 +70,9 @@ contract PassthroughGaugeTest is BaseTest {
     // Rewards should be passed through to votium and sushi pools
     function testPassthroughGaugeRewards() public {
         hevm.startPrank(admin);
+
+        IERC20(bpt).approve(address(veALCX), 2e25);
+        veALCX.createLock(TOKEN_1, 365 days, false);
 
         uint256 period = minter.activePeriod();
         hevm.warp(period);

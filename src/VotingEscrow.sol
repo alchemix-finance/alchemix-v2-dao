@@ -831,7 +831,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         require(IERC20(BPT).transfer(msg.sender, value));
 
         // Claim any unclaimed ALCX rewards and MANA
-        IRewardsDistributor(distributor).claimOnWithdraw(_tokenId);
+        IRewardsDistributor(distributor).claim(_tokenId, false);
         _claimMana(_tokenId, unclaimedMana[_tokenId]);
 
         // Burn the token

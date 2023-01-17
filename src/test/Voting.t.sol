@@ -4,56 +4,18 @@ pragma solidity ^0.8.15;
 import "./BaseTest.sol";
 
 contract VotingTest is BaseTest {
-    Voter voter;
-    GaugeFactory gaugeFactory;
-    BribeFactory bribeFactory;
-    RewardsDistributor distributor;
-    Minter minter;
-    RevenueHandler revenueHandler;
-
     uint256 depositAmount = 999 ether;
     uint256 lockTime = 30 days;
 
     function setUp() public {
-        setupBaseTest();
-
-        veALCX.setVoter(admin);
+        setupBaseTest(block.timestamp);
 
         hevm.startPrank(admin);
-
-        ManaToken(MANA).setMinter(address(veALCX));
-
-        revenueHandler = new RevenueHandler(address(veALCX));
-        gaugeFactory = new GaugeFactory();
-        bribeFactory = new BribeFactory();
-        voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory), address(MANA));
-
-        voter.initialize(address(alcx), admin);
 
         IERC20(bpt).approve(address(veALCX), TOKEN_1);
         veALCX.createLock(TOKEN_1, MAXTIME, false);
 
         uint256 maxVotingPower = getMaxVotingPower(TOKEN_1, veALCX.lockEnd(1));
-
-        distributor = new RewardsDistributor(address(veALCX), address(weth), address(balancerVault), priceFeed);
-        veALCX.setVoter(address(voter));
-
-        IMinter.InitializationParams memory params = IMinter.InitializationParams(
-            address(alcx),
-            address(voter),
-            address(veALCX),
-            address(distributor),
-            address(revenueHandler),
-            supply,
-            rewards,
-            stepdown
-        );
-
-        minter = new Minter(params);
-
-        distributor.setDepositor(address(minter));
-
-        alcx.grantRole(keccak256("MINTER"), address(minter));
 
         voter.createGauge(alETHPool, IVoter.GaugeType.Staking);
 
@@ -61,8 +23,6 @@ contract VotingTest is BaseTest {
 
         assertEq(veALCX.balanceOfToken(1), maxVotingPower);
         assertEq(IERC20(bpt).balanceOf(address(veALCX)), TOKEN_1);
-
-        minter.initialize();
 
         assertEq(veALCX.ownerOf(1), admin);
 
@@ -186,7 +146,6 @@ contract VotingTest is BaseTest {
         voter.reset(1);
 
         claimedBalance = veALCX.unclaimedMana(1);
-        console2.log("claimedBalance", claimedBalance);
 
         veALCX.claimMana(1, claimedBalance);
 

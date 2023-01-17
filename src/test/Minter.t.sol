@@ -4,53 +4,15 @@ pragma solidity ^0.8.15;
 import "./BaseTest.sol";
 
 contract MinterTest is BaseTest {
-    Voter voter;
-    GaugeFactory gaugeFactory;
-    BribeFactory bribeFactory;
-    RewardsDistributor distributor;
-    Minter minter;
-    RevenueHandler revenueHandler;
-
     uint256 nextEpoch = 86400 * 14;
     uint256 epochsUntilTail = 80;
 
     function setUp() public {
-        setupBaseTest();
-
-        veALCX.setVoter(admin);
+        setupBaseTest(block.timestamp);
 
         hevm.startPrank(admin);
 
-        ManaToken(MANA).setMinter(address(veALCX));
-
-        revenueHandler = new RevenueHandler(address(veALCX));
-        gaugeFactory = new GaugeFactory();
-        bribeFactory = new BribeFactory();
-        voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory), address(MANA));
-
-        voter.initialize(address(alcx), admin);
-
         veALCX.createLock(TOKEN_1, MAXTIME, false);
-
-        distributor = new RewardsDistributor(address(veALCX), address(weth), address(balancerVault), priceFeed);
-        veALCX.setVoter(address(voter));
-
-        IMinter.InitializationParams memory params = IMinter.InitializationParams(
-            address(alcx),
-            address(voter),
-            address(veALCX),
-            address(distributor),
-            address(revenueHandler),
-            supply,
-            rewards,
-            stepdown
-        );
-
-        minter = new Minter(params);
-
-        distributor.setDepositor(address(minter));
-
-        alcx.grantRole(keccak256("MINTER"), address(minter));
 
         voter.createGauge(alETHPool, IVoter.GaugeType.Staking);
 
@@ -66,8 +28,6 @@ contract MinterTest is BaseTest {
         uint256[] memory weights = new uint256[](1);
         weights[0] = 5000;
         voter.vote(1, pools, weights, 0);
-
-        minter.initialize();
 
         hevm.stopPrank();
     }
@@ -290,10 +250,8 @@ contract MinterTest is BaseTest {
 
         minter.updatePeriod();
 
-        // After no epoch has passed, amount claimable should be 0
-        hevm.expectRevert(abi.encodePacked("nothing to claim"));
-        distributor.claim(1, true);
         assertEq(distributor.claimable(1), 0, "amount claimable should be 0");
+        assertEq(distributor.claim(1, true), 0, "amount claimed should be 0");
 
         // Fast forward one epoch
         hevm.warp(block.timestamp + nextEpoch);

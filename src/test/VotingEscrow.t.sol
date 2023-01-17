@@ -4,58 +4,18 @@ pragma solidity ^0.8.15;
 import "./BaseTest.sol";
 
 contract VotingEscrowTest is BaseTest {
-    Voter voter;
-    GaugeFactory gaugeFactory;
-    BribeFactory bribeFactory;
-    RewardsDistributor distributor;
-    Minter minter;
-    RevenueHandler revenueHandler;
+    // Voter voter;
+    // GaugeFactory gaugeFactory;
+    // BribeFactory bribeFactory;
+    // RewardsDistributor distributor;
+    // Minter minter;
+    // RevenueHandler revenueHandler;
 
     uint256 internal constant ONE_WEEK = 1 weeks;
     uint256 maxDuration = ((block.timestamp + MAXTIME) / ONE_WEEK) * ONE_WEEK;
 
     function setUp() public {
-        setupBaseTest();
-
-        veALCX.setVoter(admin);
-        veALCX.setRewardsDistributor(admin);
-
-        hevm.startPrank(admin);
-
-        ManaToken(MANA).setMinter(address(veALCX));
-
-        revenueHandler = new RevenueHandler(address(veALCX));
-        gaugeFactory = new GaugeFactory();
-        bribeFactory = new BribeFactory();
-        voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory), address(MANA));
-
-        voter.initialize(address(alcx), admin);
-
-        distributor = new RewardsDistributor(address(veALCX), address(weth), address(balancerVault), priceFeed);
-
-        veALCX.setVoter(address(voter));
-        veALCX.setRewardsDistributor(address(distributor));
-
-        IMinter.InitializationParams memory params = IMinter.InitializationParams(
-            address(alcx),
-            address(voter),
-            address(veALCX),
-            address(distributor),
-            address(revenueHandler),
-            supply,
-            rewards,
-            stepdown
-        );
-
-        minter = new Minter(params);
-
-        distributor.setDepositor(address(minter));
-
-        alcx.grantRole(keccak256("MINTER"), address(minter));
-
-        minter.initialize();
-
-        hevm.stopPrank();
+        setupBaseTest(block.timestamp);
     }
 
     // Create veALCX

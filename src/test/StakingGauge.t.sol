@@ -4,51 +4,16 @@ pragma solidity ^0.8.15;
 import "./BaseTest.sol";
 
 contract StakingGaugeTest is BaseTest {
-    GaugeFactory gaugeFactory;
-    BribeFactory bribeFactory;
-    Voter voter;
-    RewardsDistributor distributor;
-    Minter minter;
-    RevenueHandler revenueHandler;
     StakingGauge gauge;
     StakingGauge gauge2;
 
     function setUp() public {
-        setupBaseTest();
-        veALCX.setVoter(admin);
+        setupBaseTest(block.timestamp);
 
         hevm.startPrank(admin);
 
-        revenueHandler = new RevenueHandler(address(veALCX));
-        gaugeFactory = new GaugeFactory();
-        bribeFactory = new BribeFactory();
-        voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory), address(MANA));
-
         IERC20(bpt).approve(address(veALCX), 2e25);
         veALCX.createLock(TOKEN_1, 365 days, false);
-
-        distributor = new RewardsDistributor(address(veALCX), address(weth), address(balancerVault), priceFeed);
-        veALCX.setVoter(address(voter));
-
-        IMinter.InitializationParams memory params = IMinter.InitializationParams(
-            address(alcx),
-            address(voter),
-            address(veALCX),
-            address(distributor),
-            address(revenueHandler),
-            supply,
-            rewards,
-            stepdown
-        );
-
-        minter = new Minter(params);
-
-        // Initialize after minter is created to set minter address
-        voter.initialize(address(alcx), address(minter));
-
-        distributor.setDepositor(address(minter));
-
-        alcx.grantRole(keccak256("MINTER"), address(minter));
 
         voter.createGauge(address(alcx), IVoter.GaugeType.Staking);
         voter.createGauge(alUSDPool, IVoter.GaugeType.Staking);

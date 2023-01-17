@@ -44,12 +44,4 @@ interface IRewardsDistributor {
      * @return uint256 Amount of ALCX that was either claimed or compounded
      */
     function claim(uint256 _tokenId, bool _compound) external payable returns (uint256);
-
-    /**
-     * @notice Claim ALCX rewards for a given veALCX position when it is expired
-     * @param _tokenId ID of the token
-     * @return uint256 Amount of ALCX that was claimed
-     * @dev If the veALCX is expired there is no fee to withdraw rewards
-     */
-    function claimOnWithdraw(uint256 _tokenId) external returns (uint256);
 }

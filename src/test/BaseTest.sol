@@ -63,13 +63,60 @@ contract BaseTest is DSTestPlus {
     IVault public balancerVault = IVault(0xBA12222222228d8Ba445958a75a0704d566BF2C8);
     ManaToken public MANA = new ManaToken(admin);
     VotingEscrow public veALCX;
+    Voter public voter;
+    GaugeFactory public gaugeFactory;
+    BribeFactory public bribeFactory;
+    RewardsDistributor public distributor;
+    Minter public minter;
+    RevenueHandler public revenueHandler;
 
-    function setupBaseTest() public {
+    // Initialize all DAO contracts and their dependencies
+    function setupBaseTest(uint256 _time) public {
         bpt = createBalancerPool();
+
+        hevm.warp(_time);
+
         veALCX = new VotingEscrow(bpt, address(alcx), address(MANA));
 
+        veALCX.setVoter(admin);
+        veALCX.setRewardsDistributor(admin);
+
         hevm.startPrank(admin);
+
+        ManaToken(MANA).setMinter(address(veALCX));
+
         IERC20(bpt).approve(address(veALCX), type(uint256).max);
+
+        revenueHandler = new RevenueHandler(address(veALCX));
+        gaugeFactory = new GaugeFactory();
+        bribeFactory = new BribeFactory();
+        voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory), address(MANA));
+        distributor = new RewardsDistributor(address(veALCX), address(weth), address(balancerVault), priceFeed);
+
+        veALCX.setVoter(address(voter));
+        veALCX.setRewardsDistributor(address(distributor));
+
+        IMinter.InitializationParams memory params = IMinter.InitializationParams(
+            address(alcx),
+            address(voter),
+            address(veALCX),
+            address(distributor),
+            address(revenueHandler),
+            supply,
+            rewards,
+            stepdown
+        );
+
+        minter = new Minter(params);
+
+        voter.initialize(address(alcx), address(minter));
+
+        distributor.setDepositor(address(minter));
+
+        alcx.grantRole(keccak256("MINTER"), address(minter));
+
+        minter.initialize();
+
         hevm.stopPrank();
     }
 

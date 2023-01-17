@@ -4,21 +4,13 @@ pragma solidity ^0.8.15;
 import "./BaseTest.sol";
 
 contract AlchemixGovernorTest is BaseTest {
-    Voter voter;
-    GaugeFactory gaugeFactory;
-    BribeFactory bribeFactory;
-    RewardsDistributor distributor;
-    Minter minter;
     StakingGauge gauge;
     Bribe bribe;
     TimelockExecutor timelockExecutor;
     AlchemixGovernor governor;
-    RevenueHandler revenueHandler;
 
     function setUp() public {
-        setupBaseTest();
-
-        veALCX.setVoter(admin);
+        setupBaseTest(block.timestamp);
 
         hevm.startPrank(admin);
 
@@ -30,7 +22,9 @@ contract AlchemixGovernorTest is BaseTest {
 
         hevm.stopPrank();
 
+        // Create veALCX for 0xbeef
         hevm.startPrank(address(0xbeef));
+
         IERC20(bpt).approve(address(veALCX), TOKEN_1);
         veALCX.createLock(TOKEN_1, 365 days, false);
         hevm.roll(block.number + 1);
@@ -38,32 +32,6 @@ contract AlchemixGovernorTest is BaseTest {
         hevm.stopPrank();
 
         hevm.startPrank(admin);
-
-        revenueHandler = new RevenueHandler(address(veALCX));
-        gaugeFactory = new GaugeFactory();
-        bribeFactory = new BribeFactory();
-        voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory), address(MANA));
-
-        veALCX.setVoter(address(voter));
-
-        distributor = new RewardsDistributor(address(veALCX), address(weth), address(balancerVault), priceFeed);
-
-        IMinter.InitializationParams memory params = IMinter.InitializationParams(
-            address(alcx),
-            address(voter),
-            address(veALCX),
-            address(distributor),
-            address(revenueHandler),
-            supply,
-            rewards,
-            stepdown
-        );
-
-        minter = new Minter(params);
-
-        distributor.setDepositor(address(minter));
-
-        alcx.grantRole(keccak256("MINTER"), address(minter));
 
         alcx.approve(address(gaugeFactory), 15 * TOKEN_100K);
         voter.createGauge(alETHPool, IVoter.GaugeType.Staking);
