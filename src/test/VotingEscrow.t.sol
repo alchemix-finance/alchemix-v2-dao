@@ -107,7 +107,7 @@ contract VotingEscrowTest is BaseTest {
 
         uint256 bptBalanceBefore = IERC20(bpt).balanceOf(admin);
 
-        uint256 manaBalanceBefore = IERC20(MANA).balanceOf(admin);
+        uint256 manaBalanceBefore = IERC20(mana).balanceOf(admin);
         uint256 alcxBalanceBefore = IERC20(alcx).balanceOf(admin);
 
         hevm.expectRevert(abi.encodePacked("Cooldown period has not started"));
@@ -133,13 +133,13 @@ contract VotingEscrowTest is BaseTest {
         veALCX.withdraw(tokenId);
 
         uint256 bptBalanceAfter = IERC20(bpt).balanceOf(admin);
-        uint256 manaBalanceAfter = IERC20(MANA).balanceOf(admin);
+        uint256 manaBalanceAfter = IERC20(mana).balanceOf(admin);
         uint256 alcxBalanceAfter = IERC20(alcx).balanceOf(admin);
 
         // Bpt balance after should increase by the withdraw amount
         assertEq(bptBalanceAfter - bptBalanceBefore, TOKEN_1);
 
-        // ALCX and MANA balance should increase
+        // ALCX and mana balance should increase
         assertEq(alcxBalanceAfter, alcxBalanceBefore + unclaimedAlcx, "didn't claim alcx");
         assertEq(manaBalanceAfter, manaBalanceBefore + unclaimedMana, "didn't claim mana");
 
@@ -205,7 +205,7 @@ contract VotingEscrowTest is BaseTest {
         hevm.expectRevert(abi.encodePacked("Cooldown period has not started"));
         veALCX.withdraw(tokenId);
 
-        // admin doesn't have enough MANA
+        // admin doesn't have enough mana
         hevm.expectRevert(abi.encodePacked("insufficient MANA balance"));
         veALCX.startCooldown(tokenId);
 
@@ -213,13 +213,13 @@ contract VotingEscrowTest is BaseTest {
 
         uint256 ragequitAmount = veALCX.amountToRagequit(tokenId);
 
-        // Mint the necessary amount of MANA to ragequit
+        // Mint the necessary amount of mana to ragequit
         hevm.prank(address(veALCX));
-        MANA.mint(admin, ragequitAmount);
+        mana.mint(admin, ragequitAmount);
 
         hevm.startPrank(admin);
 
-        MANA.approve(address(veALCX), ragequitAmount);
+        mana.approve(address(veALCX), ragequitAmount);
 
         veALCX.startCooldown(tokenId);
 

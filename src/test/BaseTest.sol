@@ -34,7 +34,15 @@ contract BaseTest is DSTestPlus {
     address public devmsig = 0x9e2b6378ee8ad2A4A95Fe481d63CAba8FB0EBBF9;
     address public alETHPool = 0xC4C319E2D4d66CcA4464C0c2B32c9Bd23ebe784e;
     address public alUSDPool = 0x9735F7d3Ea56b454b24fFD74C58E9bD85cfaD31B;
-    address public USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    address public usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    address public holder = 0x000000000000000000000000000000000000dEaD;
+    address public alusd = 0xBC6DA0FE9aD5f3b0d58160288917AA56653660E9;
+    address public dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+    address public ydai = 0xdA816459F1AB5631232FE5e97a05BBBb94970c95;
+    address public usdt = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
+    address public aleth = 0x0100546F2cD4C9D97f798fFC9755E47865FF7Ee6;
+    address public alusd3crv = 0x43b4FdFD4Ff969587185cDB6f0BD875c5Fc83f8c;
+    address public alethcrv = 0xC4C319E2D4d66CcA4464C0c2B32c9Bd23ebe784e;
     address public priceFeed = 0x194a9AaF2e0b67c35915cD01101585A33Fe25CAa;
     address public beef = address(0xbeef);
     address public dead = address(0xdead);
@@ -82,7 +90,7 @@ contract BaseTest is DSTestPlus {
     IERC20 public galcx = IERC20(0x93Dede06AE3B5590aF1d4c111BC54C3f717E4b35);
     IERC20 public weth = IERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
     IVault public balancerVault = IVault(0xBA12222222228d8Ba445958a75a0704d566BF2C8);
-    ManaToken public MANA = new ManaToken(admin);
+    ManaToken public mana = new ManaToken(admin);
 
     VotingEscrow public veALCX;
     Voter public voter;
@@ -107,7 +115,7 @@ contract BaseTest is DSTestPlus {
         // Run contracts at specific point in time
         hevm.warp(_time);
 
-        veALCX = new VotingEscrow(bpt, address(alcx), address(MANA));
+        veALCX = new VotingEscrow(bpt, address(alcx), address(mana));
 
         veALCX.setVoter(admin);
         veALCX.setRewardsDistributor(admin);
@@ -116,12 +124,12 @@ contract BaseTest is DSTestPlus {
 
         IERC20(bpt).approve(address(veALCX), type(uint256).max);
 
-        ManaToken(MANA).setMinter(address(veALCX));
+        ManaToken(mana).setMinter(address(veALCX));
 
         revenueHandler = new RevenueHandler(address(veALCX));
         gaugeFactory = new GaugeFactory();
         bribeFactory = new BribeFactory();
-        voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory), address(MANA));
+        voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory), address(mana));
         distributor = new RewardsDistributor(address(veALCX), address(weth), address(balancerVault), priceFeed);
         timelockExecutor = new TimelockExecutor(1 days);
         governor = new AlchemixGovernor(veALCX, TimelockExecutor(timelockExecutor));

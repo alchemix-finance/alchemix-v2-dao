@@ -61,7 +61,7 @@ contract AlchemixGovernorTest is BaseTest {
         uint256[] memory values = new uint256[](1);
         values[0] = 0;
         bytes[] memory calldatas = new bytes[](1);
-        calldatas[0] = abi.encodeWithSelector(voter.whitelist.selector, address(USDC));
+        calldatas[0] = abi.encodeWithSelector(voter.whitelist.selector, usdc);
         string memory description = "Whitelist USDC";
 
         governor.propose(targets, values, calldatas, description, MAINNET);
@@ -69,14 +69,14 @@ contract AlchemixGovernorTest is BaseTest {
     }
 
     function testProposalsNeedsQuorumToPass() public {
-        assertFalse(voter.isWhitelisted(address(USDC)));
+        assertFalse(voter.isWhitelisted(usdc));
 
         address[] memory targets = new address[](1);
         targets[0] = address(voter);
         uint256[] memory values = new uint256[](1);
         values[0] = 0;
         bytes[] memory calldatas = new bytes[](1);
-        calldatas[0] = abi.encodeWithSelector(voter.whitelist.selector, address(USDC));
+        calldatas[0] = abi.encodeWithSelector(voter.whitelist.selector, usdc);
         string memory description = "Whitelist USDC";
 
         // propose
@@ -100,14 +100,14 @@ contract AlchemixGovernorTest is BaseTest {
     }
 
     function testProposalHasQuorum() public {
-        assertFalse(voter.isWhitelisted(address(USDC)));
+        assertFalse(voter.isWhitelisted(usdc));
 
         address[] memory targets = new address[](1);
         targets[0] = address(voter);
         uint256[] memory values = new uint256[](1);
         values[0] = 0;
         bytes[] memory calldatas = new bytes[](1);
-        calldatas[0] = abi.encodeWithSelector(voter.whitelist.selector, address(USDC));
+        calldatas[0] = abi.encodeWithSelector(voter.whitelist.selector, usdc);
         string memory description = "Whitelist USDC";
 
         // propose
@@ -128,6 +128,6 @@ contract AlchemixGovernorTest is BaseTest {
         governor.execute(targets, values, calldatas, keccak256(bytes(description)), MAINNET);
         hevm.stopPrank();
 
-        assertTrue(voter.isWhitelisted(address(USDC)));
+        assertTrue(voter.isWhitelisted(usdc));
     }
 }

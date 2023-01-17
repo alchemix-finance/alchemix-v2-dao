@@ -4,14 +4,8 @@ pragma solidity ^0.8.15;
 import "./BaseTest.sol";
 
 contract VotingTest is BaseTest {
-    uint256 depositAmount = 999 ether;
-    uint256 lockTime = 30 days;
-    uint256 tokenId;
-
     function setUp() public {
         setupContracts(block.timestamp);
-
-        tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
     }
 
     // Check ALCX balances increase in distributor and voter over an epoch
@@ -22,7 +16,7 @@ contract VotingTest is BaseTest {
         assertEq(distributorBal, 0);
         assertEq(voterBal, 0);
 
-        hevm.warp(block.timestamp + 86400 * 14);
+        hevm.warp(block.timestamp + 2 weeks);
         hevm.roll(block.number + 1);
 
         minter.updatePeriod();
@@ -32,6 +26,8 @@ contract VotingTest is BaseTest {
     }
 
     function testSameEpochVoteOrReset() public {
+        uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+
         hevm.startPrank(admin);
 
         uint256 period = minter.activePeriod();
@@ -61,6 +57,8 @@ contract VotingTest is BaseTest {
     }
 
     function testNextEpochVoteOrReset() public {
+        uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+
         hevm.startPrank(admin);
 
         hevm.warp(block.timestamp + 1 weeks);
@@ -90,9 +88,11 @@ contract VotingTest is BaseTest {
 
     // veALCX holders should be able to accrue their unclaimed mana over epochs
     function testAccrueMana() public {
+        uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+
         hevm.startPrank(admin);
 
-        uint256 claimedBalance = MANA.balanceOf(admin);
+        uint256 claimedBalance = mana.balanceOf(admin);
         uint256 unclaimedBalance = veALCX.unclaimedMana(tokenId);
 
         assertEq(claimedBalance, 0);
@@ -120,9 +120,11 @@ contract VotingTest is BaseTest {
 
     // veALCX holder should be able to mint mana they have accrued
     function testMintMana() public {
+        uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+
         hevm.startPrank(admin);
 
-        uint256 claimedBalance = MANA.balanceOf(admin);
+        uint256 claimedBalance = mana.balanceOf(admin);
         uint256 unclaimedBalance = veALCX.unclaimedMana(tokenId);
 
         assertEq(claimedBalance, 0);
@@ -140,13 +142,15 @@ contract VotingTest is BaseTest {
         unclaimedBalance = veALCX.unclaimedMana(tokenId);
 
         assertEq(unclaimedBalance, 0);
-        assertEq(MANA.balanceOf(admin), claimedBalance);
+        assertEq(mana.balanceOf(admin), claimedBalance);
 
         hevm.stopPrank();
     }
 
-    // veALCX holders can boost their vote with unclaimed MANA up to a maximum amount
+    // veALCX holders can boost their vote with unclaimed mana up to a maximum amount
     function testBoostVoteWithMana() public {
+        uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+
         hevm.startPrank(admin);
 
         hevm.warp(block.timestamp + 1 weeks);
@@ -173,10 +177,10 @@ contract VotingTest is BaseTest {
         // Vote with the max boost amount
         voter.vote(tokenId, pools, weights, maxManaAmount);
 
-        // Get weight used from boosting with MANA
+        // Get weight used from boosting with mana
         uint256 usedWeight = voter.usedWeights(tokenId);
 
-        // Used weight should be greater when boosting with unused MANA
+        // Used weight should be greater when boosting with unused mana
         assertGt(usedWeight, votingWeight);
 
         uint256 unclaimedMana = veALCX.unclaimedMana(tokenId);
@@ -187,8 +191,10 @@ contract VotingTest is BaseTest {
         hevm.stopPrank();
     }
 
-    // Votes cannot be boosted with insufficient claimable MANA balance
+    // Votes cannot be boosted with insufficient claimable mana balance
     function testCannotBoostVote() public {
+        uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+
         hevm.startPrank(admin);
 
         hevm.warp(block.timestamp + 1 weeks);
@@ -200,7 +206,7 @@ contract VotingTest is BaseTest {
 
         uint256 claimableMana = veALCX.claimableMana(tokenId);
 
-        // Vote with insufficient claimable MANA balance
+        // Vote with insufficient claimable mana balance
         hevm.expectRevert(abi.encodePacked("insufficient claimable MANA balance"));
         voter.vote(tokenId, pools, weights, claimableMana + 1);
 
@@ -209,13 +215,13 @@ contract VotingTest is BaseTest {
 
     // veALCX holder with max lock enabled should have constant max voting power
     function testMaxLockVotingPower() public {
-        uint256 tokenId1 = createVeAlcx(admin, TOKEN_1, 0, true);
+        uint256 tokenId = createVeAlcx(admin, TOKEN_1, 0, true);
 
         hevm.startPrank(admin);
 
-        uint256 maxVotingPower = getMaxVotingPower(TOKEN_1, veALCX.lockEnd(tokenId1));
+        uint256 maxVotingPower = getMaxVotingPower(TOKEN_1, veALCX.lockEnd(tokenId));
 
-        uint256 votingPower1 = veALCX.balanceOfToken(tokenId1);
+        uint256 votingPower1 = veALCX.balanceOfToken(tokenId);
 
         assertEq(votingPower1, maxVotingPower);
 
@@ -223,17 +229,17 @@ contract VotingTest is BaseTest {
 
         minter.updatePeriod();
 
-        uint256 votingPower2 = veALCX.balanceOfToken(tokenId1);
+        uint256 votingPower2 = veALCX.balanceOfToken(tokenId);
 
         // Voting power should remain the same with max lock enabled
         assertEq(votingPower1, votingPower2);
 
         // Disable max lock
-        veALCX.updateUnlockTime(tokenId1, 0, false);
+        veALCX.updateUnlockTime(tokenId, 0, false);
 
         hevm.warp(block.timestamp + 5 weeks);
 
-        uint256 votingPower3 = veALCX.balanceOfToken(tokenId1);
+        uint256 votingPower3 = veALCX.balanceOfToken(tokenId);
 
         // Disabling max lock should start the voting power decay
         assertLt(votingPower3, votingPower2);
@@ -243,17 +249,17 @@ contract VotingTest is BaseTest {
 
     // veALCX voting power should decay to veALCX amount
     function testVotingPowerDecay() public {
-        uint256 tokenId2 = createVeAlcx(admin, TOKEN_1, 1 weeks, false);
+        uint256 tokenId = createVeAlcx(admin, TOKEN_1, 1 weeks, false);
 
         hevm.startPrank(admin);
 
         hevm.warp(block.timestamp + 2 weeks);
 
-        uint256 balance = veALCX.balanceOfToken(tokenId2);
+        uint256 balance = veALCX.balanceOfToken(tokenId);
 
         // Voting power remains at 1 when lock is expired
         hevm.expectRevert(abi.encodePacked("Cannot add to expired lock. Withdraw"));
-        veALCX.increaseAmount(tokenId2, TOKEN_1);
+        veALCX.increaseAmount(tokenId, TOKEN_1);
         assertEq(balance, 0);
 
         hevm.stopPrank();

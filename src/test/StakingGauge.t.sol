@@ -4,10 +4,12 @@ pragma solidity ^0.8.15;
 import "./BaseTest.sol";
 
 contract StakingGaugeTest is BaseTest {
+    uint256 tokenId;
+
     function setUp() public {
         setupContracts(block.timestamp);
 
-        createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+        tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
     }
 
     function testEmergencyCouncilCanKillAndReviveGauges() public {
@@ -56,7 +58,7 @@ contract StakingGaugeTest is BaseTest {
 
         hevm.expectRevert(abi.encodePacked(""));
 
-        stakingGauge.deposit(amount, 1);
+        stakingGauge.deposit(amount, tokenId);
 
         hevm.stopPrank();
     }
@@ -69,11 +71,11 @@ contract StakingGaugeTest is BaseTest {
         uint256 amount = alcx.balanceOf(admin);
         alcx.approve(gaugeAddress, amount);
 
-        stakingGauge.deposit(amount, 1);
+        stakingGauge.deposit(amount, tokenId);
 
         voter.killGauge(gaugeAddress);
 
-        stakingGauge.withdrawToken(amount, 1);
+        stakingGauge.withdrawToken(amount, tokenId);
 
         hevm.stopPrank();
     }
