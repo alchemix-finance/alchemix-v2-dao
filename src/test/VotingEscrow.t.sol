@@ -4,13 +4,6 @@ pragma solidity ^0.8.15;
 import "./BaseTest.sol";
 
 contract VotingEscrowTest is BaseTest {
-    // Voter voter;
-    // GaugeFactory gaugeFactory;
-    // BribeFactory bribeFactory;
-    // RewardsDistributor distributor;
-    // Minter minter;
-    // RevenueHandler revenueHandler;
-
     uint256 internal constant ONE_WEEK = 1 weeks;
     uint256 maxDuration = ((block.timestamp + MAXTIME) / ONE_WEEK) * ONE_WEEK;
 
@@ -161,12 +154,11 @@ contract VotingEscrowTest is BaseTest {
     function testTokenURICalls() public {
         hevm.startPrank(admin);
 
-        veALCX.createLock(TOKEN_1, ONE_WEEK, false);
+        uint256 tokenId = veALCX.createLock(TOKEN_1, ONE_WEEK, false);
 
         hevm.expectRevert(abi.encodePacked("Query for nonexistent token"));
         veALCX.tokenURI(999);
 
-        uint256 tokenId = 1;
         hevm.warp(block.timestamp + ONE_WEEK);
         hevm.roll(block.number + 1);
 

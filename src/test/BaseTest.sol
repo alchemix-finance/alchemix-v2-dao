@@ -40,6 +40,20 @@ contract BaseTest is DSTestPlus {
     address public zeroAddress = address(0xdead);
     address public bpt;
 
+    // Pool addresses
+    address alUsdPoolAddress = 0x43b4FdFD4Ff969587185cDB6f0BD875c5Fc83f8c;
+    address alEthPoolAddress = 0xC4C319E2D4d66CcA4464C0c2B32c9Bd23ebe784e;
+    address alUsdFraxBpPoolAddress = 0xB30dA2376F63De30b42dC055C93fa474F31330A5;
+    address sushiPoolAddress = 0x7519C93fC5073E15d89131fD38118D73A72370F8;
+
+    // Votium pool indexes
+    uint256 alUsdIndex = 34;
+    uint256 alEthIndex = 46;
+    uint256 alUsdFraxBpIndex = 105;
+
+    // Votium contract that is sent rewards
+    address votiumReceiver = 0x19BBC3463Dd8d07f55438014b021Fb457EBD4595;
+
     // Values for the current epoch (emissions to be manually minted)
     uint256 public supply = 1793678e18;
     uint256 public rewards = 12724e18;
@@ -62,6 +76,7 @@ contract BaseTest is DSTestPlus {
     IERC20 public weth = IERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
     IVault public balancerVault = IVault(0xBA12222222228d8Ba445958a75a0704d566BF2C8);
     ManaToken public MANA = new ManaToken(admin);
+
     VotingEscrow public veALCX;
     Voter public voter;
     GaugeFactory public gaugeFactory;
@@ -69,6 +84,14 @@ contract BaseTest is DSTestPlus {
     RewardsDistributor public distributor;
     Minter public minter;
     RevenueHandler public revenueHandler;
+    TimelockExecutor public timelockExecutor;
+    AlchemixGovernor public governor;
+    CurveGauge public alUsdGauge;
+    CurveGauge public alEthGauge;
+    CurveGauge public alUsdFraxBpGauge;
+    PassthroughGauge public sushiGauge;
+    StakingGauge public stakingGauge;
+    StakingGauge public stakingGauge2;
 
     // Initialize all DAO contracts and their dependencies
     function setupBaseTest(uint256 _time) public {
@@ -92,6 +115,11 @@ contract BaseTest is DSTestPlus {
         bribeFactory = new BribeFactory();
         voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory), address(MANA));
         distributor = new RewardsDistributor(address(veALCX), address(weth), address(balancerVault), priceFeed);
+        timelockExecutor = new TimelockExecutor(1 days);
+        governor = new AlchemixGovernor(veALCX, TimelockExecutor(timelockExecutor));
+
+        timelockExecutor.setAdmin(address(governor));
+        voter.setExecutor(address(timelockExecutor));
 
         veALCX.setVoter(address(voter));
         veALCX.setRewardsDistributor(address(distributor));
@@ -116,6 +144,29 @@ contract BaseTest is DSTestPlus {
         alcx.grantRole(keccak256("MINTER"), address(minter));
 
         minter.initialize();
+
+        // Create curve gauges
+        voter.createGauge(alUsdPoolAddress, IVoter.GaugeType.Curve);
+        voter.createGauge(alEthPoolAddress, IVoter.GaugeType.Curve);
+        voter.createGauge(alUsdFraxBpPoolAddress, IVoter.GaugeType.Curve);
+
+        // Create sushi gauge
+        voter.createGauge(sushiPoolAddress, IVoter.GaugeType.Passthrough);
+
+        // Get address of new gauges
+        address alUsdGaugeAddress = voter.gauges(alUsdPoolAddress);
+        address alEthGaugeAddress = voter.gauges(alEthPoolAddress);
+        address alUsdFraxBpGaugeAddress = voter.gauges(alUsdFraxBpPoolAddress);
+        address sushiGaugeAddress = voter.gauges(sushiPoolAddress);
+
+        alUsdGauge = CurveGauge(alUsdGaugeAddress);
+        alEthGauge = CurveGauge(alEthGaugeAddress);
+        alUsdFraxBpGauge = CurveGauge(alUsdFraxBpGaugeAddress);
+        sushiGauge = PassthroughGauge(sushiGaugeAddress);
+
+        alUsdGauge.initialize(alUsdIndex, votiumReceiver);
+        alEthGauge.initialize(alEthIndex, votiumReceiver);
+        alUsdFraxBpGauge.initialize(alUsdFraxBpIndex, votiumReceiver);
 
         hevm.stopPrank();
     }

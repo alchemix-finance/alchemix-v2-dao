@@ -17,8 +17,6 @@ contract VotingTest is BaseTest {
 
         uint256 maxVotingPower = getMaxVotingPower(TOKEN_1, veALCX.lockEnd(1));
 
-        voter.createGauge(alETHPool, IVoter.GaugeType.Staking);
-
         hevm.roll(block.number + 1);
 
         assertEq(veALCX.balanceOfToken(1), maxVotingPower);

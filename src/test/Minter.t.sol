@@ -14,20 +14,12 @@ contract MinterTest is BaseTest {
 
         veALCX.createLock(TOKEN_1, MAXTIME, false);
 
-        voter.createGauge(alETHPool, IVoter.GaugeType.Staking);
-
         hevm.roll(block.number + 1);
 
         uint256 maxVotingPower = getMaxVotingPower(TOKEN_1, veALCX.lockEnd(1));
 
         assertEq(veALCX.balanceOfToken(1), maxVotingPower);
         assertEq(IERC20(bpt).balanceOf(address(veALCX)), TOKEN_1);
-
-        address[] memory pools = new address[](1);
-        pools[0] = alETHPool;
-        uint256[] memory weights = new uint256[](1);
-        weights[0] = 5000;
-        voter.vote(1, pools, weights, 0);
 
         hevm.stopPrank();
     }

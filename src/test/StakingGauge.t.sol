@@ -13,7 +13,7 @@ contract StakingGaugeTest is BaseTest {
         hevm.startPrank(admin);
 
         IERC20(bpt).approve(address(veALCX), 2e25);
-        veALCX.createLock(TOKEN_1, 365 days, false);
+        veALCX.createLock(TOKEN_1, MAXTIME, false);
 
         voter.createGauge(address(alcx), IVoter.GaugeType.Staking);
         voter.createGauge(alUSDPool, IVoter.GaugeType.Staking);
