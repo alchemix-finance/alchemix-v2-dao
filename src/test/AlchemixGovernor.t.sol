@@ -13,6 +13,7 @@ contract AlchemixGovernorTest is BaseTest {
     Bribe bribe;
     TimelockExecutor timelockExecutor;
     AlchemixGovernor governor;
+    RevenueHandler revenueHandler;
 
     function setUp() public {
         setupBaseTest();
@@ -38,6 +39,7 @@ contract AlchemixGovernorTest is BaseTest {
 
         hevm.startPrank(admin);
 
+        revenueHandler = new RevenueHandler(address(veALCX));
         gaugeFactory = new GaugeFactory();
         bribeFactory = new BribeFactory();
         voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory), address(MANA));
@@ -51,6 +53,7 @@ contract AlchemixGovernorTest is BaseTest {
             address(voter),
             address(veALCX),
             address(distributor),
+            address(revenueHandler),
             supply,
             rewards,
             stepdown

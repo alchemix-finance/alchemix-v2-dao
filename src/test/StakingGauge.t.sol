@@ -9,6 +9,7 @@ contract StakingGaugeTest is BaseTest {
     Voter voter;
     RewardsDistributor distributor;
     Minter minter;
+    RevenueHandler revenueHandler;
     StakingGauge gauge;
     StakingGauge gauge2;
 
@@ -18,6 +19,7 @@ contract StakingGaugeTest is BaseTest {
 
         hevm.startPrank(admin);
 
+        revenueHandler = new RevenueHandler(address(veALCX));
         gaugeFactory = new GaugeFactory();
         bribeFactory = new BribeFactory();
         voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory), address(MANA));
@@ -33,6 +35,7 @@ contract StakingGaugeTest is BaseTest {
             address(voter),
             address(veALCX),
             address(distributor),
+            address(revenueHandler),
             supply,
             rewards,
             stepdown

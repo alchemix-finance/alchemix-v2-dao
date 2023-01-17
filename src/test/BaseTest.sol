@@ -82,14 +82,6 @@ contract BaseTest is DSTestPlus {
         hevm.stopPrank();
     }
 
-    function mintMana(address _account, uint256 _amount) public {
-        hevm.startPrank(admin);
-
-        MANA.mint(_account, _amount);
-
-        hevm.stopPrank();
-    }
-
     function mintWeth(address _account, uint256 _amount) public {
         hevm.deal(_account, _amount);
         hevm.startPrank(_account);

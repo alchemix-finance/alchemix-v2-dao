@@ -4,11 +4,58 @@ pragma solidity ^0.8.15;
 import "./BaseTest.sol";
 
 contract VotingEscrowTest is BaseTest {
+    Voter voter;
+    GaugeFactory gaugeFactory;
+    BribeFactory bribeFactory;
+    RewardsDistributor distributor;
+    Minter minter;
+    RevenueHandler revenueHandler;
+
     uint256 internal constant ONE_WEEK = 1 weeks;
     uint256 maxDuration = ((block.timestamp + MAXTIME) / ONE_WEEK) * ONE_WEEK;
 
     function setUp() public {
         setupBaseTest();
+
+        veALCX.setVoter(admin);
+        veALCX.setRewardsDistributor(admin);
+
+        hevm.startPrank(admin);
+
+        ManaToken(MANA).setMinter(address(veALCX));
+
+        revenueHandler = new RevenueHandler(address(veALCX));
+        gaugeFactory = new GaugeFactory();
+        bribeFactory = new BribeFactory();
+        voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory), address(MANA));
+
+        voter.initialize(address(alcx), admin);
+
+        distributor = new RewardsDistributor(address(veALCX), address(weth), address(balancerVault), priceFeed);
+
+        veALCX.setVoter(address(voter));
+        veALCX.setRewardsDistributor(address(distributor));
+
+        IMinter.InitializationParams memory params = IMinter.InitializationParams(
+            address(alcx),
+            address(voter),
+            address(veALCX),
+            address(distributor),
+            address(revenueHandler),
+            supply,
+            rewards,
+            stepdown
+        );
+
+        minter = new Minter(params);
+
+        distributor.setDepositor(address(minter));
+
+        alcx.grantRole(keccak256("MINTER"), address(minter));
+
+        minter.initialize();
+
+        hevm.stopPrank();
     }
 
     // Create veALCX
@@ -103,13 +150,24 @@ contract VotingEscrowTest is BaseTest {
     function testWithdraw() public {
         hevm.startPrank(admin);
 
-        uint256 tokenId = veALCX.createLock(TOKEN_1, ONE_WEEK, false);
-        uint256 bptBalanceBefore = IERC20(bpt).balanceOf(address(admin));
+        uint256 tokenId = veALCX.createLock(TOKEN_1, 2 weeks, false);
+
+        uint256 bptBalanceBefore = IERC20(bpt).balanceOf(admin);
+
+        uint256 manaBalanceBefore = IERC20(MANA).balanceOf(admin);
+        uint256 alcxBalanceBefore = IERC20(alcx).balanceOf(admin);
 
         hevm.expectRevert(abi.encodePacked("Cooldown period has not started"));
         veALCX.withdraw(tokenId);
 
-        hevm.warp(block.timestamp + ONE_WEEK);
+        voter.reset(1);
+
+        hevm.warp(block.timestamp + 2 weeks);
+
+        minter.updatePeriod();
+
+        uint256 unclaimedAlcx = distributor.claimable(tokenId);
+        uint256 unclaimedMana = veALCX.unclaimedMana(tokenId);
 
         // Start cooldown once lock is expired
         veALCX.startCooldown(tokenId);
@@ -117,14 +175,20 @@ contract VotingEscrowTest is BaseTest {
         hevm.expectRevert(abi.encodePacked("Cooldown period in progress"));
         veALCX.withdraw(tokenId);
 
-        hevm.warp(block.timestamp + ONE_WEEK);
-        hevm.roll(block.number + 1);
+        hevm.warp(block.timestamp + 2 weeks);
+
         veALCX.withdraw(tokenId);
 
-        uint256 bptBalanceAfter = IERC20(bpt).balanceOf(address(admin));
+        uint256 bptBalanceAfter = IERC20(bpt).balanceOf(admin);
+        uint256 manaBalanceAfter = IERC20(MANA).balanceOf(admin);
+        uint256 alcxBalanceAfter = IERC20(alcx).balanceOf(admin);
 
         // Bpt balance after should increase by the withdraw amount
         assertEq(bptBalanceAfter - bptBalanceBefore, TOKEN_1);
+
+        // ALCX and MANA balance should increase
+        assertEq(alcxBalanceAfter, alcxBalanceBefore + unclaimedAlcx, "didn't claim alcx");
+        assertEq(manaBalanceAfter, manaBalanceBefore + unclaimedMana, "didn't claim mana");
 
         // Check that the token is burnt
         assertEq(veALCX.balanceOfToken(tokenId), 0);
@@ -198,7 +262,8 @@ contract VotingEscrowTest is BaseTest {
         uint256 ragequitAmount = veALCX.amountToRagequit(tokenId);
 
         // Mint the necessary amount of MANA to ragequit
-        mintMana(admin, ragequitAmount);
+        hevm.prank(address(veALCX));
+        MANA.mint(admin, ragequitAmount);
 
         hevm.startPrank(admin);
 

@@ -3,6 +3,7 @@ pragma solidity ^0.8.15;
 
 import "src/interfaces/IVotingEscrow.sol";
 import "src/interfaces/IManaToken.sol";
+import "src/interfaces/IRewardsDistributor.sol";
 import "src/libraries/Base64.sol";
 import "openzeppelin-contracts/contracts/token/ERC721/extensions/IERC721Metadata.sol";
 import "openzeppelin-contracts/contracts/governance/utils/IVotes.sol";
@@ -87,6 +88,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     address public admin; // the timelock executor
     address public pendingAdmin; // the timelock executor
     address public voter;
+    address public distributor;
 
     uint256 public supply;
     uint256 public claimFeeBps = 5000; // Fee for claiming early in bps
@@ -179,6 +181,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         MANA = _mana;
         voter = msg.sender;
         admin = msg.sender;
+        distributor = msg.sender;
         manaMultiplier = 10; // 10 bps = 0.1%
         manaPerVeALCX = 1e18; // determine initial value
 
@@ -627,6 +630,11 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         voter = _voter;
     }
 
+    function setRewardsDistributor(address _distributor) external {
+        require(msg.sender == distributor, "not distributor");
+        distributor = _distributor;
+    }
+
     function voting(uint256 _tokenId) external {
         require(msg.sender == voter);
         voted[_tokenId] = true;
@@ -822,6 +830,10 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
         require(IERC20(BPT).transfer(msg.sender, value));
 
+        // Claim any unclaimed ALCX rewards and MANA
+        IRewardsDistributor(distributor).claimOnWithdraw(_tokenId);
+        _claimMana(_tokenId, unclaimedMana[_tokenId]);
+
         // Burn the token
         _burn(_tokenId);
 
@@ -843,16 +855,10 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
      * @notice Claim unclaimed mana for a given veALCX
      * @param _tokenId ID of the token mana is being accrued to
      * @param _amount Amount of mana being claimed
-     * @dev mana can be claimed after accrual
+     * @dev mana can only be claimed after accrual
      */
     function claimMana(uint256 _tokenId, uint256 _amount) external {
-        require(_isApprovedOrOwner(msg.sender, _tokenId));
-        require(unclaimedMana[_tokenId] >= _amount, "amount greater than unclaimed balance");
-
-        unclaimedMana[_tokenId] -= _amount;
-
-        // MANA is minted to the veALCX owner's address
-        IManaToken(MANA).mint(ownerOf(_tokenId), _amount);
+        _claimMana(_tokenId, _amount);
     }
 
     /**
@@ -902,6 +908,16 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
      */
     function _balance(address _owner) internal view returns (uint256) {
         return ownerToTokenCount[_owner];
+    }
+
+    function _claimMana(uint256 _tokenId, uint256 _amount) internal {
+        require(_isApprovedOrOwner(msg.sender, _tokenId));
+        require(unclaimedMana[_tokenId] >= _amount, "amount greater than unclaimed balance");
+
+        unclaimedMana[_tokenId] -= _amount;
+
+        // MANA is minted to the veALCX owner's address
+        IManaToken(MANA).mint(ownerOf(_tokenId), _amount);
     }
 
     /**

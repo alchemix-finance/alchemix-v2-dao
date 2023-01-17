@@ -169,6 +169,7 @@ contract RewardsDistributor is IRewardsDistributor {
         } else {
             // The fee amount stays in the contract effectively redistributing it to veALCX holders
             uint256 feeAmount = (alcxAmount * IVotingEscrow(votingEscrow).claimFeeBps()) / BPS;
+
             uint256 claimAmount = alcxAmount - feeAmount;
 
             // Transfer rewards to veALCX owner
@@ -176,6 +177,28 @@ contract RewardsDistributor is IRewardsDistributor {
 
             return claimAmount;
         }
+    }
+
+    /// @inheritdoc IRewardsDistributor
+    function claimOnWithdraw(uint256 _tokenId) external returns (uint256) {
+        require(msg.sender == votingEscrow, "not voting escrow contract");
+
+        address owner = IVotingEscrow(votingEscrow).ownerOf(_tokenId);
+
+        if (block.timestamp >= timeCursor) _checkpointTotalSupply();
+        uint256 _lastTokenTime = lastTokenTime;
+        _lastTokenTime = (_lastTokenTime / WEEK) * WEEK;
+
+        uint256 alcxAmount = _claim(_tokenId, votingEscrow, _lastTokenTime);
+
+        if (alcxAmount == 0) return alcxAmount;
+
+        tokenLastBalance -= alcxAmount;
+
+        // Transfer rewards to veALCX owner
+        IERC20(rewardsToken).safeTransfer(owner, alcxAmount);
+
+        return alcxAmount;
     }
 
     /// @dev Once off event on contract initialize

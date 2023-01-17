@@ -9,6 +9,7 @@ contract PassthroughGaugeTest is BaseTest {
     BribeFactory bribeFactory;
     RewardsDistributor distributor;
     Minter minter;
+    RevenueHandler revenueHandler;
     CurveGauge alUsdGauge;
     CurveGauge alEthGauge;
     CurveGauge alUsdFraxBpGauge;
@@ -53,6 +54,7 @@ contract PassthroughGaugeTest is BaseTest {
 
         ManaToken(MANA).setMinter(address(veALCX));
 
+        revenueHandler = new RevenueHandler(address(veALCX));
         gaugeFactory = new GaugeFactory();
         bribeFactory = new BribeFactory();
         voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory), address(MANA));
@@ -68,6 +70,7 @@ contract PassthroughGaugeTest is BaseTest {
             address(voter),
             address(veALCX),
             address(distributor),
+            address(revenueHandler),
             supply,
             rewards,
             stepdown

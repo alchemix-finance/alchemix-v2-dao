@@ -9,6 +9,7 @@ contract VotingTest is BaseTest {
     BribeFactory bribeFactory;
     RewardsDistributor distributor;
     Minter minter;
+    RevenueHandler revenueHandler;
 
     uint256 depositAmount = 999 ether;
     uint256 lockTime = 30 days;
@@ -22,6 +23,7 @@ contract VotingTest is BaseTest {
 
         ManaToken(MANA).setMinter(address(veALCX));
 
+        revenueHandler = new RevenueHandler(address(veALCX));
         gaugeFactory = new GaugeFactory();
         bribeFactory = new BribeFactory();
         voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory), address(MANA));
@@ -41,6 +43,7 @@ contract VotingTest is BaseTest {
             address(voter),
             address(veALCX),
             address(distributor),
+            address(revenueHandler),
             supply,
             rewards,
             stepdown
@@ -183,6 +186,7 @@ contract VotingTest is BaseTest {
         voter.reset(1);
 
         claimedBalance = veALCX.unclaimedMana(1);
+        console2.log("claimedBalance", claimedBalance);
 
         veALCX.claimMana(1, claimedBalance);
 

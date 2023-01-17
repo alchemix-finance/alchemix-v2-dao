@@ -9,6 +9,7 @@ contract MinterTest is BaseTest {
     BribeFactory bribeFactory;
     RewardsDistributor distributor;
     Minter minter;
+    RevenueHandler revenueHandler;
 
     uint256 nextEpoch = 86400 * 14;
     uint256 epochsUntilTail = 80;
@@ -22,6 +23,7 @@ contract MinterTest is BaseTest {
 
         ManaToken(MANA).setMinter(address(veALCX));
 
+        revenueHandler = new RevenueHandler(address(veALCX));
         gaugeFactory = new GaugeFactory();
         bribeFactory = new BribeFactory();
         voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory), address(MANA));
@@ -38,6 +40,7 @@ contract MinterTest is BaseTest {
             address(voter),
             address(veALCX),
             address(distributor),
+            address(revenueHandler),
             supply,
             rewards,
             stepdown
