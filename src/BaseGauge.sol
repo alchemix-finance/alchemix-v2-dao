@@ -11,7 +11,7 @@ import "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 /**
  * @title  Base Gauge
  * @notice Implementation of functionality that various gauge types use or extend
- * @notice Gauges are used to incentivize pools, they emit or passthrough reward tokens for staked LP tokens
+ * @notice Gauges are used to incentivize pools, they emit or passthrough reward tokens
  */
 abstract contract BaseGauge is IBaseGauge {
     uint256 internal constant DURATION = 5 days; // Rewards released over voting period
@@ -19,7 +19,7 @@ abstract contract BaseGauge is IBaseGauge {
     uint256 internal constant MAX_REWARD_TOKENS = 16;
     uint256 internal constant PRECISION = 10**18;
 
-    address public stake; // LP token that needs to be staked for rewards
+    address public stake; // token that needs to be staked for rewards
     address public ve; // Ve token used for gauges
     address public bribe;
     address public voter;
