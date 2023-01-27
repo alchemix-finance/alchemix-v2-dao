@@ -171,11 +171,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
      * @param _alcx `ALCX` token address
      * @param _mana `MANA` token address
      */
-    constructor(
-        address _bpt,
-        address _alcx,
-        address _mana
-    ) {
+    constructor(address _bpt, address _alcx, address _mana) {
         BPT = _bpt;
         ALCX = _alcx;
         MANA = _mana;
@@ -192,10 +188,10 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         supportedInterfaces[ERC721_INTERFACE_ID] = true;
         supportedInterfaces[ERC721_METADATA_INTERFACE_ID] = true;
 
-        // mint-ish
-        emit Transfer(address(0), address(this), tokenId);
-        // burn-ish
-        emit Transfer(address(this), address(0), tokenId);
+        // // mint-ish
+        // emit Transfer(address(0), address(this), tokenId);
+        // // burn-ish
+        // emit Transfer(address(this), address(0), tokenId);
     }
 
     /*
@@ -489,11 +485,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
      * @param _to The new owner.
      * @param _tokenId ID of the token to transfer.
      */
-    function transferFrom(
-        address _from,
-        address _to,
-        uint256 _tokenId
-    ) external {
+    function transferFrom(address _from, address _to, uint256 _tokenId) external {
         _transferFrom(_from, _to, _tokenId, msg.sender);
     }
 
@@ -511,12 +503,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
      *      If `_to` is a smart contract, it calls `onERC721Received` on `_to` and throws if
      *      the return value is not `bytes4(keccak256("onERC721Received(address,address,uint256,bytes)"))`.
      */
-    function safeTransferFrom(
-        address _from,
-        address _to,
-        uint256 _tokenId,
-        bytes memory _data
-    ) public {
+    function safeTransferFrom(address _from, address _to, uint256 _tokenId, bytes memory _data) public {
         _transferFrom(_from, _to, _tokenId, msg.sender);
 
         if (_isContract(_to)) {
@@ -550,11 +537,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
      * @param _to The new owner.
      * @param _tokenId ID of the token to transfer.
      */
-    function safeTransferFrom(
-        address _from,
-        address _to,
-        uint256 _tokenId
-    ) external {
+    function safeTransferFrom(address _from, address _to, uint256 _tokenId) external {
         safeTransferFrom(_from, _to, _tokenId, "");
     }
 
@@ -605,14 +588,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         return _delegate(msg.sender, delegatee);
     }
 
-    function delegateBySig(
-        address delegatee,
-        uint256 nonce,
-        uint256 expiry,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
-    ) public {
+    function delegateBySig(address delegatee, uint256 nonce, uint256 expiry, uint8 v, bytes32 r, bytes32 s) public {
         bytes32 domainSeparator = keccak256(
             abi.encode(DOMAIN_TYPEHASH, keccak256(bytes(name)), keccak256(bytes(version)), block.chainid, address(this))
         );
@@ -780,11 +756,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
      * @param _lockDuration New number of seconds until tokens unlock
      * @param _maxLockEnabled Is max lock being enabled
      */
-    function updateUnlockTime(
-        uint256 _tokenId,
-        uint256 _lockDuration,
-        bool _maxLockEnabled
-    ) external nonreentrant {
+    function updateUnlockTime(uint256 _tokenId, uint256 _lockDuration, bool _maxLockEnabled) external nonreentrant {
         require(_isApprovedOrOwner(msg.sender, _tokenId));
 
         LockedBalance memory _locked = locked[_tokenId];
@@ -1029,12 +1001,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
      *      Throws if `_from` is not the current owner.
      *      Throws if `_tokenId` is not a valid token.
      */
-    function _transferFrom(
-        address _from,
-        address _to,
-        uint256 _tokenId,
-        address _sender
-    ) internal {
+    function _transferFrom(address _from, address _to, uint256 _tokenId, address _sender) internal {
         require(attachments[_tokenId] == 0 && !voted[_tokenId], "attached");
         // Check requirements
         require(_isApprovedOrOwner(_sender, _tokenId));
@@ -1082,11 +1049,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         return true;
     }
 
-    function _moveTokenDelegates(
-        address srcRep,
-        address dstRep,
-        uint256 _tokenId
-    ) internal {
+    function _moveTokenDelegates(address srcRep, address dstRep, uint256 _tokenId) internal {
         if (srcRep != dstRep && _tokenId > 0) {
             if (srcRep != address(0)) {
                 uint32 srcRepNum = numCheckpoints[srcRep];
@@ -1137,11 +1100,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         }
     }
 
-    function _moveAllDelegates(
-        address owner,
-        address srcRep,
-        address dstRep
-    ) internal {
+    function _moveAllDelegates(address owner, address srcRep, address dstRep) internal {
         // You can only redelegate what you own
         if (srcRep != dstRep) {
             if (srcRep != address(0)) {
@@ -1203,11 +1162,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
      * @param oldLocked Pevious locked amount / end lock time for the user
      * @param newLocked New locked amount / end lock time for the user
      */
-    function _checkpoint(
-        uint256 _tokenId,
-        LockedBalance memory oldLocked,
-        LockedBalance memory newLocked
-    ) internal {
+    function _checkpoint(uint256 _tokenId, LockedBalance memory oldLocked, LockedBalance memory newLocked) internal {
         Point memory oldPoint;
         Point memory newPoint;
         int256 oldDslope = 0;

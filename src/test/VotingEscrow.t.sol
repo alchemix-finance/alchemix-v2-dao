@@ -19,6 +19,10 @@ contract VotingEscrowTest is BaseTest {
 
         uint256 tokenId = veALCX.createLock(TOKEN_1, ONE_WEEK, false);
 
+        assertEq(veALCX.isApprovedForAll(admin, address(0)), false);
+        assertEq(veALCX.getApproved(1), address(0));
+        assertEq(veALCX.userPointHistoryTimestamp(1, 1), block.timestamp);
+
         assertEq(veALCX.ownerOf(tokenId), admin);
         assertEq(veALCX.balanceOf(admin), tokenId);
 
@@ -89,6 +93,10 @@ contract VotingEscrowTest is BaseTest {
             getMaxVotingPower(TOKEN_1 / 2, veALCX.lockEnd(tokenId2));
 
         uint256 totalVotes = veALCX.totalSupply();
+
+        uint256 totalVotesAt = veALCX.totalSupplyAt(block.number);
+
+        assertEq(totalVotes, totalVotesAt);
 
         uint256 votingPower = veALCX.balanceOfToken(tokenId1) + veALCX.balanceOfToken(tokenId2);
 
@@ -194,6 +202,14 @@ contract VotingEscrowTest is BaseTest {
     function testUnsupportedInterfaces() public {
         bytes4 ERC721_FAKE = 0x780e9d61;
         assertFalse(veALCX.supportsInterface(ERC721_FAKE));
+    }
+
+    function testTransferToken() public {
+        hevm.startPrank(admin);
+
+        veALCX.safeTransferFrom(admin, beef, 1);
+
+        hevm.stopPrank();
     }
 
     function testRagequit() public {
