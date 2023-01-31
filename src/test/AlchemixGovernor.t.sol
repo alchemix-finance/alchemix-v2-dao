@@ -12,6 +12,8 @@ contract AlchemixGovernorTest is BaseTest {
 
         // Create veALCX for 0xbeef
         createVeAlcx(beef, TOKEN_1, MAXTIME, false);
+
+        assertEq(governor.timelock(), address(timelockExecutor));
     }
 
     function testExecutorCanCreateGaugesForAnyAddress(address a) public {
@@ -69,6 +71,8 @@ contract AlchemixGovernorTest is BaseTest {
     }
 
     function testProposalsNeedsQuorumToPass() public {
+        createVeAlcx(dead, 1, MAXTIME, false);
+
         assertFalse(voter.isWhitelisted(usdc));
 
         address[] memory targets = new address[](1);
@@ -78,6 +82,18 @@ contract AlchemixGovernorTest is BaseTest {
         bytes[] memory calldatas = new bytes[](1);
         calldatas[0] = abi.encodeWithSelector(voter.whitelist.selector, usdc);
         string memory description = "Whitelist USDC";
+
+        // proposal should fail to meet threshold when veALCX amount is too low
+        hevm.startPrank(dead);
+        hevm.expectRevert(abi.encodePacked("Governor: proposer votes below proposal threshold"));
+        governor.propose(targets, values, calldatas, description, MAINNET);
+
+        uint256 proposalThreshold = governor.proposalThreshold();
+        uint256 votes = governor.getVotes(dead, block.timestamp);
+
+        assertGt(proposalThreshold, votes);
+
+        hevm.stopPrank();
 
         // propose
         hevm.startPrank(admin);
@@ -96,6 +112,7 @@ contract AlchemixGovernorTest is BaseTest {
         // Proposal unsuccessful due to _quorumReached returning false
         hevm.expectRevert(abi.encodePacked("Governor: proposal not successful"));
         governor.execute(targets, values, calldatas, keccak256(bytes(description)), MAINNET);
+
         hevm.stopPrank();
     }
 
@@ -129,5 +146,27 @@ contract AlchemixGovernorTest is BaseTest {
         hevm.stopPrank();
 
         assertTrue(voter.isWhitelisted(usdc));
+    }
+
+    // Only admin can set a new proposal numerator (up to a max)
+    function testUpdateProposalNumerator() public {
+        hevm.prank(admin);
+        governor.setAdmin(devmsig);
+
+        hevm.startPrank(devmsig);
+
+        hevm.expectRevert(abi.encodePacked("not admin"));
+        governor.setProposalNumerator(60);
+
+        governor.acceptAdmin();
+
+        hevm.expectRevert(abi.encodePacked("numerator too high"));
+        governor.setProposalNumerator(60);
+
+        governor.setProposalNumerator(50);
+
+        assertEq(governor.proposalNumerator(), 50);
+
+        hevm.stopPrank();
     }
 }
