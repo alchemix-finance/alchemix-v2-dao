@@ -204,10 +204,63 @@ contract VotingEscrowTest is BaseTest {
         assertFalse(veALCX.supportsInterface(ERC721_FAKE));
     }
 
-    function testTransferToken() public {
+    // Check approving another address of veALCX
+    function testApprovedOrOwner() public {
+        uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+
         hevm.startPrank(admin);
 
-        veALCX.safeTransferFrom(admin, beef, 1);
+        hevm.expectRevert(abi.encodePacked("Approved is already owner"));
+        veALCX.approve(admin, tokenId);
+
+        veALCX.approve(beef, tokenId);
+
+        assertEq(veALCX.isApprovedOrOwner(beef, tokenId), true);
+
+        hevm.stopPrank();
+    }
+
+    // Check transfer of veALCX
+    function testTransferToken() public {
+        uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+
+        hevm.startPrank(admin);
+
+        assertEq(veALCX.ownerOf(tokenId), admin);
+
+        hevm.expectRevert(abi.encodePacked("ERC721: transfer to non ERC721Receiver implementer"));
+        veALCX.safeTransferFrom(admin, alETHPool, tokenId);
+
+        veALCX.safeTransferFrom(admin, beef, tokenId);
+
+        assertEq(veALCX.ownerOf(tokenId), beef);
+
+        hevm.stopPrank();
+    }
+
+    // Check merging of two veALCX
+    function testMergeTokens() public {
+        uint256 tokenId1 = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+        uint256 tokenId2 = createVeAlcx(admin, TOKEN_100K, 2 weeks, false);
+
+        hevm.startPrank(admin);
+
+        assertEq(veALCX.lockEnd(tokenId1), ((block.timestamp + MAXTIME) / 1 weeks) * 1 weeks);
+        assertEq(veALCX.lockedAmount(tokenId1), TOKEN_1);
+
+        hevm.expectRevert(abi.encodePacked("must be different tokens"));
+        veALCX.merge(tokenId1, tokenId1);
+
+        veALCX.merge(tokenId1, tokenId2);
+
+        // Merged token should take longer of the two lock end dates
+        assertEq(veALCX.lockEnd(tokenId2), ((block.timestamp + MAXTIME) / 1 weeks) * 1 weeks);
+
+        // Merged token should have sum of both token locked amounts
+        assertEq(veALCX.lockedAmount(tokenId2), TOKEN_1 + TOKEN_100K);
+
+        // Token with smaller locked amount should be burned
+        assertEq(veALCX.ownerOf(tokenId1), address(0));
 
         hevm.stopPrank();
     }

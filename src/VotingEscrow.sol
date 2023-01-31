@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3
 pragma solidity ^0.8.15;
 
+import "lib/forge-std/src/console2.sol";
+
 import "src/interfaces/IVotingEscrow.sol";
 import "src/interfaces/IManaToken.sol";
 import "src/interfaces/IRewardsDistributor.sol";
@@ -187,11 +189,6 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         supportedInterfaces[ERC165_INTERFACE_ID] = true;
         supportedInterfaces[ERC721_INTERFACE_ID] = true;
         supportedInterfaces[ERC721_METADATA_INTERFACE_ID] = true;
-
-        // // mint-ish
-        // emit Transfer(address(0), address(this), tokenId);
-        // // burn-ish
-        // emit Transfer(address(this), address(0), tokenId);
     }
 
     /*
@@ -243,6 +240,15 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
      */
     function lockEnd(uint256 _tokenId) external view returns (uint256) {
         return locked[_tokenId].end;
+    }
+
+    /**
+     * @notice Get amount locked for `_tokenId`
+     * @param _tokenId ID of the token
+     * @return Amount locked
+     */
+    function lockedAmount(uint256 _tokenId) external view returns (uint256) {
+        return uint256(locked[_tokenId].amount);
     }
 
     /**
@@ -505,7 +511,6 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
      */
     function safeTransferFrom(address _from, address _to, uint256 _tokenId, bytes memory _data) public {
         _transferFrom(_from, _to, _tokenId, msg.sender);
-
         if (_isContract(_to)) {
             // Throws if transfer destination is a contract which does not implement 'onERC721Received'
             try IERC721Receiver(_to).onERC721Received(msg.sender, _from, _tokenId, _data) returns (bytes4 response) {
@@ -554,7 +559,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         // Throws if `_tokenId` is not a valid token
         require(owner != address(0));
         // Throws if `_approved` is the current owner
-        require(_approved != owner);
+        require(_approved != owner, "Approved is already owner");
         // Check requirements
         bool senderIsOwner = (idToOwner[_tokenId] == msg.sender);
         bool senderIsApprovedForAll = (ownerToOperators[owner])[msg.sender];
@@ -658,7 +663,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
     function merge(uint256 _from, uint256 _to) external {
         require(attachments[_from] == 0 && !voted[_from], "attached");
-        require(_from != _to);
+        require(_from != _to, "must be different tokens");
         require(_isApprovedOrOwner(msg.sender, _from));
         require(_isApprovedOrOwner(msg.sender, _to));
 
@@ -1005,6 +1010,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         require(attachments[_tokenId] == 0 && !voted[_tokenId], "attached");
         // Check requirements
         require(_isApprovedOrOwner(_sender, _tokenId));
+
         // Clear approval. Throws if `_from` is not the current owner
         _clearApproval(_from, _tokenId);
         // Remove token. Throws if `_tokenId` is not a valid token
