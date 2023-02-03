@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3
 pragma solidity ^0.8.15;
 
+import "lib/forge-std/src/console2.sol";
+
 import "src/libraries/Math.sol";
 import "src/interfaces/IBribe.sol";
 import "src/interfaces/IGaugeFactory.sol";
@@ -17,7 +19,7 @@ abstract contract BaseGauge is IBaseGauge {
     uint256 internal constant DURATION = 5 days; // Rewards released over voting period
     uint256 internal constant BRIBE_LAG = 1 days;
     uint256 internal constant MAX_REWARD_TOKENS = 16;
-    uint256 internal constant PRECISION = 10**18;
+    uint256 internal constant PRECISION = 10 ** 18;
 
     address public stake; // token that needs to be staked for rewards
     address public ve; // Ve token used for gauges
@@ -276,20 +278,21 @@ abstract contract BaseGauge is IBaseGauge {
     }
 
     /// @inheritdoc IBaseGauge
-    function deliverBribes() external lock {
-        require(msg.sender == voter);
-        IBribe sb = IBribe(bribe);
-        uint256 bribeStart = block.timestamp - (block.timestamp % (7 days)) + BRIBE_LAG;
-        uint256 numRewards = sb.rewardsListLength();
+    // function deliverBribes() external lock {
+    //     require(msg.sender == voter);
+    //     IBribe sb = IBribe(bribe);
+    //     // uint256 bribeStart = block.timestamp - (block.timestamp % (7 days)) + BRIBE_LAG;
+    //     uint256 bribeStart = 1672963200;
+    //     uint256 numRewards = sb.rewardsListLength();
 
-        for (uint256 i = 0; i < numRewards; i++) {
-            address token = sb.rewards(i);
-            uint256 epochRewards = sb.deliverReward(token, bribeStart);
-            if (epochRewards > 0) {
-                _notifyBribeAmount(token, epochRewards, bribeStart);
-            }
-        }
-    }
+    //     for (uint256 i = 0; i < numRewards; i++) {
+    //         address token = sb.rewards(i);
+    //         uint256 epochRewards = sb.deliverReward(token, bribeStart);
+    //         if (epochRewards > 0) {
+    //             _notifyBribeAmount(token, epochRewards, bribeStart);
+    //         }
+    //     }
+    // }
 
     /// @inheritdoc IBaseGauge
     function getReward(address account, address[] memory tokens) external lock {
@@ -389,11 +392,7 @@ abstract contract BaseGauge is IBaseGauge {
         }
     }
 
-    function _writeRewardPerTokenCheckpoint(
-        address token,
-        uint256 reward,
-        uint256 timestamp
-    ) internal {
+    function _writeRewardPerTokenCheckpoint(address token, uint256 reward, uint256 timestamp) internal {
         uint256 _nCheckPoints = rewardPerTokenNumCheckpoints[token];
 
         if (_nCheckPoints > 0 && rewardPerTokenCheckpoints[token][_nCheckPoints - 1].timestamp == timestamp) {
@@ -527,11 +526,7 @@ abstract contract BaseGauge is IBaseGauge {
         return (reward, _startTimestamp);
     }
 
-    function _notifyBribeAmount(
-        address token,
-        uint256 amount,
-        uint256 epochStart
-    ) internal {
+    function _notifyBribeAmount(address token, uint256 amount, uint256 epochStart) internal {
         if (block.timestamp >= periodFinish[token]) {
             rewardRate[token] = amount / DURATION;
         } else {
@@ -547,22 +542,13 @@ abstract contract BaseGauge is IBaseGauge {
         emit NotifyReward(msg.sender, token, amount);
     }
 
-    function _safeTransfer(
-        address token,
-        address to,
-        uint256 value
-    ) internal {
+    function _safeTransfer(address token, address to, uint256 value) internal {
         require(token.code.length > 0);
         (bool success, bytes memory data) = token.call(abi.encodeWithSelector(IERC20.transfer.selector, to, value));
         require(success && (data.length == 0 || abi.decode(data, (bool))));
     }
 
-    function _safeTransferFrom(
-        address token,
-        address from,
-        address to,
-        uint256 value
-    ) internal {
+    function _safeTransferFrom(address token, address from, address to, uint256 value) internal {
         require(token.code.length > 0);
         (bool success, bytes memory data) = token.call(
             abi.encodeWithSelector(IERC20.transferFrom.selector, from, to, value)
@@ -570,11 +556,7 @@ abstract contract BaseGauge is IBaseGauge {
         require(success && (data.length == 0 || abi.decode(data, (bool))));
     }
 
-    function _safeApprove(
-        address token,
-        address spender,
-        uint256 value
-    ) internal {
+    function _safeApprove(address token, address spender, uint256 value) internal {
         require(token.code.length > 0);
         (bool success, bytes memory data) = token.call(abi.encodeWithSelector(IERC20.approve.selector, spender, value));
         require(success && (data.length == 0 || abi.decode(data, (bool))));

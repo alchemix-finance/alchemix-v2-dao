@@ -35,15 +35,16 @@ contract BaseTest is DSTestPlus {
     address public alETHPool = 0xC4C319E2D4d66CcA4464C0c2B32c9Bd23ebe784e;
     address public alUSDPool = 0x9735F7d3Ea56b454b24fFD74C58E9bD85cfaD31B;
     address public usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-    address public holder = 0x000000000000000000000000000000000000dEaD;
     address public alusd = 0xBC6DA0FE9aD5f3b0d58160288917AA56653660E9;
     address public dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
     address public ydai = 0xdA816459F1AB5631232FE5e97a05BBBb94970c95;
     address public usdt = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
+    address public bal = 0xba100000625a3754423978a60c9317c58a424e3D;
     address public aleth = 0x0100546F2cD4C9D97f798fFC9755E47865FF7Ee6;
     address public alusd3crv = 0x43b4FdFD4Ff969587185cDB6f0BD875c5Fc83f8c;
     address public alethcrv = 0xC4C319E2D4d66CcA4464C0c2B32c9Bd23ebe784e;
     address public priceFeed = 0x194a9AaF2e0b67c35915cD01101585A33Fe25CAa;
+    address public holder = 0x000000000000000000000000000000000000dEaD;
     address public beef = address(0xbeef);
     address public dead = address(0xdead);
     address public bpt;
@@ -288,5 +289,13 @@ contract BaseTest is DSTestPlus {
         uint256 bias = (slope * (_end - block.timestamp)) + _amount;
 
         return bias;
+    }
+
+    function createThirdPartyBribe(address _bribeAddress, address _token, uint256 _amount) public {
+        deal(_token, address(this), _amount);
+
+        IERC20(_token).approve(_bribeAddress, _amount);
+
+        IBribe(_bribeAddress).notifyRewardAmount(_token, _amount);
     }
 }

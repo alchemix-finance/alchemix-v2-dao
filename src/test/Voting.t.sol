@@ -150,21 +150,33 @@ contract VotingTest is BaseTest {
     // veALCX holders can boost their vote with unclaimed mana up to a maximum amount
     function testBoostVoteWithMana() public {
         uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+        uint256 tokenId1 = createVeAlcx(beef, TOKEN_1, MAXTIME, false);
+        address bribeAddress = voter.bribes(address(sushiGauge));
+
+        // BAL balance starts equal
+        assertEq(IERC20(bal).balanceOf(admin), IERC20(bal).balanceOf(beef));
+
+        minter.updatePeriod();
+
+        // Add BAL bribes to sushi pool
+        createThirdPartyBribe(bribeAddress, bal, TOKEN_100K);
 
         hevm.startPrank(admin);
 
-        hevm.warp(block.timestamp + 1 weeks);
-
         address[] memory pools = new address[](1);
-        pools[0] = alETHPool;
+        pools[0] = sushiPoolAddress;
         uint256[] memory weights = new uint256[](1);
         weights[0] = 5000;
 
+        address[] memory bribes = new address[](1);
+        bribes[0] = address(bribeAddress);
+        address[][] memory tokens = new address[][](2);
+        tokens[0] = new address[](1);
+        tokens[0][0] = bal;
+
         uint256 claimableMana = veALCX.claimableMana(tokenId);
         uint256 votingWeight = veALCX.balanceOfToken(tokenId);
-
         uint256 maxBoostAmount = voter.maxVotingPower(tokenId);
-
         uint256 maxManaAmount = voter.maxManaBoost(tokenId);
 
         // Max boost amount should be the voting weight plus the boost multiplier
@@ -174,21 +186,89 @@ contract VotingTest is BaseTest {
         hevm.expectRevert(abi.encodePacked("cannot exceed max boost"));
         voter.vote(tokenId, pools, weights, claimableMana);
 
+        hevm.stopPrank();
+
         // Vote with the max boost amount
+        hevm.prank(admin);
         voter.vote(tokenId, pools, weights, maxManaAmount);
 
-        // Get weight used from boosting with mana
-        uint256 usedWeight = voter.usedWeights(tokenId);
+        hevm.prank(beef);
+        voter.vote(tokenId1, pools, weights, 0);
 
         // Used weight should be greater when boosting with unused mana
-        assertGt(usedWeight, votingWeight);
+        assertGt(voter.usedWeights(tokenId), votingWeight);
 
-        uint256 unclaimedMana = veALCX.unclaimedMana(tokenId);
+        // Token boosting with MANA should have a higher used weight
+        assertGt(voter.usedWeights(tokenId), voter.usedWeights(tokenId1));
 
-        // Unclaimed mana balance should be remainaing mana not used to boost
-        assertEq(unclaimedMana, claimableMana - maxManaAmount);
+        // Reach the end of the epoch
+        hevm.warp(block.timestamp + 2 weeks);
 
-        hevm.stopPrank();
+        hevm.prank(admin);
+        voter.claimBribes(bribes, tokens, tokenId);
+
+        hevm.prank(beef);
+        voter.claimBribes(bribes, tokens, tokenId1);
+
+        // Accout with boosted vote should capture more bribes
+        assertGt(IERC20(bal).balanceOf(admin), IERC20(bal).balanceOf(beef));
+    }
+
+    function testBribes() public {
+        uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+        address bribeAddress = voter.bribes(address(sushiGauge));
+        uint256 rewardsLength = sushiGauge.rewardsListLength();
+
+        // Add BAL bribes to sushiGauge
+        createThirdPartyBribe(bribeAddress, bal, TOKEN_100K);
+
+        uint256 bribeBalance = IERC20(bal).balanceOf(bribeAddress);
+
+        // Epoch start should equal the current block.timestamp rounded to a week
+        assertEq(block.timestamp - (block.timestamp % (7 days)), IBribe(bribeAddress).getEpochStart(block.timestamp));
+
+        // Rewards list should increase after adding bribe
+        assertEq(sushiGauge.rewardsListLength(), rewardsLength + 1);
+
+        // Bribe contract should increase in bribe token balance
+        assertEq(TOKEN_100K, bribeBalance);
+
+        address[] memory pools = new address[](1);
+        pools[0] = sushiPoolAddress;
+        uint256[] memory weights = new uint256[](1);
+        weights[0] = 5000;
+
+        address[] memory bribes = new address[](1);
+        bribes[0] = address(bribeAddress);
+        address[][] memory tokens = new address[][](2);
+        tokens[0] = new address[](1);
+        tokens[0][0] = bal;
+
+        hevm.prank(admin);
+        voter.vote(tokenId, pools, weights, 0);
+
+        // Reach the end of the epoch
+        hevm.warp(block.timestamp + 2 weeks);
+
+        uint256 earnedBribes = IBribe(bribeAddress).earned(bal, tokenId);
+        uint256 priorBalanceIndex = IBribe(bribeAddress).getPriorBalanceIndex(tokenId, block.timestamp);
+        uint256 priorSupply = IBribe(bribeAddress).getPriorSupplyIndex(block.timestamp);
+
+        // Prior balance and supply should be zero since this is the first epoch for this voter
+        assertEq(priorBalanceIndex, 0);
+        assertEq(priorSupply, 0);
+
+        // Earned bribes should be all bribes
+        assertEq(earnedBribes, TOKEN_100K);
+
+        hevm.prank(admin);
+        voter.claimBribes(bribes, tokens, tokenId);
+
+        // The voter should capture all earned bribes
+        assertEq(IERC20(bal).balanceOf(admin), earnedBribes);
+
+        // Bribe address balance should be depleted by earned amount
+        assertEq(bribeBalance - earnedBribes, IERC20(bal).balanceOf(bribeAddress));
     }
 
     // Votes cannot be boosted with insufficient claimable mana balance

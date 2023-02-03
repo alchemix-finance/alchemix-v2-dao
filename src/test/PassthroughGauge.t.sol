@@ -20,7 +20,12 @@ contract PassthroughGaugeTest is BaseTest {
 
         hevm.startPrank(admin);
 
+        uint256 votingStage = uint256(alUsdGauge.getVotingStage(block.timestamp));
+
+        assertEq(votingStage, 1);
+
         uint256 period = minter.activePeriod();
+
         hevm.warp(period);
 
         uint256 votiumBalanceBefore = alcx.balanceOf(votiumStash);
@@ -39,6 +44,10 @@ contract PassthroughGaugeTest is BaseTest {
 
         // Move forward epoch
         hevm.warp(period + 1 weeks);
+
+        votingStage = uint256(alUsdGauge.getVotingStage(block.timestamp));
+
+        assertEq(votingStage, 0);
 
         voter.vote(tokenId, pools, weights, 0);
 

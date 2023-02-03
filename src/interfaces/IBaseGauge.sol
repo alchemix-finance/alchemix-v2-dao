@@ -64,7 +64,7 @@ interface IBaseGauge {
     /**
      * @notice Distribute the appropriate bribes to a gauge
      */
-    function deliverBribes() external;
+    // function deliverBribes() external;
 
     /**
      * @notice Add a bribe token to a gauge

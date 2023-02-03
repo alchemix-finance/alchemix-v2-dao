@@ -2,6 +2,18 @@
 pragma solidity ^0.8.15;
 
 interface IBribe {
+    /// @notice Checkpoint for marking balance
+    struct Checkpoint {
+        uint256 timestamp;
+        uint256 balanceOf;
+    }
+
+    /// @notice Checkpoint for marking supply
+    struct SupplyCheckpoint {
+        uint256 timestamp;
+        uint256 supply;
+    }
+
     /**
      * @notice Emitted when the bribe amount is calculated for a given token
      * @param from     The address who called the function
@@ -10,6 +22,10 @@ interface IBribe {
      * @param amount   The amount of the bribe
      */
     event NotifyReward(address indexed from, address indexed reward, uint256 epoch, uint256 amount);
+
+    event Deposit(address indexed from, uint256 tokenId, uint256 amount);
+    event Withdraw(address indexed from, uint256 tokenId, uint256 amount);
+    event ClaimRewards(address indexed from, address indexed reward, uint256 amount);
 
     /**
      * @notice Set the gauge a bribe belongs to
@@ -37,6 +53,12 @@ interface IBribe {
     function notifyRewardAmount(address token, uint256 amount) external;
 
     /**
+     * @notice return the last time the reward was modified or periodFinish if the reward has ended
+     * @param token Address of the reward token to check
+     */
+    function lastTimeRewardApplicable(address token) external view returns (uint256);
+
+    /**
      * @notice Distribute the bribes for an epoch
      * @param token         The bribe token being given
      * @param epochStart    The epoch for the bribes
@@ -50,6 +72,29 @@ interface IBribe {
     function rewards(uint256 i) external view returns (address);
 
     /**
+     * @notice Determine the prior balance for an account as of a block number
+     * @param tokenId   Id of the token check
+     * @param timestamp The timestamp to get the balance at
+     * @return uint256  The balance the account had as of the given block
+     * @dev Block number must be a finalized block, function will revert otherwise
+     */
+    function getPriorBalanceIndex(uint256 tokenId, uint256 timestamp) external view returns (uint256);
+
+    /**
+     * @notice Allows a user to claim rewards for a given token
+     * @param tokenId Id of the token who's rewards are being claimed
+     * @param tokens  List of tokens being claimed
+     */
+    function getReward(uint256 tokenId, address[] memory tokens) external;
+
+    /**
+     * @notice Used by Voter to allow batched reward claims
+     * @param tokenId Id of the token who's rewards are being claimed
+     * @param tokens  List of tokens being claimed
+     */
+    function getRewardForOwner(uint tokenId, address[] memory tokens) external;
+
+    /**
      * @notice Add a token to the rewards array
      * @param token The address of the token
      */
@@ -61,9 +106,13 @@ interface IBribe {
      * @param oldToken Token being replaced
      * @param newToken Token being added
      */
-    function swapOutRewardToken(
-        uint256 i,
-        address oldToken,
-        address newToken
-    ) external;
+    function swapOutRewardToken(uint256 i, address oldToken, address newToken) external;
+
+    function getPriorSupplyIndex(uint256 timestamp) external view returns (uint256);
+
+    function earned(address token, uint256 tokenId) external view returns (uint256);
+
+    function deposit(uint256 amount, uint256 tokenId) external;
+
+    function withdraw(uint256 amount, uint256 tokenId) external;
 }

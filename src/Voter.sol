@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: GPL-3
 pragma solidity ^0.8.15;
 
+import "lib/forge-std/src/console2.sol";
+
 import "src/interfaces/IBribeFactory.sol";
+import "src/interfaces/IBribe.sol";
 import "src/interfaces/IBaseGauge.sol";
 import "src/interfaces/IGaugeFactory.sol";
 import "src/interfaces/IMinter.sol";
@@ -52,12 +55,7 @@ contract Voter is IVoter {
     mapping(address => uint256) internal supplyIndex;
     mapping(address => uint256) public claimable;
 
-    constructor(
-        address _ve,
-        address _gauges,
-        address _bribes,
-        address _mana
-    ) {
+    constructor(address _ve, address _gauges, address _bribes, address _mana) {
         veALCX = _ve;
         MANA = _mana;
         base = IVotingEscrow(_ve).ALCX();
@@ -310,6 +308,13 @@ contract Voter is IVoter {
         }
     }
 
+    function claimBribes(address[] memory _bribes, address[][] memory _tokens, uint256 _tokenId) external {
+        require(IVotingEscrow(veALCX).isApprovedOrOwner(msg.sender, _tokenId));
+        for (uint256 i = 0; i < _bribes.length; i++) {
+            IBribe(_bribes[i]).getRewardForOwner(_tokenId, _tokens[i]);
+        }
+    }
+
     /// @inheritdoc IVoter
     function distribute(address _gauge) public lock {
         IMinter(minter).updatePeriod();
@@ -319,8 +324,6 @@ contract Voter is IVoter {
             claimable[_gauge] = 0;
             IBaseGauge(_gauge).notifyRewardAmount(base, _claimable);
             emit DistributeReward(msg.sender, _gauge, _claimable);
-            // distribute bribes
-            IBaseGauge(_gauge).deliverBribes();
         }
     }
 
@@ -348,12 +351,7 @@ contract Voter is IVoter {
         Internal functions
     */
 
-    function _vote(
-        uint256 _tokenId,
-        address[] memory _poolVote,
-        uint256[] memory _weights,
-        uint256 _boost
-    ) internal {
+    function _vote(uint256 _tokenId, address[] memory _poolVote, uint256[] memory _weights, uint256 _boost) internal {
         _reset(_tokenId);
 
         uint256 _poolCnt = _poolVote.length;
@@ -380,6 +378,7 @@ contract Voter is IVoter {
 
                 weights[_pool] += _poolWeight;
                 votes[_tokenId][_pool] += _poolWeight;
+                IBribe(bribes[_gauge]).deposit(uint256(_poolWeight), _tokenId);
                 _usedWeight += _poolWeight;
                 _totalWeight += _poolWeight;
                 emit Voted(msg.sender, _tokenId, _poolWeight);
@@ -417,12 +416,7 @@ contract Voter is IVoter {
         }
     }
 
-    function _safeTransferFrom(
-        address token,
-        address from,
-        address to,
-        uint256 value
-    ) internal {
+    function _safeTransferFrom(address token, address from, address to, uint256 value) internal {
         require(token.code.length > 0);
         (bool success, bytes memory data) = token.call(
             abi.encodeWithSelector(IERC20.transferFrom.selector, from, to, value)
