@@ -84,13 +84,7 @@ abstract contract BaseGauge is IBaseGauge {
         return VotingStage.VotesPhase;
     }
 
-    /**
-     * @notice Determine the prior balance for an account as of a block number
-     * @dev Block number must be a finalized block or else this function will revert to prevent misinformation.
-     * @param account The address of the account to check
-     * @param timestamp The timestamp to get the balance at
-     * @return The balance the account had as of the given block
-     */
+    /// @inheritdoc IBaseGauge
     function getPriorBalanceIndex(address account, uint256 timestamp) public view returns (uint256) {
         uint256 nCheckpoints = numCheckpoints[account];
         if (nCheckpoints == 0) {
@@ -524,22 +518,6 @@ abstract contract BaseGauge is IBaseGauge {
         }
 
         return (reward, _startTimestamp);
-    }
-
-    function _notifyBribeAmount(address token, uint256 amount, uint256 epochStart) internal {
-        if (block.timestamp >= periodFinish[token]) {
-            rewardRate[token] = amount / DURATION;
-        } else {
-            uint256 _remaining = periodFinish[token] - block.timestamp;
-            uint256 _left = _remaining * rewardRate[token];
-            require(amount > _left);
-            rewardRate[token] = (amount + _left) / DURATION;
-        }
-
-        lastUpdateTime[token] = epochStart;
-        periodFinish[token] = epochStart + DURATION;
-
-        emit NotifyReward(msg.sender, token, amount);
     }
 
     function _safeTransfer(address token, address to, uint256 value) internal {

@@ -91,4 +91,26 @@ contract PassthroughGaugeTest is BaseTest {
 
         hevm.stopPrank();
     }
+
+    // Test admin controlled functions
+    function testAdminFunctions() public {
+        hevm.expectRevert(abi.encodePacked("not admin"));
+        sushiGauge.setAdmin(devmsig);
+
+        hevm.expectRevert(abi.encodePacked("not admin"));
+        sushiGauge.updateReceiver(devmsig);
+
+        hevm.prank(admin);
+        sushiGauge.setAdmin(devmsig);
+
+        hevm.expectRevert(abi.encodePacked("not pending admin"));
+        sushiGauge.acceptAdmin();
+
+        hevm.startPrank(devmsig);
+
+        sushiGauge.acceptAdmin();
+        sushiGauge.updateReceiver(devmsig);
+
+        hevm.stopPrank();
+    }
 }

@@ -24,7 +24,7 @@ interface IVoter {
 
     function veALCX() external view returns (address);
 
-    function executor() external view returns (address);
+    function admin() external view returns (address);
 
     function emergencyCouncil() external view returns (address);
 
@@ -45,7 +45,7 @@ interface IVoter {
     /**
      * @notice Set the max veALCX voting power can be boosted by with mana
      * @param _boostMultiplier BPS of boost
-     * @dev Can only be called by the executor
+     * @dev Can only be called by the admin
      */
     function setBoostMultiplier(uint256 _boostMultiplier) external;
 
@@ -73,12 +73,7 @@ interface IVoter {
      * @param _boost    Amount of mana to boost vote by
      * @dev Can only be called once per epoch. Accrues any unused mana
      */
-    function vote(
-        uint256 _tokenId,
-        address[] calldata _poolVote,
-        uint256[] calldata _weights,
-        uint256 _boost
-    ) external;
+    function vote(uint256 _tokenId, address[] calldata _poolVote, uint256[] calldata _weights, uint256 _boost) external;
 
     /**
      * @notice Creates a gauge for a pool

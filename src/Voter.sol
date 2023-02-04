@@ -30,9 +30,11 @@ contract Voter is IVoter {
     uint256 internal index;
 
     address public minter;
-    address public executor; // should be set to the timelock executor
-    address public pendingExecutor;
+    address public admin; // should be set to the timelock admin
+    address public pendingAdmin;
     address public emergencyCouncil; // credibly neutral party similar to Curve's Emergency DAO
+
+    bool public initialized;
 
     uint256 public totalWeight; // total voting weight
     uint256 public boostMultiplier = 5000; // max bps veALCX voting power can be boosted by
@@ -60,7 +62,7 @@ contract Voter is IVoter {
         gaugefactory = _gauges;
         bribefactory = _bribes;
         minter = msg.sender;
-        executor = msg.sender;
+        admin = msg.sender;
         emergencyCouncil = msg.sender;
     }
 
@@ -108,19 +110,21 @@ contract Voter is IVoter {
     */
 
     function initialize(address _token, address _minter) external {
-        require(msg.sender == minter);
+        require(initialized == false, "already initialized");
+        require(msg.sender == admin, "not admin");
         _whitelist(_token);
         minter = _minter;
+        initialized = true;
     }
 
-    function setExecutor(address _executor) external {
-        require(msg.sender == executor, "not executor");
-        pendingExecutor = _executor;
+    function setAdmin(address _admin) external {
+        require(msg.sender == admin, "not admin");
+        pendingAdmin = _admin;
     }
 
-    function acceptExecutor() external {
-        require(msg.sender == pendingExecutor, "not pending executor");
-        executor = pendingExecutor;
+    function acceptAdmin() external {
+        require(msg.sender == pendingAdmin, "not pending admin");
+        admin = pendingAdmin;
     }
 
     function setEmergencyCouncil(address _council) public {
@@ -130,7 +134,7 @@ contract Voter is IVoter {
 
     /// @inheritdoc IVoter
     function setBoostMultiplier(uint256 _boostMultiplier) external {
-        require(msg.sender == executor, "not executor");
+        require(msg.sender == admin, "not admin");
         boostMultiplier = _boostMultiplier;
     }
 
@@ -203,14 +207,14 @@ contract Voter is IVoter {
     }
 
     function whitelist(address _token) public {
-        require(msg.sender == executor, "not executor");
+        require(msg.sender == admin, "not admin");
         _whitelist(_token);
     }
 
     /// @inheritdoc IVoter
     function createGauge(address _pool, GaugeType _gaugeType) external returns (address) {
         require(gauges[_pool] == address(0x0), "exists");
-        require(msg.sender == executor, "only executor creates gauges");
+        require(msg.sender == admin, "only admin creates gauges");
 
         address _bribe = IBribeFactory(bribefactory).createBribe();
 

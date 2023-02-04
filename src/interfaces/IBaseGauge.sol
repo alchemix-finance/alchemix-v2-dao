@@ -87,6 +87,15 @@ interface IBaseGauge {
     function getReward(address account, address[] memory tokens) external;
 
     /**
+     * @notice Determine the prior balance for an account as of a block number
+     * @param account The address of the account to check
+     * @param timestamp The timestamp to get the balance at
+     * @return The balance the account had as of the given block
+     * @dev Block number must be a finalized block or else this function will revert to prevent misinformation.
+     */
+    function getPriorBalanceIndex(address account, uint256 timestamp) external view returns (uint256);
+
+    /**
      * @notice Calculate the time remaining of a rewards period
      * @param token     The rewards token
      * @return uint256  Remaining duration of a rewards period

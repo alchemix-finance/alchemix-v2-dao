@@ -33,16 +33,12 @@ contract CurveGauge is BaseGauge {
     event IndexUpdated(uint256 indexed newIndex);
     event Initialized(uint256 poolIndex, address receiver, bool initialized);
 
-    constructor(
-        address _bribe,
-        address _ve,
-        address _voter
-    ) {
+    constructor(address _bribe, address _ve, address _voter) {
         bribe = _bribe;
         ve = _ve;
         voter = _voter;
 
-        admin = IVoter(voter).executor();
+        admin = IVoter(voter).admin();
 
         IBribe(bribe).setGauge(address(this));
         rewardToken = IVotingEscrow(ve).ALCX();

@@ -33,7 +33,7 @@ contract VotingTest is BaseTest {
         uint256 period = minter.activePeriod();
 
         // Move forward a week relative to period
-        hevm.warp(period + 1 weeks);
+        hevm.warp(period + nextEpoch);
 
         address[] memory pools = new address[](1);
         pools[0] = alETHPool;
@@ -42,7 +42,7 @@ contract VotingTest is BaseTest {
         voter.vote(tokenId, pools, weights, 0);
 
         // Move forward half epoch relative to period
-        hevm.warp(period + 1 weeks / 2);
+        hevm.warp(period + nextEpoch / 2);
 
         // Voting again fails
         pools[0] = alUSDPool;
@@ -61,7 +61,7 @@ contract VotingTest is BaseTest {
 
         hevm.startPrank(admin);
 
-        hevm.warp(block.timestamp + 1 weeks);
+        hevm.warp(block.timestamp + nextEpoch);
 
         address[] memory pools = new address[](1);
         pools[0] = alETHPool;
@@ -71,14 +71,25 @@ contract VotingTest is BaseTest {
         voter.vote(tokenId, pools, weights, 0);
 
         // Next epoch
-        hevm.warp(block.timestamp + 1 weeks);
+        hevm.warp(block.timestamp + nextEpoch);
 
         // New vote succeeds
         pools[0] = alUSDPool;
         voter.vote(tokenId, pools, weights, 0);
 
+        address poolVote = voter.poolVote(tokenId, 0);
+        assertEq(poolVote, alUSDPool);
+
         // Next epoch
-        hevm.warp(block.timestamp + 1 weeks);
+        hevm.warp(block.timestamp + nextEpoch);
+
+        voter.poke(tokenId, 0);
+
+        poolVote = voter.poolVote(tokenId, 0);
+        assertEq(poolVote, alUSDPool);
+
+        // Next epoch
+        hevm.warp(block.timestamp + nextEpoch);
 
         // Resetting succeeds
         voter.reset(tokenId);
@@ -105,7 +116,7 @@ contract VotingTest is BaseTest {
         // Claimed balance is equal to the amount able to be claimed
         assertEq(unclaimedBalance, veALCX.claimableMana(tokenId));
 
-        hevm.warp(block.timestamp + 1 weeks);
+        hevm.warp(block.timestamp + nextEpoch);
 
         voter.reset(tokenId);
 
@@ -120,6 +131,9 @@ contract VotingTest is BaseTest {
 
     // veALCX holder should be able to mint mana they have accrued
     function testMintMana() public {
+        hevm.expectRevert(abi.encodePacked("ManaToken: only minter"));
+        ManaToken(mana).setMinter(address(admin));
+
         uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
 
         hevm.startPrank(admin);
@@ -276,7 +290,7 @@ contract VotingTest is BaseTest {
 
         hevm.startPrank(admin);
 
-        hevm.warp(block.timestamp + 1 weeks);
+        hevm.warp(block.timestamp + nextEpoch);
 
         address[] memory pools = new address[](1);
         pools[0] = alETHPool;
@@ -340,6 +354,36 @@ contract VotingTest is BaseTest {
         hevm.expectRevert(abi.encodePacked("Cannot add to expired lock. Withdraw"));
         veALCX.increaseAmount(tokenId, TOKEN_1);
         assertEq(balance, 0);
+
+        hevm.stopPrank();
+    }
+
+    function testAdminFunctions() public {
+        assertEq(voter.initialized(), true, "voter not initialized");
+
+        hevm.expectRevert(abi.encodePacked("already initialized"));
+        voter.initialize(dai, admin);
+
+        hevm.expectRevert(abi.encodePacked("not admin"));
+        voter.setAdmin(devmsig);
+
+        hevm.expectRevert(abi.encodePacked("not admin"));
+        voter.setBoostMultiplier(1000);
+
+        hevm.prank(address(timelockExecutor));
+        voter.setAdmin(devmsig);
+
+        hevm.expectRevert(abi.encodePacked("not pending admin"));
+        voter.acceptAdmin();
+
+        hevm.startPrank(devmsig);
+
+        voter.acceptAdmin();
+        voter.setBoostMultiplier(1000);
+
+        voter.whitelist(dai);
+
+        assertEq(voter.isWhitelisted(dai), true, "whitelisting failed");
 
         hevm.stopPrank();
     }

@@ -137,7 +137,7 @@ contract BaseTest is DSTestPlus {
         governor = new AlchemixGovernor(veALCX, TimelockExecutor(timelockExecutor));
 
         timelockExecutor.setAdmin(address(governor));
-        voter.setExecutor(address(timelockExecutor));
+        voter.setAdmin(address(timelockExecutor));
 
         veALCX.setVoter(address(voter));
         veALCX.setRewardsDistributor(address(distributor));
@@ -198,7 +198,7 @@ contract BaseTest is DSTestPlus {
         timelockExecutor.acceptAdmin();
 
         hevm.prank(address(timelockExecutor));
-        voter.acceptExecutor();
+        voter.acceptAdmin();
     }
 
     // Initializes 80 ALCX 20 WETH Balancer pool and makes an initial deposit
