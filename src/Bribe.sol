@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-3
 pragma solidity ^0.8.15;
 
-import "lib/forge-std/src/console2.sol";
-
 import "src/interfaces/IBribe.sol";
 import "src/interfaces/IBaseGauge.sol";
 import "src/interfaces/IVoter.sol";

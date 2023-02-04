@@ -4,7 +4,6 @@ pragma solidity ^0.8.15;
 import "./BaseTest.sol";
 
 contract MinterTest is BaseTest {
-    uint256 nextEpoch = 2 weeks;
     uint256 epochsUntilTail = 80;
     uint256 tokenId;
 

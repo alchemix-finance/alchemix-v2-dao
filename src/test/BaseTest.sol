@@ -75,6 +75,7 @@ contract BaseTest is DSTestPlus {
     uint256 public rewards = 12724e18;
     uint256 public stepdown = 130e18;
     uint256 public supplyAtTail = 2392609e18;
+    uint256 public nextEpoch = 2 weeks;
 
     uint256 constant MAINNET = 1;
     uint256 constant TOKEN_1 = 1e18;

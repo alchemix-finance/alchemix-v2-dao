@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-3
 pragma solidity ^0.8.15;
 
-import "lib/forge-std/src/console2.sol";
-
 import "src/libraries/Math.sol";
 import "src/interfaces/IBribe.sol";
 import "src/interfaces/IGaugeFactory.sol";
@@ -278,23 +276,6 @@ abstract contract BaseGauge is IBaseGauge {
     }
 
     /// @inheritdoc IBaseGauge
-    // function deliverBribes() external lock {
-    //     require(msg.sender == voter);
-    //     IBribe sb = IBribe(bribe);
-    //     // uint256 bribeStart = block.timestamp - (block.timestamp % (7 days)) + BRIBE_LAG;
-    //     uint256 bribeStart = 1672963200;
-    //     uint256 numRewards = sb.rewardsListLength();
-
-    //     for (uint256 i = 0; i < numRewards; i++) {
-    //         address token = sb.rewards(i);
-    //         uint256 epochRewards = sb.deliverReward(token, bribeStart);
-    //         if (epochRewards > 0) {
-    //             _notifyBribeAmount(token, epochRewards, bribeStart);
-    //         }
-    //     }
-    // }
-
-    /// @inheritdoc IBaseGauge
     function getReward(address account, address[] memory tokens) external lock {
         require(msg.sender == account || msg.sender == voter);
         _unlocked = 1;
@@ -302,7 +283,11 @@ abstract contract BaseGauge is IBaseGauge {
         _unlocked = 2;
 
         for (uint256 i = 0; i < tokens.length; i++) {
-            (rewardPerTokenStored[tokens[i]], lastUpdateTime[tokens[i]]) = _updateRewardPerToken(tokens[i]);
+            (rewardPerTokenStored[tokens[i]], lastUpdateTime[tokens[i]]) = _updateRewardPerToken(
+                tokens[i],
+                type(uint256).max,
+                true
+            );
 
             uint256 _reward = earned(tokens[i], account);
             lastEarn[tokens[i]][account] = block.timestamp;
@@ -337,22 +322,26 @@ abstract contract BaseGauge is IBaseGauge {
     }
 
     /// @inheritdoc IBaseGauge
+    function batchUpdateRewardPerToken(address token, uint256 maxRuns) external {
+        (rewardPerTokenStored[token], lastUpdateTime[token]) = _updateRewardPerToken(token, maxRuns, false);
+    }
+
+    /// @inheritdoc IBaseGauge
     function notifyRewardAmount(address _token, uint256 _amount) external lock {
         require(msg.sender == voter, "not voter");
         require(_token != stake);
         require(_amount > 0);
+
         if (!isReward[_token]) {
             require(rewards.length < MAX_REWARD_TOKENS, "too many rewards tokens");
         }
-        // rewards accrue only during the bribe period
-        uint256 bribeStart = block.timestamp - (block.timestamp % (7 days)) + BRIBE_LAG;
-        uint256 adjustedTstamp = block.timestamp < bribeStart ? bribeStart : bribeStart + 7 days;
-        if (rewardRate[_token] == 0) _writeRewardPerTokenCheckpoint(_token, 0, adjustedTstamp);
-        (rewardPerTokenStored[_token], lastUpdateTime[_token]) = _updateRewardPerToken(_token);
+
+        if (rewardRate[_token] == 0) _writeRewardPerTokenCheckpoint(_token, 0, block.timestamp);
+        (rewardPerTokenStored[_token], lastUpdateTime[_token]) = _updateRewardPerToken(_token, type(uint256).max, true);
 
         if (block.timestamp >= periodFinish[_token]) {
             _safeTransferFrom(_token, msg.sender, address(this), _amount);
-            rewardRate[_token] = _amount / DURATION;
+            rewardRate[_token] = _amount / DURATION; // here
         } else {
             uint256 _remaining = periodFinish[_token] - block.timestamp;
             uint256 _left = _remaining * rewardRate[_token];
@@ -360,14 +349,15 @@ abstract contract BaseGauge is IBaseGauge {
             _safeTransferFrom(_token, msg.sender, address(this), _amount);
             rewardRate[_token] = (_amount + _left) / DURATION;
         }
+
         require(rewardRate[_token] > 0);
         uint256 balance = IERC20(_token).balanceOf(address(this));
         require(rewardRate[_token] <= balance / DURATION, "Provided reward too high");
-        periodFinish[_token] = adjustedTstamp + DURATION;
+        periodFinish[_token] = block.timestamp + DURATION;
+
         if (!isReward[_token]) {
             isReward[_token] = true;
             rewards.push(_token);
-            IBribe(bribe).addRewardToken(_token);
         }
 
         emit NotifyReward(msg.sender, _token, _amount);
@@ -471,11 +461,19 @@ abstract contract BaseGauge is IBaseGauge {
         uint256 length = rewards.length;
         for (uint256 i; i < length; i++) {
             address token = rewards[i];
-            (rewardPerTokenStored[token], lastUpdateTime[token]) = _updateRewardPerToken(token);
+            (rewardPerTokenStored[token], lastUpdateTime[token]) = _updateRewardPerToken(
+                token,
+                type(uint256).max,
+                true
+            );
         }
     }
 
-    function _updateRewardPerToken(address token) internal returns (uint256, uint256) {
+    function _updateRewardPerToken(
+        address token,
+        uint256 maxRuns,
+        bool actualLast
+    ) internal returns (uint256, uint256) {
         uint256 _startTimestamp = lastUpdateTime[token];
         uint256 reward = rewardPerTokenStored[token];
 
@@ -488,7 +486,7 @@ abstract contract BaseGauge is IBaseGauge {
         }
 
         uint256 _startIndex = getPriorSupplyIndex(_startTimestamp);
-        uint256 _endIndex = supplyNumCheckpoints - 1;
+        uint256 _endIndex = Math.min(supplyNumCheckpoints - 1, maxRuns);
 
         if (_endIndex > 0) {
             for (uint256 i = _startIndex; i < _endIndex; i++) {
@@ -509,18 +507,20 @@ abstract contract BaseGauge is IBaseGauge {
             }
         }
 
-        SupplyCheckpoint memory sp = supplyCheckpoints[_endIndex];
-        if (sp.supply > 0) {
-            (uint256 _reward, ) = _calcRewardPerToken(
-                token,
-                lastTimeRewardApplicable(token),
-                Math.max(sp.timestamp, _startTimestamp),
-                sp.supply,
-                _startTimestamp
-            );
-            reward += _reward;
-            _writeRewardPerTokenCheckpoint(token, reward, block.timestamp);
-            _startTimestamp = block.timestamp;
+        if (actualLast) {
+            SupplyCheckpoint memory sp = supplyCheckpoints[_endIndex];
+            if (sp.supply > 0) {
+                (uint256 _reward, ) = _calcRewardPerToken(
+                    token,
+                    lastTimeRewardApplicable(token),
+                    Math.max(sp.timestamp, _startTimestamp),
+                    sp.supply,
+                    _startTimestamp
+                );
+                reward += _reward;
+                _writeRewardPerTokenCheckpoint(token, reward, block.timestamp);
+                _startTimestamp = block.timestamp;
+            }
         }
 
         return (reward, _startTimestamp);

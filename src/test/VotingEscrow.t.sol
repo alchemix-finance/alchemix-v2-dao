@@ -111,7 +111,7 @@ contract VotingEscrowTest is BaseTest {
     function testWithdraw() public {
         hevm.startPrank(admin);
 
-        uint256 tokenId = veALCX.createLock(TOKEN_1, 2 weeks, false);
+        uint256 tokenId = veALCX.createLock(TOKEN_1, nextEpoch, false);
 
         uint256 bptBalanceBefore = IERC20(bpt).balanceOf(admin);
 
@@ -123,7 +123,7 @@ contract VotingEscrowTest is BaseTest {
 
         voter.reset(tokenId);
 
-        hevm.warp(block.timestamp + 2 weeks);
+        hevm.warp(block.timestamp + nextEpoch);
 
         minter.updatePeriod();
 
@@ -136,7 +136,7 @@ contract VotingEscrowTest is BaseTest {
         hevm.expectRevert(abi.encodePacked("Cooldown period in progress"));
         veALCX.withdraw(tokenId);
 
-        hevm.warp(block.timestamp + 2 weeks);
+        hevm.warp(block.timestamp + nextEpoch);
 
         veALCX.withdraw(tokenId);
 
@@ -241,7 +241,7 @@ contract VotingEscrowTest is BaseTest {
     // Check merging of two veALCX
     function testMergeTokens() public {
         uint256 tokenId1 = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
-        uint256 tokenId2 = createVeAlcx(admin, TOKEN_100K, 2 weeks, false);
+        uint256 tokenId2 = createVeAlcx(admin, TOKEN_100K, nextEpoch, false);
 
         hevm.startPrank(admin);
 

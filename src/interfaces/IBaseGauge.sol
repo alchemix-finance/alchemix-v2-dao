@@ -73,6 +73,13 @@ interface IBaseGauge {
     function addBribeRewardToken(address token) external;
 
     /**
+     * @notice Estimation, not exact until the supply > rewardPerToken calculations have run
+     * @param token   address of reward token
+     * @param account account claiming rewards
+     */
+    function earned(address token, address account) external view returns (uint256);
+
+    /**
      * @notice Get the rewards form a gauge
      * @param account   The account claiming the rewards
      * @param tokens    The reward tokens being claimed
@@ -85,4 +92,10 @@ interface IBaseGauge {
      * @return uint256  Remaining duration of a rewards period
      */
     function left(address token) external view returns (uint256);
+
+    /**
+     * @dev Update stored rewardPerToken values without the last one snapshot
+     * @notice If the contract will get "out of gas" error on users actions this will be helpful
+     */
+    function batchUpdateRewardPerToken(address token, uint256 maxRuns) external;
 }

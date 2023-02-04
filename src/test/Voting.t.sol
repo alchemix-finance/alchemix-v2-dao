@@ -16,7 +16,7 @@ contract VotingTest is BaseTest {
         assertEq(distributorBal, 0);
         assertEq(voterBal, 0);
 
-        hevm.warp(block.timestamp + 2 weeks);
+        hevm.warp(block.timestamp + nextEpoch);
         hevm.roll(block.number + 1);
 
         minter.updatePeriod();
@@ -202,7 +202,7 @@ contract VotingTest is BaseTest {
         assertGt(voter.usedWeights(tokenId), voter.usedWeights(tokenId1));
 
         // Reach the end of the epoch
-        hevm.warp(block.timestamp + 2 weeks);
+        hevm.warp(block.timestamp + nextEpoch);
 
         hevm.prank(admin);
         voter.claimBribes(bribes, tokens, tokenId);
@@ -214,6 +214,7 @@ contract VotingTest is BaseTest {
         assertGt(IERC20(bal).balanceOf(admin), IERC20(bal).balanceOf(beef));
     }
 
+    // Test voting on gauges to earn third party bribes
     function testBribes() public {
         uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
         address bribeAddress = voter.bribes(address(sushiGauge));
@@ -248,15 +249,13 @@ contract VotingTest is BaseTest {
         voter.vote(tokenId, pools, weights, 0);
 
         // Reach the end of the epoch
-        hevm.warp(block.timestamp + 2 weeks);
+        hevm.warp(block.timestamp + nextEpoch);
 
         uint256 earnedBribes = IBribe(bribeAddress).earned(bal, tokenId);
-        uint256 priorBalanceIndex = IBribe(bribeAddress).getPriorBalanceIndex(tokenId, block.timestamp);
-        uint256 priorSupply = IBribe(bribeAddress).getPriorSupplyIndex(block.timestamp);
 
         // Prior balance and supply should be zero since this is the first epoch for this voter
-        assertEq(priorBalanceIndex, 0);
-        assertEq(priorSupply, 0);
+        assertEq(IBribe(bribeAddress).getPriorBalanceIndex(tokenId, block.timestamp), 0);
+        assertEq(IBribe(bribeAddress).getPriorSupplyIndex(block.timestamp), 0);
 
         // Earned bribes should be all bribes
         assertEq(earnedBribes, TOKEN_100K);
@@ -333,7 +332,7 @@ contract VotingTest is BaseTest {
 
         hevm.startPrank(admin);
 
-        hevm.warp(block.timestamp + 2 weeks);
+        hevm.warp(block.timestamp + nextEpoch);
 
         uint256 balance = veALCX.balanceOfToken(tokenId);
 

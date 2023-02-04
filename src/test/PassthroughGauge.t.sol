@@ -4,7 +4,6 @@ pragma solidity ^0.8.15;
 import "./BaseTest.sol";
 
 contract PassthroughGaugeTest is BaseTest {
-    uint256 nextEpoch = 2 weeks;
     uint256 snapshotWeek = 15948915;
 
     uint256 platformFee = 400; // 4%
