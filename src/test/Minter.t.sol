@@ -21,6 +21,11 @@ contract MinterTest is BaseTest {
         uint256 currentTotalEmissions = minter.circulatingEmissionsSupply();
         uint256 epochEmissions = minter.epochEmission();
 
+        assertEq(
+            minter.calculateGrowth(epochEmissions),
+            (epochEmissions * minter.veAlcxEmissionsRate()) / minter.BPS()
+        );
+
         // Mint emissions for epoch
         minter.updatePeriod();
 
@@ -245,5 +250,33 @@ contract MinterTest is BaseTest {
 
         hevm.expectRevert(abi.encodePacked("insufficient balance to compound"));
         distributor.claim(tokenId, true);
+    }
+
+    // Test admin controlled functions
+    function testAdminFunctions() public {
+        assertEq(minter.initializer(), address(0), "minter not initialized");
+        assertEq(minter.initialized(), true, "minter not initialized");
+
+        hevm.expectRevert(abi.encodePacked("already initialized"));
+        minter.initialize();
+
+        hevm.expectRevert(abi.encodePacked("not admin"));
+        minter.setAdmin(devmsig);
+
+        hevm.expectRevert(abi.encodePacked("not admin"));
+        minter.setVeAlcxEmissionsRate(1000);
+
+        hevm.prank(admin);
+        minter.setAdmin(devmsig);
+
+        hevm.expectRevert(abi.encodePacked("not pending admin"));
+        minter.acceptAdmin();
+
+        hevm.startPrank(devmsig);
+
+        minter.acceptAdmin();
+        minter.setVeAlcxEmissionsRate(1000);
+
+        hevm.stopPrank();
     }
 }

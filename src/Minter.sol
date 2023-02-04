@@ -28,8 +28,9 @@ contract Minter is IMinter {
 
     address public admin;
     address public pendingAdmin;
+    address public initializer;
 
-    address internal initializer;
+    bool public initialized;
 
     IAlchemixToken public alcx;
     IVoter public immutable voter;
@@ -72,8 +73,11 @@ contract Minter is IMinter {
     }
 
     function initialize() external {
-        require(initializer == msg.sender);
+        require(msg.sender != address(0));
+        require(initialized == false, "already initialized");
+        require(initializer == msg.sender, "not initializer");
         initializer = address(0);
+        initialized = true;
     }
 
     /*
