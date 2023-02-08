@@ -8,7 +8,7 @@ import "src/interfaces/IGaugeFactory.sol";
 import "src/interfaces/IMinter.sol";
 import "src/interfaces/IVotingEscrow.sol";
 import "src/interfaces/IVoter.sol";
-import "src/interfaces/IManaToken.sol";
+import "src/interfaces/IFluxToken.sol";
 import "src/libraries/Math.sol";
 import "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
@@ -20,7 +20,7 @@ contract Voter is IVoter {
     address internal immutable base; // Base token, ALCX
 
     address public immutable veALCX; // veALCX that governs these contracts
-    address public immutable MANA; // veALCX that governs these contracts
+    address public immutable FLUX; // veALCX that governs these contracts
     address public immutable gaugefactory;
     address public immutable bribefactory;
 
@@ -55,9 +55,9 @@ contract Voter is IVoter {
     mapping(address => uint256) internal supplyIndex;
     mapping(address => uint256) public claimable;
 
-    constructor(address _ve, address _gauges, address _bribes, address _mana) {
+    constructor(address _ve, address _gauges, address _bribes, address _flux) {
         veALCX = _ve;
-        MANA = _mana;
+        FLUX = _flux;
         base = IVotingEscrow(_ve).ALCX();
         gaugefactory = _gauges;
         bribefactory = _bribes;
@@ -97,7 +97,7 @@ contract Voter is IVoter {
     }
 
     /// @inheritdoc IVoter
-    function maxManaBoost(uint256 _tokenId) public view returns (uint256) {
+    function maxFluxBoost(uint256 _tokenId) public view returns (uint256) {
         return (IVotingEscrow(veALCX).balanceOfToken(_tokenId) * boostMultiplier) / BPS;
     }
 
@@ -145,7 +145,7 @@ contract Voter is IVoter {
         lastVoted[_tokenId] = block.timestamp;
         _reset(_tokenId);
         IVotingEscrow(veALCX).abstain(_tokenId);
-        IVotingEscrow(veALCX).accrueMana(_tokenId, IVotingEscrow(veALCX).claimableMana(_tokenId));
+        IVotingEscrow(veALCX).accrueFlux(_tokenId, IVotingEscrow(veALCX).claimableFlux(_tokenId));
     }
 
     function _reset(uint256 _tokenId) internal {
@@ -174,7 +174,7 @@ contract Voter is IVoter {
 
     /// @inheritdoc IVoter
     function poke(uint256 _tokenId, uint256 _boost) external {
-        require(IVotingEscrow(veALCX).claimableMana(_tokenId) >= _boost, "insufficient claimable MANA balance");
+        require(IVotingEscrow(veALCX).claimableFlux(_tokenId) >= _boost, "insufficient claimable FLUX balance");
 
         address[] memory _poolVote = poolVote[_tokenId];
         uint256 _poolCnt = _poolVote.length;
@@ -196,7 +196,7 @@ contract Voter is IVoter {
     ) external onlyNewEpoch(_tokenId) {
         require(IVotingEscrow(veALCX).isApprovedOrOwner(msg.sender, _tokenId));
         require(_poolVote.length == _weights.length);
-        require(IVotingEscrow(veALCX).claimableMana(_tokenId) >= _boost, "insufficient claimable MANA balance");
+        require(IVotingEscrow(veALCX).claimableFlux(_tokenId) >= _boost, "insufficient claimable FLUX balance");
         require(
             (IVotingEscrow(veALCX).balanceOfToken(_tokenId) + _boost) <= maxVotingPower(_tokenId),
             "cannot exceed max boost"
@@ -390,9 +390,9 @@ contract Voter is IVoter {
         totalWeight += uint256(_totalWeight);
         usedWeights[_tokenId] = uint256(_usedWeight);
 
-        // Accrue any mana not used for vote boost
-        if (IVotingEscrow(veALCX).claimableMana(_tokenId) > _boost)
-            IVotingEscrow(veALCX).accrueMana(_tokenId, IVotingEscrow(veALCX).claimableMana(_tokenId) - _boost);
+        // Accrue any flux not used for vote boost
+        if (IVotingEscrow(veALCX).claimableFlux(_tokenId) > _boost)
+            IVotingEscrow(veALCX).accrueFlux(_tokenId, IVotingEscrow(veALCX).claimableFlux(_tokenId) - _boost);
     }
 
     function _whitelist(address _token) internal {

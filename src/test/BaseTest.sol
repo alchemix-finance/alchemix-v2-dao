@@ -7,7 +7,7 @@ import "./utils/DSTestPlus.sol";
 
 import "src/VotingEscrow.sol";
 import "src/AlchemixGovernor.sol";
-import "src/ManaToken.sol";
+import "src/FluxToken.sol";
 import "src/Voter.sol";
 import "src/Minter.sol";
 import "src/RewardsDistributor.sol";
@@ -92,7 +92,7 @@ contract BaseTest is DSTestPlus {
     IERC20 public galcx = IERC20(0x93Dede06AE3B5590aF1d4c111BC54C3f717E4b35);
     IERC20 public weth = IERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
     IVault public balancerVault = IVault(0xBA12222222228d8Ba445958a75a0704d566BF2C8);
-    ManaToken public mana = new ManaToken(admin);
+    FluxToken public flux = new FluxToken(admin);
 
     VotingEscrow public veALCX;
     Voter public voter;
@@ -117,7 +117,7 @@ contract BaseTest is DSTestPlus {
         // Run contracts at specific point in time
         hevm.warp(_time);
 
-        veALCX = new VotingEscrow(bpt, address(alcx), address(mana));
+        veALCX = new VotingEscrow(bpt, address(alcx), address(flux));
 
         veALCX.setVoter(admin);
         veALCX.setRewardsDistributor(admin);
@@ -126,12 +126,12 @@ contract BaseTest is DSTestPlus {
 
         IERC20(bpt).approve(address(veALCX), type(uint256).max);
 
-        ManaToken(mana).setMinter(address(veALCX));
+        FluxToken(flux).setMinter(address(veALCX));
 
         revenueHandler = new RevenueHandler(address(veALCX));
         gaugeFactory = new GaugeFactory();
         bribeFactory = new BribeFactory();
-        voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory), address(mana));
+        voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory), address(flux));
         distributor = new RewardsDistributor(address(veALCX), address(weth), address(balancerVault), priceFeed);
         timelockExecutor = new TimelockExecutor(1 days);
         governor = new AlchemixGovernor(veALCX, TimelockExecutor(timelockExecutor));

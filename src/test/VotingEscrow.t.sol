@@ -115,7 +115,7 @@ contract VotingEscrowTest is BaseTest {
 
         uint256 bptBalanceBefore = IERC20(bpt).balanceOf(admin);
 
-        uint256 manaBalanceBefore = IERC20(mana).balanceOf(admin);
+        uint256 fluxBalanceBefore = IERC20(flux).balanceOf(admin);
         uint256 alcxBalanceBefore = IERC20(alcx).balanceOf(admin);
 
         hevm.expectRevert(abi.encodePacked("Cooldown period has not started"));
@@ -128,7 +128,7 @@ contract VotingEscrowTest is BaseTest {
         minter.updatePeriod();
 
         uint256 unclaimedAlcx = distributor.claimable(tokenId);
-        uint256 unclaimedMana = veALCX.unclaimedMana(tokenId);
+        uint256 unclaimedFlux = veALCX.unclaimedFlux(tokenId);
 
         // Start cooldown once lock is expired
         veALCX.startCooldown(tokenId);
@@ -141,15 +141,15 @@ contract VotingEscrowTest is BaseTest {
         veALCX.withdraw(tokenId);
 
         uint256 bptBalanceAfter = IERC20(bpt).balanceOf(admin);
-        uint256 manaBalanceAfter = IERC20(mana).balanceOf(admin);
+        uint256 fluxBalanceAfter = IERC20(flux).balanceOf(admin);
         uint256 alcxBalanceAfter = IERC20(alcx).balanceOf(admin);
 
         // Bpt balance after should increase by the withdraw amount
         assertEq(bptBalanceAfter - bptBalanceBefore, TOKEN_1);
 
-        // ALCX and mana balance should increase
+        // ALCX and flux balance should increase
         assertEq(alcxBalanceAfter, alcxBalanceBefore + unclaimedAlcx, "didn't claim alcx");
-        assertEq(manaBalanceAfter, manaBalanceBefore + unclaimedMana, "didn't claim mana");
+        assertEq(fluxBalanceAfter, fluxBalanceBefore + unclaimedFlux, "didn't claim flux");
 
         // Check that the token is burnt
         assertEq(veALCX.balanceOfToken(tokenId), 0);
@@ -274,21 +274,21 @@ contract VotingEscrowTest is BaseTest {
         hevm.expectRevert(abi.encodePacked("Cooldown period has not started"));
         veALCX.withdraw(tokenId);
 
-        // admin doesn't have enough mana
-        hevm.expectRevert(abi.encodePacked("insufficient MANA balance"));
+        // admin doesn't have enough flux
+        hevm.expectRevert(abi.encodePacked("insufficient FLUX balance"));
         veALCX.startCooldown(tokenId);
 
         hevm.stopPrank();
 
         uint256 ragequitAmount = veALCX.amountToRagequit(tokenId);
 
-        // Mint the necessary amount of mana to ragequit
+        // Mint the necessary amount of flux to ragequit
         hevm.prank(address(veALCX));
-        mana.mint(admin, ragequitAmount);
+        flux.mint(admin, ragequitAmount);
 
         hevm.startPrank(admin);
 
-        mana.approve(address(veALCX), ragequitAmount);
+        flux.approve(address(veALCX), ragequitAmount);
 
         veALCX.startCooldown(tokenId);
 

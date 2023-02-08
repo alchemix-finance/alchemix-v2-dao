@@ -2,7 +2,7 @@
 pragma solidity ^0.8.15;
 
 import "src/interfaces/IVotingEscrow.sol";
-import "src/interfaces/IManaToken.sol";
+import "src/interfaces/IFluxToken.sol";
 import "src/interfaces/IRewardsDistributor.sol";
 import "src/libraries/Base64.sol";
 import "openzeppelin-contracts/contracts/token/ERC721/extensions/IERC721Metadata.sol";
@@ -83,7 +83,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     uint256 internal tokenId;
 
     address public ALCX;
-    address public MANA;
+    address public FLUX;
     address public BPT;
     address public admin; // the timelock executor
     address public pendingAdmin; // the timelock executor
@@ -92,11 +92,11 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
     uint256 public supply;
     uint256 public claimFeeBps = 5000; // Fee for claiming early in bps
-    uint256 public manaMultiplier;
-    uint256 public manaPerVeALCX;
+    uint256 public fluxMultiplier;
+    uint256 public fluxPerVeALCX;
     uint256 public epoch;
 
-    mapping(uint256 => uint256) public unclaimedMana; // tokenId => amount of unclaimed mana
+    mapping(uint256 => uint256) public unclaimedFlux; // tokenId => amount of unclaimed flux
     mapping(uint256 => LockedBalance) public locked;
     mapping(uint256 => uint256) public ownershipChange;
     mapping(uint256 => Point) public pointHistory; // epoch -> unsigned point
@@ -169,17 +169,17 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
      * @notice Contract constructor
      * @param _bpt `BPT` token address
      * @param _alcx `ALCX` token address
-     * @param _mana `MANA` token address
+     * @param _flux `FLUX` token address
      */
-    constructor(address _bpt, address _alcx, address _mana) {
+    constructor(address _bpt, address _alcx, address _flux) {
         BPT = _bpt;
         ALCX = _alcx;
-        MANA = _mana;
+        FLUX = _flux;
         voter = msg.sender;
         admin = msg.sender;
         distributor = msg.sender;
-        manaMultiplier = 10; // 10 bps = 0.1%
-        manaPerVeALCX = 1e18; // determine initial value
+        fluxMultiplier = 10; // 10 bps = 0.1%
+        fluxPerVeALCX = 1e18; // determine initial value
 
         pointHistory[0].blk = block.number;
         pointHistory[0].ts = block.timestamp;
@@ -381,11 +381,11 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     }
 
     /**
-     * @notice Amount of MANA required to ragequit for a given token
+     * @notice Amount of FLUX required to ragequit for a given token
      * @param _tokenId ID of token to ragequit
      */
     function amountToRagequit(uint256 _tokenId) public view returns (uint256) {
-        return _balanceOfToken(_tokenId, block.timestamp) * manaPerVeALCX;
+        return _balanceOfToken(_tokenId, block.timestamp) * fluxPerVeALCX;
     }
 
     /**
@@ -414,13 +414,13 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     }
 
     /**
-     * @notice Amount of mana claimable at current epoch
+     * @notice Amount of flux claimable at current epoch
      * @param _tokenId ID of the token
-     * @return uint256 Amount of claimable mana for the current epoch
+     * @return uint256 Amount of claimable flux for the current epoch
      */
-    function claimableMana(uint256 _tokenId) public view returns (uint256) {
+    function claimableFlux(uint256 _tokenId) public view returns (uint256) {
         uint256 votingPower = _balanceOfToken(_tokenId, block.timestamp);
-        return votingPower * manaMultiplier;
+        return votingPower * fluxMultiplier;
     }
 
     function balanceOfAtToken(uint256 _tokenId, uint256 _block) external view returns (uint256) {
@@ -634,9 +634,9 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         attachments[_tokenId] = attachments[_tokenId] - 1;
     }
 
-    function setManaMultiplier(uint256 _manaMultiplier) external {
+    function setfluxMultiplier(uint256 _fluxMultiplier) external {
         require(msg.sender == admin, "not admin");
-        manaMultiplier = _manaMultiplier;
+        fluxMultiplier = _fluxMultiplier;
     }
 
     function setAdmin(address _admin) external {
@@ -649,9 +649,9 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         admin = pendingAdmin;
     }
 
-    function setManaPerVeALCX(uint256 _manaPerVeALCX) external {
+    function setfluxPerVeALCX(uint256 _fluxPerVeALCX) external {
         require(msg.sender == admin, "not admin");
-        manaPerVeALCX = _manaPerVeALCX;
+        fluxPerVeALCX = _fluxPerVeALCX;
     }
 
     function setClaimFee(uint256 _claimFeeBps) external {
@@ -805,9 +805,9 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
         require(IERC20(BPT).transfer(msg.sender, value));
 
-        // Claim any unclaimed ALCX rewards and MANA
+        // Claim any unclaimed ALCX rewards and FLUX
         IRewardsDistributor(distributor).claim(_tokenId, false);
-        _claimMana(_tokenId, unclaimedMana[_tokenId]);
+        _claimFlux(_tokenId, unclaimedFlux[_tokenId]);
 
         // Burn the token
         _burn(_tokenId);
@@ -817,29 +817,29 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     }
 
     /**
-     * @notice Accrue unclaimed mana for a given veALCX
-     * @param _tokenId ID of the token mana is being accrued to
-     * @param _amount Amount of mana being accrued
+     * @notice Accrue unclaimed flux for a given veALCX
+     * @param _tokenId ID of the token flux is being accrued to
+     * @param _amount Amount of flux being accrued
      */
-    function accrueMana(uint256 _tokenId, uint256 _amount) external {
+    function accrueFlux(uint256 _tokenId, uint256 _amount) external {
         require(msg.sender == voter, "not voter");
-        unclaimedMana[_tokenId] += _amount;
+        unclaimedFlux[_tokenId] += _amount;
     }
 
     /**
-     * @notice Claim unclaimed mana for a given veALCX
-     * @param _tokenId ID of the token mana is being accrued to
-     * @param _amount Amount of mana being claimed
-     * @dev mana can only be claimed after accrual
+     * @notice Claim unclaimed flux for a given veALCX
+     * @param _tokenId ID of the token flux is being accrued to
+     * @param _amount Amount of flux being claimed
+     * @dev flux can only be claimed after accrual
      */
-    function claimMana(uint256 _tokenId, uint256 _amount) external {
-        _claimMana(_tokenId, _amount);
+    function claimFlux(uint256 _tokenId, uint256 _amount) external {
+        _claimFlux(_tokenId, _amount);
     }
 
     /**
      * @notice Starts the cooldown for `_tokenId`
      * @param _tokenId ID of the token to start cooldown for
-     * @dev If lock is not expired cooldown can only be started by burning MANA
+     * @dev If lock is not expired cooldown can only be started by burning FLUX
      */
     function startCooldown(uint256 _tokenId) external {
         require(_isApprovedOrOwner(msg.sender, _tokenId));
@@ -855,16 +855,16 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
         locked[_tokenId].cooldown = block.timestamp + WEEK;
 
-        // If lock is not expired, cooldown can only be started by burning MANA
+        // If lock is not expired, cooldown can only be started by burning FLUX
         if (block.timestamp < _locked.end) {
-            // Amount of MANA required to ragequit
-            uint256 manaToRagequit = amountToRagequit(_tokenId);
+            // Amount of FLUX required to ragequit
+            uint256 fluxToRagequit = amountToRagequit(_tokenId);
 
-            require(IManaToken(MANA).balanceOf(msg.sender) >= manaToRagequit, "insufficient MANA balance");
+            require(IFluxToken(FLUX).balanceOf(msg.sender) >= fluxToRagequit, "insufficient FLUX balance");
 
             locked[_tokenId].end = 0;
 
-            IManaToken(MANA).burnFrom(msg.sender, manaToRagequit);
+            IFluxToken(FLUX).burnFrom(msg.sender, fluxToRagequit);
 
             emit Ragequit(msg.sender, _tokenId, block.timestamp);
         }
@@ -885,14 +885,14 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         return ownerToTokenCount[_owner];
     }
 
-    function _claimMana(uint256 _tokenId, uint256 _amount) internal {
+    function _claimFlux(uint256 _tokenId, uint256 _amount) internal {
         require(_isApprovedOrOwner(msg.sender, _tokenId));
-        require(unclaimedMana[_tokenId] >= _amount, "amount greater than unclaimed balance");
+        require(unclaimedFlux[_tokenId] >= _amount, "amount greater than unclaimed balance");
 
-        unclaimedMana[_tokenId] -= _amount;
+        unclaimedFlux[_tokenId] -= _amount;
 
-        // MANA is minted to the veALCX owner's address
-        IManaToken(MANA).mint(ownerOf(_tokenId), _amount);
+        // FLUX is minted to the veALCX owner's address
+        IFluxToken(FLUX).mint(ownerOf(_tokenId), _amount);
     }
 
     /**

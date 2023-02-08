@@ -97,72 +97,72 @@ contract VotingTest is BaseTest {
         hevm.stopPrank();
     }
 
-    // veALCX holders should be able to accrue their unclaimed mana over epochs
-    function testAccrueMana() public {
+    // veALCX holders should be able to accrue their unclaimed flux over epochs
+    function testaccrueFlux() public {
         uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
 
         hevm.startPrank(admin);
 
-        uint256 claimedBalance = mana.balanceOf(admin);
-        uint256 unclaimedBalance = veALCX.unclaimedMana(tokenId);
+        uint256 claimedBalance = flux.balanceOf(admin);
+        uint256 unclaimedBalance = veALCX.unclaimedFlux(tokenId);
 
         assertEq(claimedBalance, 0);
         assertEq(unclaimedBalance, 0);
 
         voter.reset(tokenId);
 
-        unclaimedBalance = veALCX.unclaimedMana(tokenId);
+        unclaimedBalance = veALCX.unclaimedFlux(tokenId);
 
         // Claimed balance is equal to the amount able to be claimed
-        assertEq(unclaimedBalance, veALCX.claimableMana(tokenId));
+        assertEq(unclaimedBalance, veALCX.claimableFlux(tokenId));
 
         hevm.warp(block.timestamp + nextEpoch);
 
         voter.reset(tokenId);
 
-        // Add this voting periods claimable mana to the unclaimed balance
-        unclaimedBalance += veALCX.claimableMana(tokenId);
+        // Add this voting periods claimable flux to the unclaimed balance
+        unclaimedBalance += veALCX.claimableFlux(tokenId);
 
-        // The unclaimed balance should equal the total amount of unclaimed mana
-        assertEq(unclaimedBalance, veALCX.unclaimedMana(tokenId));
+        // The unclaimed balance should equal the total amount of unclaimed flux
+        assertEq(unclaimedBalance, veALCX.unclaimedFlux(tokenId));
 
         hevm.stopPrank();
     }
 
-    // veALCX holder should be able to mint mana they have accrued
-    function testMintMana() public {
-        hevm.expectRevert(abi.encodePacked("ManaToken: only minter"));
-        ManaToken(mana).setMinter(address(admin));
+    // veALCX holder should be able to mint flux they have accrued
+    function testMintFlux() public {
+        hevm.expectRevert(abi.encodePacked("FluxToken: only minter"));
+        FluxToken(flux).setMinter(address(admin));
 
         uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
 
         hevm.startPrank(admin);
 
-        uint256 claimedBalance = mana.balanceOf(admin);
-        uint256 unclaimedBalance = veALCX.unclaimedMana(tokenId);
+        uint256 claimedBalance = flux.balanceOf(admin);
+        uint256 unclaimedBalance = veALCX.unclaimedFlux(tokenId);
 
         assertEq(claimedBalance, 0);
         assertEq(unclaimedBalance, 0);
 
         hevm.expectRevert(abi.encodePacked("amount greater than unclaimed balance"));
-        veALCX.claimMana(tokenId, TOKEN_1);
+        veALCX.claimFlux(tokenId, TOKEN_1);
 
         voter.reset(tokenId);
 
-        claimedBalance = veALCX.unclaimedMana(tokenId);
+        claimedBalance = veALCX.unclaimedFlux(tokenId);
 
-        veALCX.claimMana(tokenId, claimedBalance);
+        veALCX.claimFlux(tokenId, claimedBalance);
 
-        unclaimedBalance = veALCX.unclaimedMana(tokenId);
+        unclaimedBalance = veALCX.unclaimedFlux(tokenId);
 
         assertEq(unclaimedBalance, 0);
-        assertEq(mana.balanceOf(admin), claimedBalance);
+        assertEq(flux.balanceOf(admin), claimedBalance);
 
         hevm.stopPrank();
     }
 
-    // veALCX holders can boost their vote with unclaimed mana up to a maximum amount
-    function testBoostVoteWithMana() public {
+    // veALCX holders can boost their vote with unclaimed flux up to a maximum amount
+    function testBoostVoteWithFlux() public {
         uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
         uint256 tokenId1 = createVeAlcx(beef, TOKEN_1, MAXTIME, false);
         address bribeAddress = voter.bribes(address(sushiGauge));
@@ -188,31 +188,31 @@ contract VotingTest is BaseTest {
         tokens[0] = new address[](1);
         tokens[0][0] = bal;
 
-        uint256 claimableMana = veALCX.claimableMana(tokenId);
+        uint256 claimableFlux = veALCX.claimableFlux(tokenId);
         uint256 votingWeight = veALCX.balanceOfToken(tokenId);
         uint256 maxBoostAmount = voter.maxVotingPower(tokenId);
-        uint256 maxManaAmount = voter.maxManaBoost(tokenId);
+        uint256 maxFluxAmount = voter.maxFluxBoost(tokenId);
 
         // Max boost amount should be the voting weight plus the boost multiplier
-        assertEq(maxBoostAmount, votingWeight + maxManaAmount);
+        assertEq(maxBoostAmount, votingWeight + maxFluxAmount);
 
         // Vote should revert if attempting to boost more than the allowed amount
         hevm.expectRevert(abi.encodePacked("cannot exceed max boost"));
-        voter.vote(tokenId, pools, weights, claimableMana);
+        voter.vote(tokenId, pools, weights, claimableFlux);
 
         hevm.stopPrank();
 
         // Vote with the max boost amount
         hevm.prank(admin);
-        voter.vote(tokenId, pools, weights, maxManaAmount);
+        voter.vote(tokenId, pools, weights, maxFluxAmount);
 
         hevm.prank(beef);
         voter.vote(tokenId1, pools, weights, 0);
 
-        // Used weight should be greater when boosting with unused mana
+        // Used weight should be greater when boosting with unused flux
         assertGt(voter.usedWeights(tokenId), votingWeight);
 
-        // Token boosting with MANA should have a higher used weight
+        // Token boosting with FLUX should have a higher used weight
         assertGt(voter.usedWeights(tokenId), voter.usedWeights(tokenId1));
 
         // Reach the end of the epoch
@@ -284,7 +284,7 @@ contract VotingTest is BaseTest {
         assertEq(bribeBalance - earnedBribes, IERC20(bal).balanceOf(bribeAddress));
     }
 
-    // Votes cannot be boosted with insufficient claimable mana balance
+    // Votes cannot be boosted with insufficient claimable flux balance
     function testCannotBoostVote() public {
         uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
 
@@ -297,11 +297,11 @@ contract VotingTest is BaseTest {
         uint256[] memory weights = new uint256[](1);
         weights[0] = 5000;
 
-        uint256 claimableMana = veALCX.claimableMana(tokenId);
+        uint256 claimableFlux = veALCX.claimableFlux(tokenId);
 
-        // Vote with insufficient claimable mana balance
-        hevm.expectRevert(abi.encodePacked("insufficient claimable MANA balance"));
-        voter.vote(tokenId, pools, weights, claimableMana + 1);
+        // Vote with insufficient claimable flux balance
+        hevm.expectRevert(abi.encodePacked("insufficient claimable FLUX balance"));
+        voter.vote(tokenId, pools, weights, claimableFlux + 1);
 
         hevm.stopPrank();
     }
