@@ -6,6 +6,7 @@ import "src/interfaces/IRewardsDistributor.sol";
 import "src/interfaces/IVoter.sol";
 import "src/interfaces/IVotingEscrow.sol";
 import "src/interfaces/IAlchemixToken.sol";
+import "src/interfaces/IRevenueHandler.sol";
 import "src/libraries/Math.sol";
 
 /**
@@ -27,13 +28,15 @@ contract Minter is IMinter {
 
     address public admin;
     address public pendingAdmin;
+    address public initializer;
 
-    address internal initializer;
+    bool public initialized;
 
     IAlchemixToken public alcx;
     IVoter public immutable voter;
     IVotingEscrow public immutable ve;
     IRewardsDistributor public immutable rewardsDistributor;
+    IRevenueHandler public immutable revenueHandler;
 
     constructor(InitializationParams memory params) {
         stepdown = params.stepdown;
@@ -45,6 +48,7 @@ contract Minter is IMinter {
         voter = IVoter(params.voter);
         ve = IVotingEscrow(params.ve);
         rewardsDistributor = IRewardsDistributor(params.rewardsDistributor);
+        revenueHandler = IRevenueHandler(params.revenueHandler);
         activePeriod = ((block.timestamp + WEEK) / WEEK) * WEEK;
         veAlcxEmissionsRate = 5000; // 50%
     }
@@ -69,8 +73,11 @@ contract Minter is IMinter {
     }
 
     function initialize() external {
-        require(initializer == msg.sender);
+        require(msg.sender != address(0));
+        require(initialized == false, "already initialized");
+        require(initializer == msg.sender, "not initializer");
         initializer = address(0);
+        initialized = true;
     }
 
     /*
@@ -127,6 +134,8 @@ contract Minter is IMinter {
 
             alcx.approve(address(voter), epochEmissions - veAlcxEmissions);
             voter.notifyRewardAmount(epochEmissions - veAlcxEmissions);
+
+            revenueHandler.checkpoint();
 
             emit Mint(msg.sender, epochEmissions, circulatingEmissionsSupply());
         }

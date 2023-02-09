@@ -42,7 +42,7 @@ interface IRevenueHandler {
     function claimable(uint256 tokenId, address debtToken) external view returns (uint256);
 
     /**
-     * @notice Add an debtToken to the list of claimable debtTokens.
+     * @notice Add a debtToken to the list of claimable debtTokens.
      * @notice This function is only callable by the contract owner.
      *
      * @param debtToken    The address of the debt token to add.
@@ -50,7 +50,7 @@ interface IRevenueHandler {
     function addDebtToken(address debtToken) external;
 
     /**
-     * @notice Remove an debtToken from the list of claimable debtTokens.
+     * @notice Remove a debtToken from the list of claimable debtTokens.
      * @notice This function is only callable by the contract owner.
      *
      * @param debtToken    The address of the debt token to remove.
@@ -58,7 +58,7 @@ interface IRevenueHandler {
     function removeDebtToken(address debtToken) external;
 
     /**
-     * @notice Add an revenueToken to the list of claimable revenueTokens.
+     * @notice Add a revenueToken to the list of claimable revenueTokens.
      * @notice This function is only callable by the contract owner.
      *
      * @param revenueToken    The address of the revenue token to add.
@@ -66,7 +66,7 @@ interface IRevenueHandler {
     function addRevenueToken(address revenueToken) external;
 
     /**
-     * @notice Remove an revenueToken from the list of claimable revenueTokens.
+     * @notice Remove a revenueToken from the list of claimable revenueTokens.
      * @notice This function is only callable by the contract owner.
      *
      * @param revenueToken    The address of the revenue token to remove.

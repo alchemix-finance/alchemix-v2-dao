@@ -13,18 +13,13 @@ import "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
  * @dev If custom distribution logic is necessary create additional contract
  */
 contract PassthroughGauge is BaseGauge {
-    constructor(
-        address _receiver,
-        address _bribe,
-        address _ve,
-        address _voter
-    ) {
+    constructor(address _receiver, address _bribe, address _ve, address _voter) {
         receiver = _receiver;
         bribe = _bribe;
         ve = _ve;
         voter = _voter;
 
-        admin = IVoter(voter).executor();
+        admin = IVoter(voter).admin();
 
         IBribe(bribe).setGauge(address(this));
         rewardToken = IVotingEscrow(ve).ALCX();

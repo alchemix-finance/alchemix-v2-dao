@@ -4,84 +4,16 @@ pragma solidity ^0.8.15;
 import "./BaseTest.sol";
 
 contract AlchemixGovernorTest is BaseTest {
-    Voter voter;
-    GaugeFactory gaugeFactory;
-    BribeFactory bribeFactory;
-    RewardsDistributor distributor;
-    Minter minter;
-    StakingGauge gauge;
-    Bribe bribe;
-    TimelockExecutor timelockExecutor;
-    AlchemixGovernor governor;
-
     function setUp() public {
-        setupBaseTest();
+        setupContracts(block.timestamp);
 
-        veALCX.setVoter(admin);
+        // Create veALCX for admin
+        createVeAlcx(admin, 90 * TOKEN_1, MAXTIME, false);
 
-        hevm.startPrank(admin);
+        // Create veALCX for 0xbeef
+        createVeAlcx(beef, TOKEN_1, MAXTIME, false);
 
-        IERC20(bpt).transfer(address(0xbeef), TOKEN_1);
-        IERC20(bpt).transfer(address(0xdead), TOKEN_1);
-
-        veALCX.createLock(90 * TOKEN_1, 365 days, false);
-        hevm.roll(block.number + 1);
-
-        hevm.stopPrank();
-
-        hevm.startPrank(address(0xbeef));
-        IERC20(bpt).approve(address(veALCX), TOKEN_1);
-        veALCX.createLock(TOKEN_1, 365 days, false);
-        hevm.roll(block.number + 1);
-
-        hevm.stopPrank();
-
-        hevm.startPrank(admin);
-
-        gaugeFactory = new GaugeFactory();
-        bribeFactory = new BribeFactory();
-        voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory), address(MANA));
-
-        veALCX.setVoter(address(voter));
-
-        distributor = new RewardsDistributor(address(veALCX), address(weth), address(balancerVault), priceFeed);
-
-        IMinter.InitializationParams memory params = IMinter.InitializationParams(
-            address(alcx),
-            address(voter),
-            address(veALCX),
-            address(distributor),
-            supply,
-            rewards,
-            stepdown
-        );
-
-        minter = new Minter(params);
-
-        distributor.setDepositor(address(minter));
-
-        alcx.grantRole(keccak256("MINTER"), address(minter));
-
-        alcx.approve(address(gaugeFactory), 15 * TOKEN_100K);
-        voter.createGauge(alETHPool, IVoter.GaugeType.Staking);
-        address gaugeAddress = voter.gauges(alETHPool);
-        address bribeAddress = voter.bribes(gaugeAddress);
-        gauge = StakingGauge(gaugeAddress);
-        bribe = Bribe(bribeAddress);
-
-        timelockExecutor = new TimelockExecutor(1 days);
-        governor = new AlchemixGovernor(veALCX, TimelockExecutor(timelockExecutor));
-
-        timelockExecutor.setAdmin(address(governor));
-        voter.setExecutor(address(timelockExecutor));
-
-        hevm.stopPrank();
-
-        hevm.prank(address(governor));
-        timelockExecutor.acceptAdmin();
-
-        hevm.prank(address(timelockExecutor));
-        voter.acceptExecutor();
+        assertEq(governor.timelock(), address(timelockExecutor));
     }
 
     function testExecutorCanCreateGaugesForAnyAddress(address a) public {
@@ -94,47 +26,44 @@ contract AlchemixGovernorTest is BaseTest {
 
     function testVeAlcxMergesAutoDelegates() public {
         // 0xbeef + 0xdead > quorum
-        hevm.startPrank(address(0xdead));
+        createVeAlcx(dead, TOKEN_1 / 3, MAXTIME, false);
 
-        IERC20(bpt).approve(address(veALCX), TOKEN_1 / 3);
-        veALCX.createLock(TOKEN_1 / 3, 365 days, false);
+        hevm.startPrank(dead);
 
-        hevm.roll(block.number + 1);
-
-        uint256 pre2 = veALCX.getVotes(address(0xbeef));
-        uint256 pre3 = veALCX.getVotes(address(0xdead));
+        uint256 pre2 = veALCX.getVotes(beef);
+        uint256 pre3 = veALCX.getVotes(dead);
 
         // merge
-        veALCX.approve(address(0xbeef), 3);
-        veALCX.transferFrom(address(0xdead), address(0xbeef), 3);
+        veALCX.approve(beef, 3);
+        veALCX.transferFrom(dead, beef, 3);
 
         hevm.stopPrank();
 
-        hevm.startPrank(address(0xbeef));
+        hevm.startPrank(beef);
 
         veALCX.merge(3, 2);
 
         hevm.stopPrank();
 
         // assert vote balances
-        uint256 post2 = veALCX.getVotes(address(0xbeef));
+        uint256 post2 = veALCX.getVotes(beef);
 
         assertApproxEq(
             pre2 + pre3,
             post2,
-            365 days // merge rounds down time lock
+            MAXTIME // merge rounds down time lock
         );
     }
 
     function testFailCannotProposeWithoutSufficientBalance() public {
         // propose
-        hevm.startPrank(address(0xdead));
+        hevm.startPrank(dead);
         address[] memory targets = new address[](1);
         targets[0] = address(voter);
         uint256[] memory values = new uint256[](1);
         values[0] = 0;
         bytes[] memory calldatas = new bytes[](1);
-        calldatas[0] = abi.encodeWithSelector(voter.whitelist.selector, address(USDC));
+        calldatas[0] = abi.encodeWithSelector(voter.whitelist.selector, usdc);
         string memory description = "Whitelist USDC";
 
         governor.propose(targets, values, calldatas, description, MAINNET);
@@ -142,15 +71,29 @@ contract AlchemixGovernorTest is BaseTest {
     }
 
     function testProposalsNeedsQuorumToPass() public {
-        assertFalse(voter.isWhitelisted(address(USDC)));
+        createVeAlcx(dead, 1, MAXTIME, false);
+
+        assertFalse(voter.isWhitelisted(usdc));
 
         address[] memory targets = new address[](1);
         targets[0] = address(voter);
         uint256[] memory values = new uint256[](1);
         values[0] = 0;
         bytes[] memory calldatas = new bytes[](1);
-        calldatas[0] = abi.encodeWithSelector(voter.whitelist.selector, address(USDC));
+        calldatas[0] = abi.encodeWithSelector(voter.whitelist.selector, usdc);
         string memory description = "Whitelist USDC";
+
+        // proposal should fail to meet threshold when veALCX amount is too low
+        hevm.startPrank(dead);
+        hevm.expectRevert(abi.encodePacked("Governor: proposer votes below proposal threshold"));
+        governor.propose(targets, values, calldatas, description, MAINNET);
+
+        uint256 proposalThreshold = governor.proposalThreshold();
+        uint256 votes = governor.getVotes(dead, block.timestamp);
+
+        assertGt(proposalThreshold, votes);
+
+        hevm.stopPrank();
 
         // propose
         hevm.startPrank(admin);
@@ -159,7 +102,7 @@ contract AlchemixGovernorTest is BaseTest {
         hevm.stopPrank();
 
         // vote
-        hevm.startPrank(address(0xbeef));
+        hevm.startPrank(beef);
         governor.castVote(pid, 1);
         hevm.warp(block.timestamp + 1 weeks); // voting period
         hevm.stopPrank();
@@ -169,18 +112,19 @@ contract AlchemixGovernorTest is BaseTest {
         // Proposal unsuccessful due to _quorumReached returning false
         hevm.expectRevert(abi.encodePacked("Governor: proposal not successful"));
         governor.execute(targets, values, calldatas, keccak256(bytes(description)), MAINNET);
+
         hevm.stopPrank();
     }
 
     function testProposalHasQuorum() public {
-        assertFalse(voter.isWhitelisted(address(USDC)));
+        assertFalse(voter.isWhitelisted(usdc));
 
         address[] memory targets = new address[](1);
         targets[0] = address(voter);
         uint256[] memory values = new uint256[](1);
         values[0] = 0;
         bytes[] memory calldatas = new bytes[](1);
-        calldatas[0] = abi.encodeWithSelector(voter.whitelist.selector, address(USDC));
+        calldatas[0] = abi.encodeWithSelector(voter.whitelist.selector, usdc);
         string memory description = "Whitelist USDC";
 
         // propose
@@ -201,6 +145,28 @@ contract AlchemixGovernorTest is BaseTest {
         governor.execute(targets, values, calldatas, keccak256(bytes(description)), MAINNET);
         hevm.stopPrank();
 
-        assertTrue(voter.isWhitelisted(address(USDC)));
+        assertTrue(voter.isWhitelisted(usdc));
+    }
+
+    // Only admin can set a new proposal numerator (up to a max)
+    function testUpdateProposalNumerator() public {
+        hevm.prank(admin);
+        governor.setAdmin(devmsig);
+
+        hevm.startPrank(devmsig);
+
+        hevm.expectRevert(abi.encodePacked("not admin"));
+        governor.setProposalNumerator(60);
+
+        governor.acceptAdmin();
+
+        hevm.expectRevert(abi.encodePacked("numerator too high"));
+        governor.setProposalNumerator(60);
+
+        governor.setProposalNumerator(50);
+
+        assertEq(governor.proposalNumerator(), 50);
+
+        hevm.stopPrank();
     }
 }

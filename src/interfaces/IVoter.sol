@@ -24,28 +24,28 @@ interface IVoter {
 
     function veALCX() external view returns (address);
 
-    function executor() external view returns (address);
+    function admin() external view returns (address);
 
     function emergencyCouncil() external view returns (address);
 
     /**
-     * @notice Get the maximum voting power a given veALCX can have by using MANA
+     * @notice Get the maximum voting power a given veALCX can have by using FLUX
      * @param _tokenId ID of the token
      * @return uint256 Maximum voting power
      */
     function maxVotingPower(uint256 _tokenId) external view returns (uint256);
 
     /**
-     * @notice Get the maximum amount of mana a given veALCX could use as a boost
+     * @notice Get the maximum amount of flux a given veALCX could use as a boost
      * @param _tokenId ID of the token
-     * @return uint256 Maximum mana amount
+     * @return uint256 Maximum flux amount
      */
-    function maxManaBoost(uint256 _tokenId) external view returns (uint256);
+    function maxFluxBoost(uint256 _tokenId) external view returns (uint256);
 
     /**
-     * @notice Set the max veALCX voting power can be boosted by with mana
+     * @notice Set the max veALCX voting power can be boosted by with flux
      * @param _boostMultiplier BPS of boost
-     * @dev Can only be called by the executor
+     * @dev Can only be called by the admin
      */
     function setBoostMultiplier(uint256 _boostMultiplier) external;
 
@@ -53,15 +53,15 @@ interface IVoter {
      * @notice Reset the voting status of a veALCX
      * @param _tokenId ID of the token to reset
      * @dev Can only be called by the an approved address or the veALCX owner
-     * @dev Accrues any unused mana
+     * @dev Accrues any unused flux
      */
     function reset(uint256 _tokenId) external;
 
     /**
      * @notice Update the voting status of a veALCX to maintain the same voting status
      * @param _tokenId ID of the token to poke
-     * @param _boost   Amount of mana to boost vote by
-     * @dev Accrues any unused mana
+     * @param _boost   Amount of flux to boost vote by
+     * @dev Accrues any unused flux
      */
     function poke(uint256 _tokenId, uint256 _boost) external;
 
@@ -70,15 +70,10 @@ interface IVoter {
      * @param _tokenId  ID of the token voting
      * @param _poolVote Array of the pools being voted
      * @param _weights  Weights of the pools
-     * @param _boost    Amount of mana to boost vote by
-     * @dev Can only be called once per epoch. Accrues any unused mana
+     * @param _boost    Amount of flux to boost vote by
+     * @dev Can only be called once per epoch. Accrues any unused flux
      */
-    function vote(
-        uint256 _tokenId,
-        address[] calldata _poolVote,
-        uint256[] calldata _weights,
-        uint256 _boost
-    ) external;
+    function vote(uint256 _tokenId, address[] calldata _poolVote, uint256[] calldata _weights, uint256 _boost) external;
 
     /**
      * @notice Creates a gauge for a pool

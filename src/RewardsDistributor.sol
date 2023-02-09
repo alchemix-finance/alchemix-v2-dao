@@ -135,7 +135,10 @@ contract RewardsDistributor is IRewardsDistributor {
 
     /// @inheritdoc IRewardsDistributor
     function claim(uint256 _tokenId, bool _compound) external payable returns (uint256) {
-        require(IVotingEscrow(votingEscrow).isApprovedOrOwner(msg.sender, _tokenId), "not approved or owner");
+        bool approvedOrOwner = IVotingEscrow(votingEscrow).isApprovedOrOwner(msg.sender, _tokenId);
+        bool isVotingEscrow = msg.sender == votingEscrow;
+
+        require(approvedOrOwner || isVotingEscrow, "not approved");
 
         address owner = IVotingEscrow(votingEscrow).ownerOf(_tokenId);
 
@@ -145,7 +148,8 @@ contract RewardsDistributor is IRewardsDistributor {
 
         uint256 alcxAmount = _claim(_tokenId, votingEscrow, _lastTokenTime);
 
-        require(alcxAmount > 0, "nothing to claim");
+        // Return 0 without reverting if there are no rewards
+        if (alcxAmount == 0) return alcxAmount;
 
         tokenLastBalance -= alcxAmount;
 
@@ -168,7 +172,9 @@ contract RewardsDistributor is IRewardsDistributor {
             return alcxAmount;
         } else {
             // The fee amount stays in the contract effectively redistributing it to veALCX holders
-            uint256 feeAmount = (alcxAmount * IVotingEscrow(votingEscrow).claimFeeBps()) / BPS;
+            // If VotingEscrow contract is calling claim it is because veALCX is unlocked and there is no fee
+            uint256 feeAmount = isVotingEscrow ? 0 : (alcxAmount * IVotingEscrow(votingEscrow).claimFeeBps()) / BPS;
+
             uint256 claimAmount = alcxAmount - feeAmount;
 
             // Transfer rewards to veALCX owner

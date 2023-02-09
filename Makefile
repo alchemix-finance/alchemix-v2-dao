@@ -9,7 +9,7 @@ FILE=
 TEST=
 
 # block to test from 
-BLOCK=14414078
+BLOCK=16213697
 
 # foundry test profile to run
 PROFILE=$(TEST_PROFILE)
@@ -41,7 +41,7 @@ test_coverage_file :; FOUNDRY_PROFILE=$(PROFILE) forge coverage $(FORK_URL) $(MA
 # runs test coverage for specific file: "make test_summary_file FILE=Minter"
 test_summary_file :; FOUNDRY_PROFILE=$(PROFILE) forge coverage $(FORK_URL) $(MATCH_PATH) --report summary
 
-# runs all tests from a given block (setting block is optional): "make test_block BLOCK=14635241" 
+# runs all tests from a given block (setting block is optional): "make test_block BLOCK=16213697" (16213697 is a block where revenue handler deltas are passing)
 test_block :; FOUNDRY_PROFILE=$(PROFILE) forge test $(FORK_URL) $(FORK_BLOCK)
 
 # runs all tests with added verbosity for failing tests: "make test_debug"

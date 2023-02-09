@@ -4,65 +4,18 @@ pragma solidity ^0.8.15;
 import "./BaseTest.sol";
 
 contract StakingGaugeTest is BaseTest {
-    GaugeFactory gaugeFactory;
-    BribeFactory bribeFactory;
-    Voter voter;
-    RewardsDistributor distributor;
-    Minter minter;
-    StakingGauge gauge;
-    StakingGauge gauge2;
+    uint256 tokenId;
 
     function setUp() public {
-        setupBaseTest();
-        veALCX.setVoter(admin);
+        setupContracts(block.timestamp);
 
-        hevm.startPrank(admin);
-
-        gaugeFactory = new GaugeFactory();
-        bribeFactory = new BribeFactory();
-        voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory), address(MANA));
-
-        IERC20(bpt).approve(address(veALCX), 2e25);
-        veALCX.createLock(TOKEN_1, 365 days, false);
-
-        distributor = new RewardsDistributor(address(veALCX), address(weth), address(balancerVault), priceFeed);
-        veALCX.setVoter(address(voter));
-
-        IMinter.InitializationParams memory params = IMinter.InitializationParams(
-            address(alcx),
-            address(voter),
-            address(veALCX),
-            address(distributor),
-            supply,
-            rewards,
-            stepdown
-        );
-
-        minter = new Minter(params);
-
-        // Initialize after minter is created to set minter address
-        voter.initialize(address(alcx), address(minter));
-
-        distributor.setDepositor(address(minter));
-
-        alcx.grantRole(keccak256("MINTER"), address(minter));
-
-        voter.createGauge(address(alcx), IVoter.GaugeType.Staking);
-        voter.createGauge(alUSDPool, IVoter.GaugeType.Staking);
-
-        address gaugeAddress = voter.gauges(address(alcx));
-        address gaugeAddress2 = voter.gauges(alUSDPool);
-
-        gauge = StakingGauge(gaugeAddress);
-        gauge2 = StakingGauge(gaugeAddress2);
-
-        hevm.stopPrank();
+        tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
     }
 
     function testEmergencyCouncilCanKillAndReviveGauges() public {
         hevm.startPrank(admin);
 
-        address gaugeAddress = address(gauge);
+        address gaugeAddress = address(stakingGauge);
 
         voter.killGauge(gaugeAddress);
         assertFalse(voter.isAlive(gaugeAddress));
@@ -76,15 +29,15 @@ contract StakingGaugeTest is BaseTest {
     function testFailCouncilCannotKillNonExistentGauge() public {
         hevm.startPrank(admin);
 
-        voter.killGauge(address(0xDEAD));
+        voter.killGauge(dead);
 
         hevm.stopPrank();
     }
 
     function testFailNoOneElseCanKillGauges() public {
-        hevm.prank(address(0xbeef));
+        hevm.prank(beef);
 
-        address gaugeAddress = address(gauge);
+        address gaugeAddress = address(stakingGauge);
 
         voter.killGauge(gaugeAddress);
 
@@ -97,7 +50,7 @@ contract StakingGaugeTest is BaseTest {
     function testKilledGaugeCannotDeposit() public {
         hevm.startPrank(admin);
 
-        address gaugeAddress = address(gauge);
+        address gaugeAddress = address(stakingGauge);
         voter.killGauge(gaugeAddress);
 
         uint256 amount = alcx.balanceOf(admin);
@@ -105,7 +58,7 @@ contract StakingGaugeTest is BaseTest {
 
         hevm.expectRevert(abi.encodePacked(""));
 
-        gauge.deposit(amount, 1);
+        stakingGauge.deposit(amount, tokenId);
 
         hevm.stopPrank();
     }
@@ -113,16 +66,16 @@ contract StakingGaugeTest is BaseTest {
     function testKilledGaugeCanWithdraw() public {
         hevm.startPrank(admin);
 
-        address gaugeAddress = address(gauge);
+        address gaugeAddress = address(stakingGauge);
 
         uint256 amount = alcx.balanceOf(admin);
         alcx.approve(gaugeAddress, amount);
 
-        gauge.deposit(amount, 1);
+        stakingGauge.deposit(amount, tokenId);
 
         voter.killGauge(gaugeAddress);
 
-        gauge.withdrawToken(amount, 1);
+        stakingGauge.withdrawToken(amount, tokenId);
 
         hevm.stopPrank();
     }
@@ -134,16 +87,16 @@ contract StakingGaugeTest is BaseTest {
         hevm.roll(block.number + 1);
 
         minter.updatePeriod();
-        voter.updateGauge(address(gauge));
+        voter.updateGauge(address(stakingGauge));
 
         address[] memory gauges = new address[](1);
-        gauges[0] = address(gauge);
+        gauges[0] = address(stakingGauge);
 
-        voter.killGauge(address(gauge));
+        voter.killGauge(address(stakingGauge));
 
         voter.updateFor(gauges);
 
-        assertEq(voter.claimable(address(gauge)), 0);
+        assertEq(voter.claimable(address(stakingGauge)), 0);
 
         hevm.stopPrank();
     }
@@ -155,16 +108,16 @@ contract StakingGaugeTest is BaseTest {
         hevm.roll(block.number + 1);
 
         minter.updatePeriod();
-        voter.updateGauge(address(gauge));
+        voter.updateGauge(address(stakingGauge));
 
         address[] memory gauges = new address[](1);
-        gauges[0] = address(gauge);
+        gauges[0] = address(stakingGauge);
 
         voter.updateFor(gauges);
 
-        voter.killGauge(address(gauge));
+        voter.killGauge(address(stakingGauge));
 
-        assertEq(voter.claimable(address(gauge)), 0);
+        assertEq(voter.claimable(address(stakingGauge)), 0);
 
         hevm.stopPrank();
     }
@@ -176,18 +129,18 @@ contract StakingGaugeTest is BaseTest {
         hevm.roll(block.number + 1);
 
         minter.updatePeriod();
-        voter.updateGauge(address(gauge));
-        voter.updateGauge(address(gauge2));
+        voter.updateGauge(address(stakingGauge));
+        voter.updateGauge(address(stakingGauge2));
 
         address[] memory gauges = new address[](2);
-        gauges[0] = address(gauge);
-        gauges[1] = address(gauge2);
+        gauges[0] = address(stakingGauge);
+        gauges[1] = address(stakingGauge2);
 
         voter.updateFor(gauges);
 
-        voter.killGauge(address(gauge2));
+        voter.killGauge(address(stakingGauge2));
 
-        // Should be able to claim from gauge
+        // Should be able to claim from stakingGauge
         voter.distro();
 
         hevm.stopPrank();

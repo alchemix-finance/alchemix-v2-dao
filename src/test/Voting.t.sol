@@ -4,268 +4,317 @@ pragma solidity ^0.8.15;
 import "./BaseTest.sol";
 
 contract VotingTest is BaseTest {
-    Voter voter;
-    GaugeFactory gaugeFactory;
-    BribeFactory bribeFactory;
-    RewardsDistributor distributor;
-    Minter minter;
-
-    uint256 depositAmount = 999 ether;
-    uint256 lockTime = 30 days;
-
     function setUp() public {
-        setupBaseTest();
+        setupContracts(block.timestamp);
+    }
 
-        veALCX.setVoter(admin);
-
-        hevm.startPrank(admin);
-
-        ManaToken(MANA).setMinter(address(veALCX));
-
-        gaugeFactory = new GaugeFactory();
-        bribeFactory = new BribeFactory();
-        voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory), address(MANA));
-
-        voter.initialize(address(alcx), admin);
-
-        IERC20(bpt).approve(address(veALCX), TOKEN_1);
-        veALCX.createLock(TOKEN_1, MAXTIME, false);
-
-        uint256 maxVotingPower = getMaxVotingPower(TOKEN_1, veALCX.lockEnd(1));
-
-        distributor = new RewardsDistributor(address(veALCX), address(weth), address(balancerVault), priceFeed);
-        veALCX.setVoter(address(voter));
-
-        IMinter.InitializationParams memory params = IMinter.InitializationParams(
-            address(alcx),
-            address(voter),
-            address(veALCX),
-            address(distributor),
-            supply,
-            rewards,
-            stepdown
-        );
-
-        minter = new Minter(params);
-
-        distributor.setDepositor(address(minter));
-
-        alcx.grantRole(keccak256("MINTER"), address(minter));
-
-        voter.createGauge(alETHPool, IVoter.GaugeType.Staking);
-
-        hevm.roll(block.number + 1);
-
-        assertEq(veALCX.balanceOfToken(1), maxVotingPower);
-        assertEq(IERC20(bpt).balanceOf(address(veALCX)), TOKEN_1);
-
-        minter.initialize();
-
-        assertEq(veALCX.ownerOf(1), admin);
-
-        hevm.roll(block.number + 1);
-
-        // Check ALCX balances increase in distributor and voter over an epoch
+    // Check ALCX balances increase in distributor and voter over an epoch
+    function testEpochRewards() public {
         uint256 distributorBal = alcx.balanceOf(address(distributor));
         uint256 voterBal = alcx.balanceOf(address(voter));
+
         assertEq(distributorBal, 0);
         assertEq(voterBal, 0);
 
-        hevm.warp(block.timestamp + 86400 * 14);
+        hevm.warp(block.timestamp + nextEpoch);
         hevm.roll(block.number + 1);
 
         minter.updatePeriod();
+
         assertGt(alcx.balanceOf(address(distributor)), distributorBal);
         assertGt(alcx.balanceOf(address(voter)), voterBal);
-        hevm.stopPrank();
     }
 
     function testSameEpochVoteOrReset() public {
+        uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+
         hevm.startPrank(admin);
 
         uint256 period = minter.activePeriod();
 
         // Move forward a week relative to period
-        hevm.warp(period + 1 weeks);
+        hevm.warp(period + nextEpoch);
 
         address[] memory pools = new address[](1);
         pools[0] = alETHPool;
         uint256[] memory weights = new uint256[](1);
         weights[0] = 5000;
-        voter.vote(1, pools, weights, 0);
+        voter.vote(tokenId, pools, weights, 0);
 
         // Move forward half epoch relative to period
-        hevm.warp(period + 1 weeks / 2);
+        hevm.warp(period + nextEpoch / 2);
 
         // Voting again fails
         pools[0] = alUSDPool;
         hevm.expectRevert(abi.encodePacked("TOKEN_ALREADY_VOTED_THIS_EPOCH"));
-        voter.vote(1, pools, weights, 0);
+        voter.vote(tokenId, pools, weights, 0);
 
         // Resetting fails
         hevm.expectRevert(abi.encodePacked("TOKEN_ALREADY_VOTED_THIS_EPOCH"));
-        voter.reset(1);
+        voter.reset(tokenId);
 
         hevm.stopPrank();
     }
 
     function testNextEpochVoteOrReset() public {
+        uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+
         hevm.startPrank(admin);
 
-        hevm.warp(block.timestamp + 1 weeks);
+        hevm.warp(block.timestamp + nextEpoch);
 
         address[] memory pools = new address[](1);
         pools[0] = alETHPool;
         uint256[] memory weights = new uint256[](1);
         weights[0] = 5000;
 
-        voter.vote(1, pools, weights, 0);
+        voter.vote(tokenId, pools, weights, 0);
 
         // Next epoch
-        hevm.warp(block.timestamp + 1 weeks);
+        hevm.warp(block.timestamp + nextEpoch);
 
         // New vote succeeds
         pools[0] = alUSDPool;
-        voter.vote(1, pools, weights, 0);
+        voter.vote(tokenId, pools, weights, 0);
+
+        address poolVote = voter.poolVote(tokenId, 0);
+        assertEq(poolVote, alUSDPool);
 
         // Next epoch
-        hevm.warp(block.timestamp + 1 weeks);
+        hevm.warp(block.timestamp + nextEpoch);
+
+        voter.poke(tokenId, 0);
+
+        poolVote = voter.poolVote(tokenId, 0);
+        assertEq(poolVote, alUSDPool);
+
+        // Next epoch
+        hevm.warp(block.timestamp + nextEpoch);
 
         // Resetting succeeds
-        voter.reset(1);
+        voter.reset(tokenId);
 
         hevm.stopPrank();
     }
 
-    // veALCX holders should be able to accrue their unclaimed mana over epochs
-    function testAccrueMana() public {
+    // veALCX holders should be able to accrue their unclaimed flux over epochs
+    function testaccrueFlux() public {
+        uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+
         hevm.startPrank(admin);
 
-        uint256 claimedBalance = MANA.balanceOf(admin);
-        uint256 unclaimedBalance = veALCX.unclaimedMana(1);
+        uint256 claimedBalance = flux.balanceOf(admin);
+        uint256 unclaimedBalance = veALCX.unclaimedFlux(tokenId);
 
         assertEq(claimedBalance, 0);
         assertEq(unclaimedBalance, 0);
 
-        voter.reset(1);
+        voter.reset(tokenId);
 
-        unclaimedBalance = veALCX.unclaimedMana(1);
+        unclaimedBalance = veALCX.unclaimedFlux(tokenId);
 
         // Claimed balance is equal to the amount able to be claimed
-        assertEq(unclaimedBalance, veALCX.claimableMana(1));
+        assertEq(unclaimedBalance, veALCX.claimableFlux(tokenId));
 
-        hevm.warp(block.timestamp + 1 weeks);
+        hevm.warp(block.timestamp + nextEpoch);
 
-        voter.reset(1);
+        voter.reset(tokenId);
 
-        // Add this voting periods claimable mana to the unclaimed balance
-        unclaimedBalance += veALCX.claimableMana(1);
+        // Add this voting periods claimable flux to the unclaimed balance
+        unclaimedBalance += veALCX.claimableFlux(tokenId);
 
-        // The unclaimed balance should equal the total amount of unclaimed mana
-        assertEq(unclaimedBalance, veALCX.unclaimedMana(1));
+        // The unclaimed balance should equal the total amount of unclaimed flux
+        assertEq(unclaimedBalance, veALCX.unclaimedFlux(tokenId));
 
         hevm.stopPrank();
     }
 
-    // veALCX holder should be able to mint mana they have accrued
-    function testMintMana() public {
+    // veALCX holder should be able to mint flux they have accrued
+    function testMintFlux() public {
+        hevm.expectRevert(abi.encodePacked("FluxToken: only minter"));
+        FluxToken(flux).setMinter(address(admin));
+
+        uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+
         hevm.startPrank(admin);
 
-        uint256 claimedBalance = MANA.balanceOf(admin);
-        uint256 unclaimedBalance = veALCX.unclaimedMana(1);
+        uint256 claimedBalance = flux.balanceOf(admin);
+        uint256 unclaimedBalance = veALCX.unclaimedFlux(tokenId);
 
         assertEq(claimedBalance, 0);
         assertEq(unclaimedBalance, 0);
 
         hevm.expectRevert(abi.encodePacked("amount greater than unclaimed balance"));
-        veALCX.claimMana(1, TOKEN_1);
+        veALCX.claimFlux(tokenId, TOKEN_1);
 
-        voter.reset(1);
+        voter.reset(tokenId);
 
-        claimedBalance = veALCX.unclaimedMana(1);
+        claimedBalance = veALCX.unclaimedFlux(tokenId);
 
-        veALCX.claimMana(1, claimedBalance);
+        veALCX.claimFlux(tokenId, claimedBalance);
 
-        unclaimedBalance = veALCX.unclaimedMana(1);
+        unclaimedBalance = veALCX.unclaimedFlux(tokenId);
 
         assertEq(unclaimedBalance, 0);
-        assertEq(MANA.balanceOf(admin), claimedBalance);
+        assertEq(flux.balanceOf(admin), claimedBalance);
 
         hevm.stopPrank();
     }
 
-    // veALCX holders can boost their vote with unclaimed MANA up to a maximum amount
-    function testBoostVoteWithMana() public {
+    // veALCX holders can boost their vote with unclaimed flux up to a maximum amount
+    function testBoostVoteWithFlux() public {
+        uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+        uint256 tokenId1 = createVeAlcx(beef, TOKEN_1, MAXTIME, false);
+        address bribeAddress = voter.bribes(address(sushiGauge));
+
+        // BAL balance starts equal
+        assertEq(IERC20(bal).balanceOf(admin), IERC20(bal).balanceOf(beef));
+
+        minter.updatePeriod();
+
+        // Add BAL bribes to sushi pool
+        createThirdPartyBribe(bribeAddress, bal, TOKEN_100K);
+
         hevm.startPrank(admin);
 
-        hevm.warp(block.timestamp + 1 weeks);
-
         address[] memory pools = new address[](1);
-        pools[0] = alETHPool;
+        pools[0] = sushiPoolAddress;
         uint256[] memory weights = new uint256[](1);
         weights[0] = 5000;
 
-        uint256 claimableMana = veALCX.claimableMana(1);
-        uint256 votingWeight = veALCX.balanceOfToken(1);
+        address[] memory bribes = new address[](1);
+        bribes[0] = address(bribeAddress);
+        address[][] memory tokens = new address[][](2);
+        tokens[0] = new address[](1);
+        tokens[0][0] = bal;
 
-        uint256 maxBoostAmount = voter.maxVotingPower(1);
-
-        uint256 maxManaAmount = voter.maxManaBoost(1);
+        uint256 claimableFlux = veALCX.claimableFlux(tokenId);
+        uint256 votingWeight = veALCX.balanceOfToken(tokenId);
+        uint256 maxBoostAmount = voter.maxVotingPower(tokenId);
+        uint256 maxFluxAmount = voter.maxFluxBoost(tokenId);
 
         // Max boost amount should be the voting weight plus the boost multiplier
-        assertEq(maxBoostAmount, votingWeight + maxManaAmount);
+        assertEq(maxBoostAmount, votingWeight + maxFluxAmount);
 
         // Vote should revert if attempting to boost more than the allowed amount
         hevm.expectRevert(abi.encodePacked("cannot exceed max boost"));
-        voter.vote(1, pools, weights, claimableMana);
-
-        // Vote with the max boost amount
-        voter.vote(1, pools, weights, maxManaAmount);
-
-        // Get weight used from boosting with MANA
-        uint256 usedWeight = voter.usedWeights(1);
-
-        // Used weight should be greater when boosting with unused MANA
-        assertGt(usedWeight, votingWeight);
-
-        uint256 unclaimedMana = veALCX.unclaimedMana(1);
-
-        // Unclaimed mana balance should be remainaing mana not used to boost
-        assertEq(unclaimedMana, claimableMana - maxManaAmount);
+        voter.vote(tokenId, pools, weights, claimableFlux);
 
         hevm.stopPrank();
+
+        // Vote with the max boost amount
+        hevm.prank(admin);
+        voter.vote(tokenId, pools, weights, maxFluxAmount);
+
+        hevm.prank(beef);
+        voter.vote(tokenId1, pools, weights, 0);
+
+        // Used weight should be greater when boosting with unused flux
+        assertGt(voter.usedWeights(tokenId), votingWeight);
+
+        // Token boosting with FLUX should have a higher used weight
+        assertGt(voter.usedWeights(tokenId), voter.usedWeights(tokenId1));
+
+        // Reach the end of the epoch
+        hevm.warp(block.timestamp + nextEpoch);
+
+        hevm.prank(admin);
+        voter.claimBribes(bribes, tokens, tokenId);
+
+        hevm.prank(beef);
+        voter.claimBribes(bribes, tokens, tokenId1);
+
+        // Accout with boosted vote should capture more bribes
+        assertGt(IERC20(bal).balanceOf(admin), IERC20(bal).balanceOf(beef));
     }
 
-    // Votes cannot be boosted with insufficient claimable MANA balance
+    // Test voting on gauges to earn third party bribes
+    function testBribes() public {
+        uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+        address bribeAddress = voter.bribes(address(sushiGauge));
+        uint256 rewardsLength = sushiGauge.rewardsListLength();
+
+        // Add BAL bribes to sushiGauge
+        createThirdPartyBribe(bribeAddress, bal, TOKEN_100K);
+
+        uint256 bribeBalance = IERC20(bal).balanceOf(bribeAddress);
+
+        // Epoch start should equal the current block.timestamp rounded to a week
+        assertEq(block.timestamp - (block.timestamp % (7 days)), IBribe(bribeAddress).getEpochStart(block.timestamp));
+
+        // Rewards list should increase after adding bribe
+        assertEq(sushiGauge.rewardsListLength(), rewardsLength + 1);
+
+        // Bribe contract should increase in bribe token balance
+        assertEq(TOKEN_100K, bribeBalance);
+
+        address[] memory pools = new address[](1);
+        pools[0] = sushiPoolAddress;
+        uint256[] memory weights = new uint256[](1);
+        weights[0] = 5000;
+
+        address[] memory bribes = new address[](1);
+        bribes[0] = address(bribeAddress);
+        address[][] memory tokens = new address[][](2);
+        tokens[0] = new address[](1);
+        tokens[0][0] = bal;
+
+        hevm.prank(admin);
+        voter.vote(tokenId, pools, weights, 0);
+
+        // Reach the end of the epoch
+        hevm.warp(block.timestamp + nextEpoch);
+
+        uint256 earnedBribes = IBribe(bribeAddress).earned(bal, tokenId);
+
+        // Prior balance and supply should be zero since this is the first epoch for this voter
+        assertEq(IBribe(bribeAddress).getPriorBalanceIndex(tokenId, block.timestamp), 0);
+        assertEq(IBribe(bribeAddress).getPriorSupplyIndex(block.timestamp), 0);
+
+        // Earned bribes should be all bribes
+        assertEq(earnedBribes, TOKEN_100K);
+
+        hevm.prank(admin);
+        voter.claimBribes(bribes, tokens, tokenId);
+
+        // The voter should capture all earned bribes
+        assertEq(IERC20(bal).balanceOf(admin), earnedBribes);
+
+        // Bribe address balance should be depleted by earned amount
+        assertEq(bribeBalance - earnedBribes, IERC20(bal).balanceOf(bribeAddress));
+    }
+
+    // Votes cannot be boosted with insufficient claimable flux balance
     function testCannotBoostVote() public {
+        uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+
         hevm.startPrank(admin);
 
-        hevm.warp(block.timestamp + 1 weeks);
+        hevm.warp(block.timestamp + nextEpoch);
 
         address[] memory pools = new address[](1);
         pools[0] = alETHPool;
         uint256[] memory weights = new uint256[](1);
         weights[0] = 5000;
 
-        uint256 claimableMana = veALCX.claimableMana(1);
+        uint256 claimableFlux = veALCX.claimableFlux(tokenId);
 
-        // Vote with insufficient claimable MANA balance
-        hevm.expectRevert(abi.encodePacked("insufficient claimable MANA balance"));
-        voter.vote(1, pools, weights, claimableMana + 1);
+        // Vote with insufficient claimable flux balance
+        hevm.expectRevert(abi.encodePacked("insufficient claimable FLUX balance"));
+        voter.vote(tokenId, pools, weights, claimableFlux + 1);
 
         hevm.stopPrank();
     }
 
     // veALCX holder with max lock enabled should have constant max voting power
     function testMaxLockVotingPower() public {
+        uint256 tokenId = createVeAlcx(admin, TOKEN_1, 0, true);
+
         hevm.startPrank(admin);
 
-        IERC20(bpt).approve(address(veALCX), TOKEN_1);
-        veALCX.createLock(TOKEN_1, 0, true);
+        uint256 maxVotingPower = getMaxVotingPower(TOKEN_1, veALCX.lockEnd(tokenId));
 
-        uint256 maxVotingPower = getMaxVotingPower(TOKEN_1, veALCX.lockEnd(2));
-
-        uint256 votingPower1 = veALCX.balanceOfToken(2);
+        uint256 votingPower1 = veALCX.balanceOfToken(tokenId);
 
         assertEq(votingPower1, maxVotingPower);
 
@@ -273,17 +322,17 @@ contract VotingTest is BaseTest {
 
         minter.updatePeriod();
 
-        uint256 votingPower2 = veALCX.balanceOfToken(2);
+        uint256 votingPower2 = veALCX.balanceOfToken(tokenId);
 
         // Voting power should remain the same with max lock enabled
         assertEq(votingPower1, votingPower2);
 
         // Disable max lock
-        veALCX.updateUnlockTime(2, 0, false);
+        veALCX.updateUnlockTime(tokenId, 0, false);
 
         hevm.warp(block.timestamp + 5 weeks);
 
-        uint256 votingPower3 = veALCX.balanceOfToken(2);
+        uint256 votingPower3 = veALCX.balanceOfToken(tokenId);
 
         // Disabling max lock should start the voting power decay
         assertLt(votingPower3, votingPower2);
@@ -293,19 +342,48 @@ contract VotingTest is BaseTest {
 
     // veALCX voting power should decay to veALCX amount
     function testVotingPowerDecay() public {
+        uint256 tokenId = createVeAlcx(admin, TOKEN_1, 1 weeks, false);
+
         hevm.startPrank(admin);
 
-        IERC20(bpt).approve(address(veALCX), TOKEN_1);
-        veALCX.createLock(TOKEN_1, 1 weeks, false);
+        hevm.warp(block.timestamp + nextEpoch);
 
-        hevm.warp(block.timestamp + 2 weeks);
-
-        uint256 balance = veALCX.balanceOfToken(2);
+        uint256 balance = veALCX.balanceOfToken(tokenId);
 
         // Voting power remains at 1 when lock is expired
         hevm.expectRevert(abi.encodePacked("Cannot add to expired lock. Withdraw"));
-        veALCX.increaseAmount(2, TOKEN_1);
+        veALCX.increaseAmount(tokenId, TOKEN_1);
         assertEq(balance, 0);
+
+        hevm.stopPrank();
+    }
+
+    function testAdminFunctions() public {
+        assertEq(voter.initialized(), true, "voter not initialized");
+
+        hevm.expectRevert(abi.encodePacked("already initialized"));
+        voter.initialize(dai, admin);
+
+        hevm.expectRevert(abi.encodePacked("not admin"));
+        voter.setAdmin(devmsig);
+
+        hevm.expectRevert(abi.encodePacked("not admin"));
+        voter.setBoostMultiplier(1000);
+
+        hevm.prank(address(timelockExecutor));
+        voter.setAdmin(devmsig);
+
+        hevm.expectRevert(abi.encodePacked("not pending admin"));
+        voter.acceptAdmin();
+
+        hevm.startPrank(devmsig);
+
+        voter.acceptAdmin();
+        voter.setBoostMultiplier(1000);
+
+        voter.whitelist(dai);
+
+        assertEq(voter.isWhitelisted(dai), true, "whitelisting failed");
 
         hevm.stopPrank();
     }

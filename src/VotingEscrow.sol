@@ -2,7 +2,8 @@
 pragma solidity ^0.8.15;
 
 import "src/interfaces/IVotingEscrow.sol";
-import "src/interfaces/IManaToken.sol";
+import "src/interfaces/IFluxToken.sol";
+import "src/interfaces/IRewardsDistributor.sol";
 import "src/libraries/Base64.sol";
 import "openzeppelin-contracts/contracts/token/ERC721/extensions/IERC721Metadata.sol";
 import "openzeppelin-contracts/contracts/governance/utils/IVotes.sol";
@@ -82,19 +83,20 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     uint256 internal tokenId;
 
     address public ALCX;
-    address public MANA;
+    address public FLUX;
     address public BPT;
     address public admin; // the timelock executor
     address public pendingAdmin; // the timelock executor
     address public voter;
+    address public distributor;
 
     uint256 public supply;
     uint256 public claimFeeBps = 5000; // Fee for claiming early in bps
-    uint256 public manaMultiplier;
-    uint256 public manaPerVeALCX;
+    uint256 public fluxMultiplier;
+    uint256 public fluxPerVeALCX;
     uint256 public epoch;
 
-    mapping(uint256 => uint256) public unclaimedMana; // tokenId => amount of unclaimed mana
+    mapping(uint256 => uint256) public unclaimedFlux; // tokenId => amount of unclaimed flux
     mapping(uint256 => LockedBalance) public locked;
     mapping(uint256 => uint256) public ownershipChange;
     mapping(uint256 => Point) public pointHistory; // epoch -> unsigned point
@@ -167,20 +169,17 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
      * @notice Contract constructor
      * @param _bpt `BPT` token address
      * @param _alcx `ALCX` token address
-     * @param _mana `MANA` token address
+     * @param _flux `FLUX` token address
      */
-    constructor(
-        address _bpt,
-        address _alcx,
-        address _mana
-    ) {
+    constructor(address _bpt, address _alcx, address _flux) {
         BPT = _bpt;
         ALCX = _alcx;
-        MANA = _mana;
+        FLUX = _flux;
         voter = msg.sender;
         admin = msg.sender;
-        manaMultiplier = 10; // 10 bps = 0.1%
-        manaPerVeALCX = 1e18; // determine initial value
+        distributor = msg.sender;
+        fluxMultiplier = 10; // 10 bps = 0.1%
+        fluxPerVeALCX = 1e18; // determine initial value
 
         pointHistory[0].blk = block.number;
         pointHistory[0].ts = block.timestamp;
@@ -188,11 +187,6 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         supportedInterfaces[ERC165_INTERFACE_ID] = true;
         supportedInterfaces[ERC721_INTERFACE_ID] = true;
         supportedInterfaces[ERC721_METADATA_INTERFACE_ID] = true;
-
-        // mint-ish
-        emit Transfer(address(0), address(this), tokenId);
-        // burn-ish
-        emit Transfer(address(this), address(0), tokenId);
     }
 
     /*
@@ -244,6 +238,15 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
      */
     function lockEnd(uint256 _tokenId) external view returns (uint256) {
         return locked[_tokenId].end;
+    }
+
+    /**
+     * @notice Get amount locked for `_tokenId`
+     * @param _tokenId ID of the token
+     * @return Amount locked
+     */
+    function lockedAmount(uint256 _tokenId) external view returns (uint256) {
+        return uint256(locked[_tokenId].amount);
     }
 
     /**
@@ -378,11 +381,11 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     }
 
     /**
-     * @notice Amount of MANA required to ragequit for a given token
+     * @notice Amount of FLUX required to ragequit for a given token
      * @param _tokenId ID of token to ragequit
      */
     function amountToRagequit(uint256 _tokenId) public view returns (uint256) {
-        return _balanceOfToken(_tokenId, block.timestamp) * manaPerVeALCX;
+        return _balanceOfToken(_tokenId, block.timestamp) * fluxPerVeALCX;
     }
 
     /**
@@ -411,13 +414,13 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     }
 
     /**
-     * @notice Amount of mana claimable at current epoch
+     * @notice Amount of flux claimable at current epoch
      * @param _tokenId ID of the token
-     * @return uint256 Amount of claimable mana for the current epoch
+     * @return uint256 Amount of claimable flux for the current epoch
      */
-    function claimableMana(uint256 _tokenId) public view returns (uint256) {
+    function claimableFlux(uint256 _tokenId) public view returns (uint256) {
         uint256 votingPower = _balanceOfToken(_tokenId, block.timestamp);
-        return votingPower * manaMultiplier;
+        return votingPower * fluxMultiplier;
     }
 
     function balanceOfAtToken(uint256 _tokenId, uint256 _block) external view returns (uint256) {
@@ -486,11 +489,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
      * @param _to The new owner.
      * @param _tokenId ID of the token to transfer.
      */
-    function transferFrom(
-        address _from,
-        address _to,
-        uint256 _tokenId
-    ) external {
+    function transferFrom(address _from, address _to, uint256 _tokenId) external {
         _transferFrom(_from, _to, _tokenId, msg.sender);
     }
 
@@ -508,14 +507,8 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
      *      If `_to` is a smart contract, it calls `onERC721Received` on `_to` and throws if
      *      the return value is not `bytes4(keccak256("onERC721Received(address,address,uint256,bytes)"))`.
      */
-    function safeTransferFrom(
-        address _from,
-        address _to,
-        uint256 _tokenId,
-        bytes memory _data
-    ) public {
+    function safeTransferFrom(address _from, address _to, uint256 _tokenId, bytes memory _data) public {
         _transferFrom(_from, _to, _tokenId, msg.sender);
-
         if (_isContract(_to)) {
             // Throws if transfer destination is a contract which does not implement 'onERC721Received'
             try IERC721Receiver(_to).onERC721Received(msg.sender, _from, _tokenId, _data) returns (bytes4 response) {
@@ -547,11 +540,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
      * @param _to The new owner.
      * @param _tokenId ID of the token to transfer.
      */
-    function safeTransferFrom(
-        address _from,
-        address _to,
-        uint256 _tokenId
-    ) external {
+    function safeTransferFrom(address _from, address _to, uint256 _tokenId) external {
         safeTransferFrom(_from, _to, _tokenId, "");
     }
 
@@ -568,7 +557,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         // Throws if `_tokenId` is not a valid token
         require(owner != address(0));
         // Throws if `_approved` is the current owner
-        require(_approved != owner);
+        require(_approved != owner, "Approved is already owner");
         // Check requirements
         bool senderIsOwner = (idToOwner[_tokenId] == msg.sender);
         bool senderIsApprovedForAll = (ownerToOperators[owner])[msg.sender];
@@ -602,14 +591,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         return _delegate(msg.sender, delegatee);
     }
 
-    function delegateBySig(
-        address delegatee,
-        uint256 nonce,
-        uint256 expiry,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
-    ) public {
+    function delegateBySig(address delegatee, uint256 nonce, uint256 expiry, uint8 v, bytes32 r, bytes32 s) public {
         bytes32 domainSeparator = keccak256(
             abi.encode(DOMAIN_TYPEHASH, keccak256(bytes(name)), keccak256(bytes(version)), block.chainid, address(this))
         );
@@ -625,6 +607,11 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     function setVoter(address _voter) external {
         require(msg.sender == voter, "not voter");
         voter = _voter;
+    }
+
+    function setRewardsDistributor(address _distributor) external {
+        require(msg.sender == distributor, "not distributor");
+        distributor = _distributor;
     }
 
     function voting(uint256 _tokenId) external {
@@ -647,9 +634,9 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         attachments[_tokenId] = attachments[_tokenId] - 1;
     }
 
-    function setManaMultiplier(uint256 _manaMultiplier) external {
+    function setfluxMultiplier(uint256 _fluxMultiplier) external {
         require(msg.sender == admin, "not admin");
-        manaMultiplier = _manaMultiplier;
+        fluxMultiplier = _fluxMultiplier;
     }
 
     function setAdmin(address _admin) external {
@@ -662,9 +649,9 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         admin = pendingAdmin;
     }
 
-    function setManaPerVeALCX(uint256 _manaPerVeALCX) external {
+    function setfluxPerVeALCX(uint256 _fluxPerVeALCX) external {
         require(msg.sender == admin, "not admin");
-        manaPerVeALCX = _manaPerVeALCX;
+        fluxPerVeALCX = _fluxPerVeALCX;
     }
 
     function setClaimFee(uint256 _claimFeeBps) external {
@@ -674,7 +661,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
     function merge(uint256 _from, uint256 _to) external {
         require(attachments[_from] == 0 && !voted[_from], "attached");
-        require(_from != _to);
+        require(_from != _to, "must be different tokens");
         require(_isApprovedOrOwner(msg.sender, _from));
         require(_isApprovedOrOwner(msg.sender, _to));
 
@@ -772,11 +759,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
      * @param _lockDuration New number of seconds until tokens unlock
      * @param _maxLockEnabled Is max lock being enabled
      */
-    function updateUnlockTime(
-        uint256 _tokenId,
-        uint256 _lockDuration,
-        bool _maxLockEnabled
-    ) external nonreentrant {
+    function updateUnlockTime(uint256 _tokenId, uint256 _lockDuration, bool _maxLockEnabled) external nonreentrant {
         require(_isApprovedOrOwner(msg.sender, _tokenId));
 
         LockedBalance memory _locked = locked[_tokenId];
@@ -822,6 +805,10 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
         require(IERC20(BPT).transfer(msg.sender, value));
 
+        // Claim any unclaimed ALCX rewards and FLUX
+        IRewardsDistributor(distributor).claim(_tokenId, false);
+        _claimFlux(_tokenId, unclaimedFlux[_tokenId]);
+
         // Burn the token
         _burn(_tokenId);
 
@@ -830,35 +817,29 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     }
 
     /**
-     * @notice Accrue unclaimed mana for a given veALCX
-     * @param _tokenId ID of the token mana is being accrued to
-     * @param _amount Amount of mana being accrued
+     * @notice Accrue unclaimed flux for a given veALCX
+     * @param _tokenId ID of the token flux is being accrued to
+     * @param _amount Amount of flux being accrued
      */
-    function accrueMana(uint256 _tokenId, uint256 _amount) external {
+    function accrueFlux(uint256 _tokenId, uint256 _amount) external {
         require(msg.sender == voter, "not voter");
-        unclaimedMana[_tokenId] += _amount;
+        unclaimedFlux[_tokenId] += _amount;
     }
 
     /**
-     * @notice Claim unclaimed mana for a given veALCX
-     * @param _tokenId ID of the token mana is being accrued to
-     * @param _amount Amount of mana being claimed
-     * @dev mana can be claimed after accrual
+     * @notice Claim unclaimed flux for a given veALCX
+     * @param _tokenId ID of the token flux is being accrued to
+     * @param _amount Amount of flux being claimed
+     * @dev flux can only be claimed after accrual
      */
-    function claimMana(uint256 _tokenId, uint256 _amount) external {
-        require(_isApprovedOrOwner(msg.sender, _tokenId));
-        require(unclaimedMana[_tokenId] >= _amount, "amount greater than unclaimed balance");
-
-        unclaimedMana[_tokenId] -= _amount;
-
-        // MANA is minted to the veALCX owner's address
-        IManaToken(MANA).mint(ownerOf(_tokenId), _amount);
+    function claimFlux(uint256 _tokenId, uint256 _amount) external {
+        _claimFlux(_tokenId, _amount);
     }
 
     /**
      * @notice Starts the cooldown for `_tokenId`
      * @param _tokenId ID of the token to start cooldown for
-     * @dev If lock is not expired cooldown can only be started by burning MANA
+     * @dev If lock is not expired cooldown can only be started by burning FLUX
      */
     function startCooldown(uint256 _tokenId) external {
         require(_isApprovedOrOwner(msg.sender, _tokenId));
@@ -874,16 +855,16 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
         locked[_tokenId].cooldown = block.timestamp + WEEK;
 
-        // If lock is not expired, cooldown can only be started by burning MANA
+        // If lock is not expired, cooldown can only be started by burning FLUX
         if (block.timestamp < _locked.end) {
-            // Amount of MANA required to ragequit
-            uint256 manaToRagequit = amountToRagequit(_tokenId);
+            // Amount of FLUX required to ragequit
+            uint256 fluxToRagequit = amountToRagequit(_tokenId);
 
-            require(IManaToken(MANA).balanceOf(msg.sender) >= manaToRagequit, "insufficient MANA balance");
+            require(IFluxToken(FLUX).balanceOf(msg.sender) >= fluxToRagequit, "insufficient FLUX balance");
 
             locked[_tokenId].end = 0;
 
-            IManaToken(MANA).burnFrom(msg.sender, manaToRagequit);
+            IFluxToken(FLUX).burnFrom(msg.sender, fluxToRagequit);
 
             emit Ragequit(msg.sender, _tokenId, block.timestamp);
         }
@@ -902,6 +883,16 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
      */
     function _balance(address _owner) internal view returns (uint256) {
         return ownerToTokenCount[_owner];
+    }
+
+    function _claimFlux(uint256 _tokenId, uint256 _amount) internal {
+        require(_isApprovedOrOwner(msg.sender, _tokenId));
+        require(unclaimedFlux[_tokenId] >= _amount, "amount greater than unclaimed balance");
+
+        unclaimedFlux[_tokenId] -= _amount;
+
+        // FLUX is minted to the veALCX owner's address
+        IFluxToken(FLUX).mint(ownerOf(_tokenId), _amount);
     }
 
     /**
@@ -1013,15 +1004,11 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
      *      Throws if `_from` is not the current owner.
      *      Throws if `_tokenId` is not a valid token.
      */
-    function _transferFrom(
-        address _from,
-        address _to,
-        uint256 _tokenId,
-        address _sender
-    ) internal {
+    function _transferFrom(address _from, address _to, uint256 _tokenId, address _sender) internal {
         require(attachments[_tokenId] == 0 && !voted[_tokenId], "attached");
         // Check requirements
         require(_isApprovedOrOwner(_sender, _tokenId));
+
         // Clear approval. Throws if `_from` is not the current owner
         _clearApproval(_from, _tokenId);
         // Remove token. Throws if `_tokenId` is not a valid token
@@ -1066,11 +1053,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         return true;
     }
 
-    function _moveTokenDelegates(
-        address srcRep,
-        address dstRep,
-        uint256 _tokenId
-    ) internal {
+    function _moveTokenDelegates(address srcRep, address dstRep, uint256 _tokenId) internal {
         if (srcRep != dstRep && _tokenId > 0) {
             if (srcRep != address(0)) {
                 uint32 srcRepNum = numCheckpoints[srcRep];
@@ -1121,11 +1104,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         }
     }
 
-    function _moveAllDelegates(
-        address owner,
-        address srcRep,
-        address dstRep
-    ) internal {
+    function _moveAllDelegates(address owner, address srcRep, address dstRep) internal {
         // You can only redelegate what you own
         if (srcRep != dstRep) {
             if (srcRep != address(0)) {
@@ -1187,11 +1166,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
      * @param oldLocked Pevious locked amount / end lock time for the user
      * @param newLocked New locked amount / end lock time for the user
      */
-    function _checkpoint(
-        uint256 _tokenId,
-        LockedBalance memory oldLocked,
-        LockedBalance memory newLocked
-    ) internal {
+    function _checkpoint(uint256 _tokenId, LockedBalance memory oldLocked, LockedBalance memory newLocked) internal {
         Point memory oldPoint;
         Point memory newPoint;
         int256 oldDslope = 0;
@@ -1386,6 +1361,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
      * @param _value Amount to deposit
      * @param _lockDuration Number of seconds to lock tokens for (rounded down to nearest week)
      * @param _to Address to deposit
+     * @return uint256 tokenId of the newly created veALCX
      */
     function _createLock(
         uint256 _value,

@@ -8,7 +8,7 @@ contract VotingEscrowTest is BaseTest {
     uint256 maxDuration = ((block.timestamp + MAXTIME) / ONE_WEEK) * ONE_WEEK;
 
     function setUp() public {
-        setupBaseTest();
+        setupContracts(block.timestamp);
     }
 
     // Create veALCX
@@ -17,10 +17,14 @@ contract VotingEscrowTest is BaseTest {
 
         assertEq(veALCX.balanceOf(admin), 0);
 
-        veALCX.createLock(TOKEN_1, ONE_WEEK, false);
+        uint256 tokenId = veALCX.createLock(TOKEN_1, ONE_WEEK, false);
 
-        assertEq(veALCX.ownerOf(1), admin);
-        assertEq(veALCX.balanceOf(admin), 1);
+        assertEq(veALCX.isApprovedForAll(admin, address(0)), false);
+        assertEq(veALCX.getApproved(1), address(0));
+        assertEq(veALCX.userPointHistoryTimestamp(1, 1), block.timestamp);
+
+        assertEq(veALCX.ownerOf(tokenId), admin);
+        assertEq(veALCX.balanceOf(admin), tokenId);
 
         hevm.stopPrank();
     }
@@ -28,23 +32,23 @@ contract VotingEscrowTest is BaseTest {
     function testUpdateLockDuration() public {
         hevm.startPrank(admin);
 
-        veALCX.createLock(TOKEN_1, 5 weeks, true);
+        uint256 tokenId = veALCX.createLock(TOKEN_1, 5 weeks, true);
 
-        uint256 lockEnd = veALCX.lockEnd(1);
+        uint256 lockEnd = veALCX.lockEnd(tokenId);
 
         // Lock end should be max time when max lock is enabled
         assertEq(lockEnd, maxDuration);
 
-        veALCX.updateUnlockTime(1, 1 days, true);
+        veALCX.updateUnlockTime(tokenId, 1 days, true);
 
-        lockEnd = veALCX.lockEnd(1);
+        lockEnd = veALCX.lockEnd(tokenId);
 
         // Lock duration should be unchanged
         assertEq(lockEnd, maxDuration);
 
-        veALCX.updateUnlockTime(1, 1 days, false);
+        veALCX.updateUnlockTime(tokenId, 1 days, false);
 
-        lockEnd = veALCX.lockEnd(1);
+        lockEnd = veALCX.lockEnd(tokenId);
 
         // Lock duration should be unchanged
         assertEq(lockEnd, maxDuration);
@@ -52,17 +56,17 @@ contract VotingEscrowTest is BaseTest {
         // Now that max lock is disabled lock duration can be set again
         hevm.expectRevert(abi.encodePacked("Voting lock can be 1 year max"));
 
-        veALCX.updateUnlockTime(1, MAXTIME + ONE_WEEK, false);
+        veALCX.updateUnlockTime(tokenId, MAXTIME + ONE_WEEK, false);
 
         hevm.warp(block.timestamp + 260 days);
 
-        lockEnd = veALCX.lockEnd(1);
+        lockEnd = veALCX.lockEnd(tokenId);
 
         // Able to increase lock end now that previous lock end is closer
-        veALCX.updateUnlockTime(1, 200 days, false);
+        veALCX.updateUnlockTime(tokenId, 200 days, false);
 
         // Updated lock end should be greater than previous lockEnd
-        assertGt(veALCX.lockEnd(1), lockEnd);
+        assertGt(veALCX.lockEnd(tokenId), lockEnd);
 
         hevm.stopPrank();
     }
@@ -90,6 +94,10 @@ contract VotingEscrowTest is BaseTest {
 
         uint256 totalVotes = veALCX.totalSupply();
 
+        uint256 totalVotesAt = veALCX.totalSupplyAt(block.number);
+
+        assertEq(totalVotes, totalVotesAt);
+
         uint256 votingPower = veALCX.balanceOfToken(tokenId1) + veALCX.balanceOfToken(tokenId2);
 
         assertEq(votingPower, totalVotes, "votes doesn't match total");
@@ -103,13 +111,24 @@ contract VotingEscrowTest is BaseTest {
     function testWithdraw() public {
         hevm.startPrank(admin);
 
-        uint256 tokenId = veALCX.createLock(TOKEN_1, ONE_WEEK, false);
-        uint256 bptBalanceBefore = IERC20(bpt).balanceOf(address(admin));
+        uint256 tokenId = veALCX.createLock(TOKEN_1, nextEpoch, false);
+
+        uint256 bptBalanceBefore = IERC20(bpt).balanceOf(admin);
+
+        uint256 fluxBalanceBefore = IERC20(flux).balanceOf(admin);
+        uint256 alcxBalanceBefore = IERC20(alcx).balanceOf(admin);
 
         hevm.expectRevert(abi.encodePacked("Cooldown period has not started"));
         veALCX.withdraw(tokenId);
 
-        hevm.warp(block.timestamp + ONE_WEEK);
+        voter.reset(tokenId);
+
+        hevm.warp(block.timestamp + nextEpoch);
+
+        minter.updatePeriod();
+
+        uint256 unclaimedAlcx = distributor.claimable(tokenId);
+        uint256 unclaimedFlux = veALCX.unclaimedFlux(tokenId);
 
         // Start cooldown once lock is expired
         veALCX.startCooldown(tokenId);
@@ -117,14 +136,20 @@ contract VotingEscrowTest is BaseTest {
         hevm.expectRevert(abi.encodePacked("Cooldown period in progress"));
         veALCX.withdraw(tokenId);
 
-        hevm.warp(block.timestamp + ONE_WEEK);
-        hevm.roll(block.number + 1);
+        hevm.warp(block.timestamp + nextEpoch);
+
         veALCX.withdraw(tokenId);
 
-        uint256 bptBalanceAfter = IERC20(bpt).balanceOf(address(admin));
+        uint256 bptBalanceAfter = IERC20(bpt).balanceOf(admin);
+        uint256 fluxBalanceAfter = IERC20(flux).balanceOf(admin);
+        uint256 alcxBalanceAfter = IERC20(alcx).balanceOf(admin);
 
         // Bpt balance after should increase by the withdraw amount
         assertEq(bptBalanceAfter - bptBalanceBefore, TOKEN_1);
+
+        // ALCX and flux balance should increase
+        assertEq(alcxBalanceAfter, alcxBalanceBefore + unclaimedAlcx, "didn't claim alcx");
+        assertEq(fluxBalanceAfter, fluxBalanceBefore + unclaimedFlux, "didn't claim flux");
 
         // Check that the token is burnt
         assertEq(veALCX.balanceOfToken(tokenId), 0);
@@ -137,12 +162,11 @@ contract VotingEscrowTest is BaseTest {
     function testTokenURICalls() public {
         hevm.startPrank(admin);
 
-        veALCX.createLock(TOKEN_1, ONE_WEEK, false);
+        uint256 tokenId = veALCX.createLock(TOKEN_1, ONE_WEEK, false);
 
         hevm.expectRevert(abi.encodePacked("Query for nonexistent token"));
         veALCX.tokenURI(999);
 
-        uint256 tokenId = 1;
         hevm.warp(block.timestamp + ONE_WEEK);
         hevm.roll(block.number + 1);
 
@@ -180,6 +204,67 @@ contract VotingEscrowTest is BaseTest {
         assertFalse(veALCX.supportsInterface(ERC721_FAKE));
     }
 
+    // Check approving another address of veALCX
+    function testApprovedOrOwner() public {
+        uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+
+        hevm.startPrank(admin);
+
+        hevm.expectRevert(abi.encodePacked("Approved is already owner"));
+        veALCX.approve(admin, tokenId);
+
+        veALCX.approve(beef, tokenId);
+
+        assertEq(veALCX.isApprovedOrOwner(beef, tokenId), true);
+
+        hevm.stopPrank();
+    }
+
+    // Check transfer of veALCX
+    function testTransferToken() public {
+        uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+
+        hevm.startPrank(admin);
+
+        assertEq(veALCX.ownerOf(tokenId), admin);
+
+        hevm.expectRevert(abi.encodePacked("ERC721: transfer to non ERC721Receiver implementer"));
+        veALCX.safeTransferFrom(admin, alETHPool, tokenId);
+
+        veALCX.safeTransferFrom(admin, beef, tokenId);
+
+        assertEq(veALCX.ownerOf(tokenId), beef);
+
+        hevm.stopPrank();
+    }
+
+    // Check merging of two veALCX
+    function testMergeTokens() public {
+        uint256 tokenId1 = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+        uint256 tokenId2 = createVeAlcx(admin, TOKEN_100K, nextEpoch, false);
+
+        hevm.startPrank(admin);
+
+        assertEq(veALCX.lockEnd(tokenId1), ((block.timestamp + MAXTIME) / 1 weeks) * 1 weeks);
+        assertEq(veALCX.lockedAmount(tokenId1), TOKEN_1);
+
+        hevm.expectRevert(abi.encodePacked("must be different tokens"));
+        veALCX.merge(tokenId1, tokenId1);
+
+        veALCX.merge(tokenId1, tokenId2);
+
+        // Merged token should take longer of the two lock end dates
+        assertEq(veALCX.lockEnd(tokenId2), ((block.timestamp + MAXTIME) / 1 weeks) * 1 weeks);
+
+        // Merged token should have sum of both token locked amounts
+        assertEq(veALCX.lockedAmount(tokenId2), TOKEN_1 + TOKEN_100K);
+
+        // Token with smaller locked amount should be burned
+        assertEq(veALCX.ownerOf(tokenId1), address(0));
+
+        hevm.stopPrank();
+    }
+
     function testRagequit() public {
         hevm.startPrank(admin);
 
@@ -189,20 +274,21 @@ contract VotingEscrowTest is BaseTest {
         hevm.expectRevert(abi.encodePacked("Cooldown period has not started"));
         veALCX.withdraw(tokenId);
 
-        // admin doesn't have enough MANA
-        hevm.expectRevert(abi.encodePacked("insufficient MANA balance"));
+        // admin doesn't have enough flux
+        hevm.expectRevert(abi.encodePacked("insufficient FLUX balance"));
         veALCX.startCooldown(tokenId);
 
         hevm.stopPrank();
 
         uint256 ragequitAmount = veALCX.amountToRagequit(tokenId);
 
-        // Mint the necessary amount of MANA to ragequit
-        mintMana(admin, ragequitAmount);
+        // Mint the necessary amount of flux to ragequit
+        hevm.prank(address(veALCX));
+        flux.mint(admin, ragequitAmount);
 
         hevm.startPrank(admin);
 
-        MANA.approve(address(veALCX), ragequitAmount);
+        flux.approve(address(veALCX), ragequitAmount);
 
         veALCX.startCooldown(tokenId);
 

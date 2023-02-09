@@ -48,6 +48,8 @@ interface IVotingEscrow {
 
     function epoch() external view returns (uint256);
 
+    function lockEnd(uint256 tokenId) external view returns (uint256);
+
     function pointHistory(uint256 loc) external view returns (Point memory);
 
     function userPointHistory(uint256 tokenId, uint256 loc) external view returns (Point memory);
@@ -86,11 +88,7 @@ interface IVotingEscrow {
      * @param _to The new owner.
      * @param _tokenId ID of the token to transfer.
      */
-    function transferFrom(
-        address _from,
-        address _to,
-        uint256 _tokenId
-    ) external;
+    function transferFrom(address _from, address _to, uint256 _tokenId) external;
 
     function voting(uint256 tokenId) external;
 
@@ -133,36 +131,36 @@ interface IVotingEscrow {
     function balanceOfTokenAt(uint256 _tokenId, uint256 _time) external view returns (uint256);
 
     /**
-     * @notice Amount of mana claimable at current epoch
+     * @notice Amount of flux claimable at current epoch
      * @param tokenId ID of the token
-     * @return uint256 Amount of claimable mana for the current epoch
+     * @return uint256 Amount of claimable flux for the current epoch
      */
-    function claimableMana(uint256 tokenId) external view returns (uint256);
+    function claimableFlux(uint256 tokenId) external view returns (uint256);
 
     /**
-     * @notice Accrue unclaimed mana for a given veALCX
-     * @param tokenId ID of the token mana is being accrued to
-     * @param amount Amount of mana being accrued
+     * @notice Accrue unclaimed flux for a given veALCX
+     * @param tokenId ID of the token flux is being accrued to
+     * @param amount Amount of flux being accrued
      */
-    function accrueMana(uint256 tokenId, uint256 amount) external;
+    function accrueFlux(uint256 tokenId, uint256 amount) external;
 
     /**
-     * @notice Claim unclaimed mana for a given veALCX
-     * @param tokenId ID of the token mana is being accrued to
-     * @param amount Amount of mana being claimed
-     * @dev mana can be claimed after accrual
+     * @notice Claim unclaimed flux for a given veALCX
+     * @param tokenId ID of the token flux is being accrued to
+     * @param amount Amount of flux being claimed
+     * @dev flux can be claimed after accrual
      */
-    function claimMana(uint256 tokenId, uint256 amount) external;
+    function claimFlux(uint256 tokenId, uint256 amount) external;
 
     /**
      * @notice Starts the cooldown for `_tokenId`
      * @param tokenId ID of the token to start cooldown for
-     * @dev If lock is not expired cooldown can only be started by burning MANA
+     * @dev If lock is not expired cooldown can only be started by burning FLUX
      */
     function startCooldown(uint256 tokenId) external;
 
     /**
-     * @notice Amount of MANA required to ragequit for a given token
+     * @notice Amount of FLUX required to ragequit for a given token
      * @param tokenId ID of token to ragequit
      */
     function amountToRagequit(uint256 tokenId) external view returns (uint256);

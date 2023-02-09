@@ -3,10 +3,10 @@ pragma solidity ^0.8.15;
 
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
-interface IManaToken is IERC20 {
+interface IFluxToken is IERC20 {
     /**
      * @notice Set the address responsible for minting
-     * @param _minter Address that enables the minting of MANA
+     * @param _minter Address that enables the minting of FLUX
      * @dev This function reverts if the caller does not have the minter role.
      */
     function setMinter(address _minter) external;
