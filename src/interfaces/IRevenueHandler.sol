@@ -19,7 +19,7 @@ interface IRevenueHandler {
     event SetDebtToken(address revenueToken, address debtToken);
 
     /**
-     * @notice Emitted when a debt token is set for a revenue token.
+     * @notice Emitted when revenue is claimed.
      *
      * @param tokenId      The veALCX tokenId claiming revenue.
      * @param debtToken    The address of the alchemic-token that was claimed.
@@ -27,6 +27,17 @@ interface IRevenueHandler {
      * @param recipient    The recipient of the claim.
      */
     event ClaimRevenue(uint256 tokenId, address debtToken, uint256 amount, address recipient);
+
+    /**
+     * @notice Emitted when revenue is realized during a checkpoint.
+     *
+     * @param epochId           The veALCX tokenId claiming revenue.
+     * @param revenueToken      The address of the revenue-token that was melted.
+     * @param debtToken         The address of the alchemic-token to be counted as revenue.
+     * @param claimableAmount   The amount of `debtToken` that can be claimed.
+     * @param treasuryAmount    The amount of `revenueToken` sent to the treasury.
+     */
+    event RevenueRealized(uint256 epochId, address revenueToken, address debtToken, uint256 claimableAmount, uint256 treasuryAmount);
 
     /**
      * @notice Returns the total amount of debtToken currently claimable by tokenId.
@@ -102,6 +113,20 @@ interface IRevenueHandler {
      * @param revenueToken     The address of the revenue token.
      */
     function enableRevenueToken(address revenueToken) external;
+
+    /**
+     * @dev Enable a revenue token.
+     *
+     * @param _treasury     The new address of the treasury.
+     */
+    function setTreasury(address _treasury) external;
+
+    /**
+     * @dev Enable a revenue token.
+     *
+     * @param _treasuryPct  The percentage of revenue to send to the treasury.
+     */
+    function setTreasuryPct(uint256 _treasuryPct) external;
 
     /**
      * @dev Claim an alotted amount of alchemic-tokens and burn them to a position in the alchemist.
