@@ -33,32 +33,48 @@ contract VotingEscrowTest is BaseTest {
     // TODO update to ALCX Aura pool once deployment is done
     function testReceiver() public {
         deal(testBPT, address(veALCX), TOKEN_1);
-        uint256 amount = IERC20(testBPT).balanceOf(address(veALCX));
 
+        // Initial BPT balance of veALCX
+        uint256 amount = IERC20(testBPT).balanceOf(address(veALCX));
         assertEq(amount, TOKEN_1);
 
+        // Inital amount of bal rewards veALCX contract has earned
         uint256 rewardBalanceBefore = IERC20(bal).balanceOf(address(veALCX));
+        assertEq(rewardBalanceBefore, 0, "reward balance should be 0");
 
-        assertEq(rewardBalanceBefore, 0, "claimed should start at 0");
-
+        // Deposit BPT balance into receiver
         veALCX.depositIntoReceiver(amount);
 
         uint256 amountAfterDeposit = IERC20(testBPT).balanceOf(address(veALCX));
-
         assertEq(amountAfterDeposit, 0, "full balance should be deposited");
 
+        // Fast forward to accumulate rewards
         hevm.warp(block.timestamp + 2 weeks);
 
         veALCX.claimReceiverRewards();
         uint256 rewardBalanceAfter = IERC20(bal).balanceOf(address(veALCX));
 
+        // After claiming rewards veALCX bal balance should increase
         assertGt(rewardBalanceAfter, rewardBalanceBefore, "should accumulate rewards");
 
         veALCX.withdrawFromReceiver(amount);
 
+        // veALCX BPT balance should equal original amount after withdrawing from receiver
         uint256 amountAfterWithdraw = IERC20(testBPT).balanceOf(address(veALCX));
-
         assertEq(amountAfterWithdraw, amount, "should equal original amount");
+
+        // Receiver should be set
+        assertEq(receiver, veALCX.receiver());
+
+        // Only veALCX admin can update receiver
+        hevm.prank(admin);
+        hevm.expectRevert(abi.encodePacked("not admin"));
+        veALCX.updateReceiver(sushiPoolAddress);
+
+        veALCX.updateReceiver(sushiPoolAddress);
+
+        // Receiver should update
+        assertEq(sushiPoolAddress, veALCX.receiver(), "receiver not updated");
     }
 
     function testUpdateLockDuration() public {
