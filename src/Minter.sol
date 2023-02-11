@@ -8,12 +8,15 @@ import "src/interfaces/IVotingEscrow.sol";
 import "src/interfaces/IAlchemixToken.sol";
 import "src/interfaces/IRevenueHandler.sol";
 import "src/libraries/Math.sol";
+import "./interfaces/synthetix/IStakingRewards.sol";
+import "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /**
  * @title Minter
  * @notice Contract to handle ALCX emissions and their distriubtion
  */
 contract Minter is IMinter {
+    using SafeERC20 for IERC20;
     // Allows minting once per epoch (epoch = 1 week, reset every Thursday 00:00 UTC)
     uint256 public constant WEEK = 86400 * 7;
     uint256 public constant TAIL_EMISSIONS_RATE = 2194e18; // Tail emissions rate
@@ -25,6 +28,7 @@ contract Minter is IMinter {
     uint256 public rewards;
     uint256 public supply;
     uint256 public veAlcxEmissionsRate; // bps of emissions going to veALCX holders
+    uint256 public timeEmissionsRate; // bps of emissions going to TIME stakers
 
     address public admin;
     address public pendingAdmin;
@@ -37,6 +41,7 @@ contract Minter is IMinter {
     IVotingEscrow public immutable ve;
     IRewardsDistributor public immutable rewardsDistributor;
     IRevenueHandler public immutable revenueHandler;
+    IStakingRewards public immutable timeGauge;
 
     constructor(InitializationParams memory params) {
         stepdown = params.stepdown;
@@ -49,8 +54,10 @@ contract Minter is IMinter {
         ve = IVotingEscrow(params.ve);
         rewardsDistributor = IRewardsDistributor(params.rewardsDistributor);
         revenueHandler = IRevenueHandler(params.revenueHandler);
+        timeGauge = IStakingRewards(params.timeGauge);
         activePeriod = ((block.timestamp + WEEK) / WEEK) * WEEK;
         veAlcxEmissionsRate = 5000; // 50%
+        timeEmissionsRate = 2000; // 20%
     }
 
     /*
@@ -111,6 +118,8 @@ contract Minter is IMinter {
             epochEmissions = epochEmission();
 
             uint256 veAlcxEmissions = calculateGrowth(epochEmissions);
+            uint256 timeEmissions = epochEmissions * timeEmissionsRate / BPS;
+            uint256 gaugeEmissions = epochEmissions - veAlcxEmissions - timeEmissions;
             uint256 balanceOf = alcx.balanceOf(address(this));
 
             if (balanceOf < epochEmissions) alcx.mint(address(this), epochEmissions - balanceOf);
@@ -128,12 +137,16 @@ contract Minter is IMinter {
 
             // Logic to distrubte minted tokens
             alcx.approve(address(rewardsDistributor), veAlcxEmissions);
-            require(alcx.transfer(address(rewardsDistributor), veAlcxEmissions));
+            IERC20(address(alcx)).safeTransfer(address(rewardsDistributor), veAlcxEmissions);
             rewardsDistributor.checkpointToken(); // Checkpoint token balance that was just minted in rewards distributor
             rewardsDistributor.checkpointTotalSupply(); // Checkpoint supply
 
-            alcx.approve(address(voter), epochEmissions - veAlcxEmissions);
-            voter.notifyRewardAmount(epochEmissions - veAlcxEmissions);
+            alcx.approve(address(voter), gaugeEmissions);
+            voter.notifyRewardAmount(gaugeEmissions);
+
+            alcx.approve(address(timeGauge), timeEmissions);
+            IERC20(address(alcx)).safeTransfer(address(timeGauge), timeEmissions);
+            timeGauge.notifyRewardAmount(timeEmissions);
 
             revenueHandler.checkpoint();
 

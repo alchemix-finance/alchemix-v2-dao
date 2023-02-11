@@ -28,10 +28,12 @@ import "src/interfaces/balancer/IVault.sol";
 import "src/interfaces/balancer/IBasePool.sol";
 import "src/interfaces/balancer/IAsset.sol";
 import "src/interfaces/IWETH9.sol";
+import "src/gauges/StakingRewards.sol";
 
 contract BaseTest is DSTestPlus {
     address public admin = 0x8392F6669292fA56123F71949B52d883aE57e225;
     address public devmsig = 0x9e2b6378ee8ad2A4A95Fe481d63CAba8FB0EBBF9;
+    address public time = 0x869d1b8610c038A6C4F37bD757135d4C29ae8917;
     address public alETHPool = 0xC4C319E2D4d66CcA4464C0c2B32c9Bd23ebe784e;
     address public alUSDPool = 0x9735F7d3Ea56b454b24fFD74C58E9bD85cfaD31B;
     address public usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
@@ -109,6 +111,7 @@ contract BaseTest is DSTestPlus {
     PassthroughGauge public sushiGauge;
     StakingGauge public stakingGauge;
     StakingGauge public stakingGauge2;
+    StakingRewards public timeGauge;
 
     // Initialize all DAO contracts and their dependencies
     function setupContracts(uint256 _time) public {
@@ -129,6 +132,7 @@ contract BaseTest is DSTestPlus {
         FluxToken(flux).setMinter(address(veALCX));
 
         revenueHandler = new RevenueHandler(address(veALCX));
+        timeGauge = new StakingRewards(address(this), address(alcx), time);
         gaugeFactory = new GaugeFactory();
         bribeFactory = new BribeFactory();
         voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory), address(flux));
@@ -148,6 +152,7 @@ contract BaseTest is DSTestPlus {
             address(veALCX),
             address(distributor),
             address(revenueHandler),
+            address(timeGauge),
             supply,
             rewards,
             stepdown
@@ -193,6 +198,7 @@ contract BaseTest is DSTestPlus {
         alUsdFraxBpGauge.initialize(alUsdFraxBpIndex, votiumReceiver);
 
         hevm.stopPrank();
+        timeGauge.setRewardsDistribution(address(minter));
 
         hevm.prank(address(governor));
         timelockExecutor.acceptAdmin();
