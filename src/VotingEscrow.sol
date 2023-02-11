@@ -807,6 +807,9 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         // Both can have >= 0 amount
         _checkpoint(_tokenId, _locked, LockedBalance(0, 0, false, 0));
 
+        // TODO once Aura pool is setup in testing
+        // require(_withdrawFromReceiver(value));
+
         require(IERC20(BPT).transfer(msg.sender, value));
 
         // Claim any unclaimed ALCX rewards and FLUX
@@ -882,7 +885,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
      */
     function depositIntoReceiver(uint256 _amount) external {
         require(msg.sender == admin, "not admin");
-        _deposit(_amount);
+        _depositIntoReceiver(_amount);
     }
 
     /**
@@ -891,7 +894,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
      */
     function withdrawFromReceiver(uint256 _amount) external {
         require(msg.sender == admin, "not admin");
-        _withdraw(_amount);
+        _withdrawFromReceiver(_amount);
     }
 
     /**
@@ -1387,6 +1390,8 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         address from = msg.sender;
         if (_value != 0 && depositType != DepositType.MERGE_TYPE) {
             require(IERC20(BPT).transferFrom(from, address(this), _value));
+            // TODO once Aura pool is setup in testing
+            //require(_depositIntoReceiver(_value));
         }
 
         emit Deposit(from, _tokenId, _value, _locked.end, _locked.maxLockEnabled, depositType, block.timestamp);
@@ -1427,20 +1432,21 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
      * @notice Deposit amount into receiver
      * @param _amount Amount to deposit
      */
-    function _deposit(uint256 _amount) internal {
+    function _depositIntoReceiver(uint256 _amount) internal returns (bool) {
         // TODO Update to be BPT once Aura deployment in tests is completed
         address testBPT = 0x92762B42A06dCDDDc5B7362Cfb01E631c4D44B40;
-
         IERC20(testBPT).approve(receiver, _amount);
         IRewardPool4626(receiver).deposit(_amount, address(this));
+        return true;
     }
 
     /**
      * @notice Withdraw amount from receiver
      * @param _amount Amount to withdraw
      */
-    function _withdraw(uint256 _amount) internal {
+    function _withdrawFromReceiver(uint256 _amount) internal returns (bool) {
         IRewardPool4626(receiver).withdraw(_amount, address(this), address(this));
+        return true;
     }
 
     /**
