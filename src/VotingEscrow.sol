@@ -4,6 +4,8 @@ pragma solidity ^0.8.15;
 import "src/interfaces/IVotingEscrow.sol";
 import "src/interfaces/IFluxToken.sol";
 import "src/interfaces/IRewardsDistributor.sol";
+import "src/interfaces/IRewardPool4626.sol";
+import "src/interfaces/IRewardStaking.sol";
 import "src/libraries/Base64.sol";
 import "openzeppelin-contracts/contracts/token/ERC721/extensions/IERC721Metadata.sol";
 import "openzeppelin-contracts/contracts/governance/utils/IVotes.sol";
@@ -85,6 +87,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     address public ALCX;
     address public FLUX;
     address public BPT;
+    address public receiver; // destination for BPT
     address public admin; // the timelock executor
     address public pendingAdmin; // the timelock executor
     address public voter;
@@ -171,10 +174,11 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
      * @param _alcx `ALCX` token address
      * @param _flux `FLUX` token address
      */
-    constructor(address _bpt, address _alcx, address _flux) {
+    constructor(address _bpt, address _alcx, address _flux, address _receiver) {
         BPT = _bpt;
         ALCX = _alcx;
         FLUX = _flux;
+        receiver = _receiver;
         voter = msg.sender;
         admin = msg.sender;
         distributor = msg.sender;
@@ -872,6 +876,39 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         emit CooldownStarted(msg.sender, _tokenId, _locked.cooldown);
     }
 
+    /**
+     * @notice Deposit amount into receiver
+     * @dev Can only be called by governance
+     */
+    function depositIntoReceiver(uint256 _amount) external {
+        require(msg.sender == admin, "not admin");
+        _deposit(_amount);
+    }
+
+    /**
+     * @notice Withdraw amount from receiver
+     * @dev Can only be called by governance
+     */
+    function withdrawFromReceiver(uint256 _amount) external {
+        require(msg.sender == admin, "not admin");
+        _withdraw(_amount);
+    }
+
+    /**
+     * @notice Update the address of the receiver
+     */
+    function updateReceiver(address _newReceiver) external {
+        require(msg.sender == admin, "not admin");
+        receiver = _newReceiver;
+    }
+
+    /**
+     * @notice Claim rewards from the receiver
+     */
+    function claimReceiverRewards() external {
+        IRewardStaking(receiver).getReward(address(this), false);
+    }
+
     /*
         Internal functions
     */
@@ -1385,6 +1422,31 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         _depositFor(_tokenId, _value, unlockTime, _maxLockEnabled, locked[_tokenId], DepositType.CREATE_LOCK_TYPE);
         return _tokenId;
     }
+
+    /**
+     * @notice Deposit amount into receiver
+     * @param _amount Amount to deposit
+     */
+    function _deposit(uint256 _amount) internal {
+        // TODO Update to be BPT once Aura deployment in tests is completed
+        address testBPT = 0x92762B42A06dCDDDc5B7362Cfb01E631c4D44B40;
+
+        IERC20(testBPT).approve(receiver, _amount);
+        IRewardPool4626(receiver).deposit(_amount, address(this));
+    }
+
+    /**
+     * @notice Withdraw amount from receiver
+     * @param _amount Amount to withdraw
+     */
+    function _withdraw(uint256 _amount) internal {
+        IRewardPool4626(receiver).withdraw(_amount, address(this), address(this));
+    }
+
+    /**
+     * @notice Collect rewards earned from the receiver contract
+     */
+    function _collectRewardsFromReceiver() internal returns (uint256) {}
 
     // The following ERC20/minime-compatible methods are not real balanceOf and supply!
     // They measure the weights for the purpose of voting, so they don't represent

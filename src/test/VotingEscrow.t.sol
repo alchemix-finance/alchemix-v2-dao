@@ -29,6 +29,38 @@ contract VotingEscrowTest is BaseTest {
         hevm.stopPrank();
     }
 
+    // Test depositing, withdrawing from a receiver (Aura pool)
+    // TODO update to ALCX Aura pool once deployment is done
+    function testReceiver() public {
+        deal(testBPT, address(veALCX), TOKEN_1);
+        uint256 amount = IERC20(testBPT).balanceOf(address(veALCX));
+
+        assertEq(amount, TOKEN_1);
+
+        uint256 rewardBalanceBefore = IERC20(bal).balanceOf(address(veALCX));
+
+        assertEq(rewardBalanceBefore, 0, "claimed should start at 0");
+
+        veALCX.depositIntoReceiver(amount);
+
+        uint256 amountAfterDeposit = IERC20(testBPT).balanceOf(address(veALCX));
+
+        assertEq(amountAfterDeposit, 0, "full balance should be deposited");
+
+        hevm.warp(block.timestamp + 2 weeks);
+
+        veALCX.claimReceiverRewards();
+        uint256 rewardBalanceAfter = IERC20(bal).balanceOf(address(veALCX));
+
+        assertGt(rewardBalanceAfter, rewardBalanceBefore, "should accumulate rewards");
+
+        veALCX.withdrawFromReceiver(amount);
+
+        uint256 amountAfterWithdraw = IERC20(testBPT).balanceOf(address(veALCX));
+
+        assertEq(amountAfterWithdraw, amount, "should equal original amount");
+    }
+
     function testUpdateLockDuration() public {
         hevm.startPrank(admin);
 
