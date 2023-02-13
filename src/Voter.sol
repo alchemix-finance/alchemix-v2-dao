@@ -148,30 +148,6 @@ contract Voter is IVoter {
         IVotingEscrow(veALCX).accrueFlux(_tokenId, IVotingEscrow(veALCX).claimableFlux(_tokenId));
     }
 
-    function _reset(uint256 _tokenId) internal {
-        address[] storage _poolVote = poolVote[_tokenId];
-        uint256 _poolVoteCnt = _poolVote.length;
-        uint256 _totalWeight = 0;
-
-        for (uint256 i = 0; i < _poolVoteCnt; i++) {
-            address _pool = _poolVote[i];
-            uint256 _votes = votes[_tokenId][_pool];
-
-            if (_votes != 0) {
-                _updateFor(gauges[_pool]);
-                weights[_pool] -= _votes;
-                votes[_tokenId][_pool] -= _votes;
-                if (_votes > 0) {
-                    _totalWeight += _votes;
-                }
-                emit Abstained(_tokenId, _votes);
-            }
-        }
-        totalWeight -= uint256(_totalWeight);
-        usedWeights[_tokenId] = 0;
-        delete poolVote[_tokenId];
-    }
-
     /// @inheritdoc IVoter
     function poke(uint256 _tokenId, uint256 _boost) external {
         require(IVotingEscrow(veALCX).claimableFlux(_tokenId) >= _boost, "insufficient claimable FLUX balance");
@@ -352,6 +328,30 @@ contract Voter is IVoter {
     /*
         Internal functions
     */
+
+    function _reset(uint256 _tokenId) internal {
+        address[] storage _poolVote = poolVote[_tokenId];
+        uint256 _poolVoteCnt = _poolVote.length;
+        uint256 _totalWeight = 0;
+
+        for (uint256 i = 0; i < _poolVoteCnt; i++) {
+            address _pool = _poolVote[i];
+            uint256 _votes = votes[_tokenId][_pool];
+
+            if (_votes != 0) {
+                _updateFor(gauges[_pool]);
+                weights[_pool] -= _votes;
+                votes[_tokenId][_pool] -= _votes;
+                if (_votes > 0) {
+                    _totalWeight += _votes;
+                }
+                emit Abstained(_tokenId, _votes);
+            }
+        }
+        totalWeight -= uint256(_totalWeight);
+        usedWeights[_tokenId] = 0;
+        delete poolVote[_tokenId];
+    }
 
     function _vote(uint256 _tokenId, address[] memory _poolVote, uint256[] memory _weights, uint256 _boost) internal {
         _reset(_tokenId);

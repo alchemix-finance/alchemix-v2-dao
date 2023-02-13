@@ -20,6 +20,7 @@ import "src/governance/TimelockExecutor.sol";
 import "src/factories/BribeFactory.sol";
 import "src/factories/GaugeFactory.sol";
 
+import "src/interfaces/aura/MockCurveGaugeFactory.sol";
 import "src/interfaces/IAlchemixToken.sol";
 import "src/interfaces/IMinter.sol";
 import "src/interfaces/balancer/WeightedPool2TokensFactory.sol";
@@ -29,6 +30,8 @@ import "src/interfaces/balancer/IBasePool.sol";
 import "src/interfaces/balancer/IAsset.sol";
 import "src/interfaces/IWETH9.sol";
 import "src/gauges/StakingRewards.sol";
+import "src/interfaces/aura/IRewardPool4626.sol";
+import "src/interfaces/aura/IRewardStaking.sol";
 
 contract BaseTest is DSTestPlus {
     address public admin = 0x8392F6669292fA56123F71949B52d883aE57e225;
@@ -50,6 +53,7 @@ contract BaseTest is DSTestPlus {
     address public beef = address(0xbeef);
     address public dead = address(0xdead);
     address public bpt;
+    address public rewardPool;
 
     // Pool addresses
     address public alUsdPoolAddress = 0x43b4FdFD4Ff969587185cDB6f0BD875c5Fc83f8c;
@@ -96,6 +100,8 @@ contract BaseTest is DSTestPlus {
     IVault public balancerVault = IVault(0xBA12222222228d8Ba445958a75a0704d566BF2C8);
     FluxToken public flux = new FluxToken(admin);
 
+    MockCurveGaugeFactory public mockCurveGaugeFactory = new MockCurveGaugeFactory();
+
     VotingEscrow public veALCX;
     Voter public voter;
     GaugeFactory public gaugeFactory;
@@ -117,10 +123,15 @@ contract BaseTest is DSTestPlus {
     function setupContracts(uint256 _time) public {
         bpt = createBalancerPool();
 
+        address[] memory rewardTokens = new address[](1);
+        rewardTokens[0] = bal;
+        // rewardPool = rewardPoolFactory.createRewardPool(1, bpt, bal, admin, admin, bpt);
+        rewardPool = mockCurveGaugeFactory.createMockPool("MockAuraPool", "aurALCX", bpt, rewardTokens);
+
         // Run contracts at specific point in time
         hevm.warp(_time);
 
-        veALCX = new VotingEscrow(bpt, address(alcx), address(flux));
+        veALCX = new VotingEscrow(bpt, address(alcx), address(flux), address(rewardPool));
 
         veALCX.setVoter(admin);
         veALCX.setRewardsDistributor(admin);
@@ -131,8 +142,8 @@ contract BaseTest is DSTestPlus {
 
         FluxToken(flux).setMinter(address(veALCX));
 
-        revenueHandler = new RevenueHandler(address(veALCX));
         timeGauge = new StakingRewards(address(this), address(alcx), time);
+        revenueHandler = new RevenueHandler(address(veALCX), admin, 0);
         gaugeFactory = new GaugeFactory();
         bribeFactory = new BribeFactory();
         voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory), address(flux));

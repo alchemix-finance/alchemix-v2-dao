@@ -118,7 +118,7 @@ contract Minter is IMinter {
             epochEmissions = epochEmission();
 
             uint256 veAlcxEmissions = calculateGrowth(epochEmissions);
-            uint256 timeEmissions = epochEmissions * timeEmissionsRate / BPS;
+            uint256 timeEmissions = (epochEmissions * timeEmissionsRate) / BPS;
             uint256 gaugeEmissions = epochEmissions - veAlcxEmissions - timeEmissions;
             uint256 balanceOf = alcx.balanceOf(address(this));
 

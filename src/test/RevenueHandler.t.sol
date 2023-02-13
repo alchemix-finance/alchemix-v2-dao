@@ -28,7 +28,7 @@ contract RevenueHandlerTest is BaseTest {
         alusd3crvTokenIds[3] = usdt; // usdt
 
         cpa = new CurveMetaPoolAdapter(alusd3crv, alusd3crvTokenIds);
-        revenueHandler = new RevenueHandler(address(veALCX));
+        revenueHandler = new RevenueHandler(address(veALCX), 0x8392F6669292fA56123F71949B52d883aE57e225, 0);
 
         revenueHandler.addDebtToken(alusd);
 
@@ -443,5 +443,29 @@ contract RevenueHandlerTest is BaseTest {
         revenueHandler.checkpoint();
         uint256 balAfter = IERC20(alusd).balanceOf(address(revenueHandler));
         assertEq(balBefore, balAfter);
+    }
+
+    function testTreasuryRevenue() external {
+        uint256 treasuryPct = 5000; // 50%
+
+        revenueHandler.setTreasuryPct(treasuryPct);
+
+        uint256 revAmt = 1000e18;
+        _accrueRevenue(dai, revAmt);
+
+        uint256 usdcRevAmt = 1000e6;
+        _accrueRevenue(usdc, usdcRevAmt);
+
+        uint256 tBalBeforeDai = IERC20(dai).balanceOf(address(admin));
+        uint256 tBalBeforeUsdc = IERC20(usdc).balanceOf(address(admin));
+        uint256 balBefore = IERC20(alusd).balanceOf(address(revenueHandler));
+        assertEq(balBefore, 0);
+        revenueHandler.checkpoint();
+        uint256 tBalAfterDai = IERC20(dai).balanceOf(address(admin));
+        uint256 tBalAfterUsdc = IERC20(usdc).balanceOf(address(admin));
+        uint256 balAfter = IERC20(alusd).balanceOf(address(revenueHandler));
+        assertApproxEq(1000e18, balAfter, 2000e18 / uint256(65));
+        assertEq(revAmt / 2, tBalAfterDai - tBalBeforeDai);
+        assertEq(usdcRevAmt / 2, tBalAfterUsdc - tBalBeforeUsdc);
     }
 }
