@@ -49,15 +49,28 @@ Generate and build documentation to ./documentation with `make docs_build`
 
 ### src
 
-AlchemixGovernor.sol, BaseGauge.sol, Bribe.sol, CurveEthPoolAdapter.sol, CurveMetaPoolAdapter.sol, FluxToken.sol, Minter.sol, RevenueHandler.sol, Voter.sol, VotingEscrow.sol
+- AlchemixGovernor.sol
+- BaseGauge.sol
+- Bribe.sol
+- CurveEthPoolAdapter.sol
+- CurveMetaPoolAdapter.sol
+- FluxToken.sol
+- Minter.sol
+- RevenueHandler.sol
+- Voter.sol
+- VotingEscrow.sol
 
 ### src/gauges
 
-CurveGauge.sol, PassthroughGauge.sol, StakingGauge.sol, StakingRewards.sol
+- CurveGauge.sol
+- PassthroughGauge.sol
+- StakingGauge.sol
+- StakingRewards.sol
 
 ### src/factories
 
-BribeFactory.sol, GaugeFactory.sol
+- BribeFactory.sol
+- GaugeFactory.sol
 
 ### src/governance
 
