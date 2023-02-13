@@ -1,0 +1,80 @@
+{{{natspec.userdoc}}}
+{{{natspec.devdoc}}}
+
+{{#if ownStructs}}
+# Structs
+{{/if}}
+
+{{#ownStructs}}
+## {{name}}
+| Field | Type |
+| :--- | :--- |
+{{#members}}
+|`{{name}}` | {{type}} |
+{{/members}}
+
+
+{{/ownStructs}}
+
+{{#if ownFunctions}}
+# Functions
+{{/if}}
+{{#ownFunctions}}
+
+## {{name}}
+```solidity
+{{#gt natspec.params.length 1}}
+    function {{name}}(
+    {{#natspec.params}}
+        {{#lookup ../args.types @index}}{{/lookup}} {{param}}{{#if @last}}{{else}},{{/if}}
+    {{/natspec.params}}
+    ) {{visibility}}{{#if outputs}} returns ({{outputs}}){{/if}};
+{{else}}
+    function {{name}}({{#natspec.params}}{{#lookup ../args.types @index}}{{/lookup}} {{param}}{{#if @last}}{{else}},{{/if}}{{/natspec.params}}) {{visibility}}{{#if outputs}} returns ({{outputs}}){{/if}};
+{{/gt}}
+```
+{{#if natspec.userdoc}}{{natspec.userdoc}}{{/if}}
+{{#if natspec.devdoc}}{{natspec.devdoc}}{{/if}}
+{{#if natspec.params}}
+
+### Parameters:
+| Name | Type | Description                                                          |
+| :--- | :--- | :------------------------------------------------------------------- |
+{{#natspec.params}}
+|`{{param}}` | {{#lookup ../args.types @index}}{{/lookup}} | {{#formatDescription}}{{{description}}}{{/formatDescription}} |
+{{/natspec.params}}
+{{/if}}
+{{#if natspec.params}}
+{{#if natspec.returns}}
+
+### Return Values:
+| Name                           | Type          | Description                                                                  |
+| :----------------------------- | :------------ | :--------------------------------------------------------------------------- |
+{{#natspec.returns}}
+|`{{param}}`| {{#lookup ../outputs.types @index}}{{/lookup}} | {{#formatDescription}}{{{description}}}{{/formatDescription}} |
+{{/natspec.returns}}
+{{/if}}
+{{/if}}
+{{/ownFunctions}}
+{{#if ownEvents}}
+
+# Events
+{{/if}}
+{{#ownEvents}}
+## {{name}}
+```solidity
+event {{name}}(
+    {{#natspec.params}}
+    {{#lookup ../args.types @index}}{{/lookup}} {{param}}{{#if @last}}{{else}},{{/if}}
+    {{/natspec.params}}
+)
+```
+{{#if natspec.userdoc}}{{natspec.userdoc}}{{/if}}
+{{#if natspec.devdoc}}{{natspec.devdoc}}{{/if}}
+{{#if natspec.params}}
+### Parameters:
+| Name                           | Type          | Description                                    |
+| :----------------------------- | :------------ | :--------------------------------------------- |
+{{#natspec.params}}
+|`{{param}}`| {{#lookup ../args.types @index}}{{/lookup}} | {{#formatDescription}}{{{description}}}{{/formatDescription}}{{/natspec.params}}{{/if}} |
+{{/ownEvents}}

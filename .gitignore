@@ -6,3 +6,4 @@ out/
 report/
 lcov.info
 notes.md
+node_modules/

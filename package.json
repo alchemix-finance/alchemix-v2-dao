@@ -1,0 +1,21 @@
+{
+  "name": "alchemix-v2-dao",
+  "version": "1.0.0",
+  "description": "Documentation for Alchemix DAO",
+  "main": "index.js",
+  "repository": "git@github.com:alchemix-finance/alchemix-v2-dao.git",
+  "author": "thetechnocratic <thetechnocratic@gmail.com>",
+  "license": "MIT",
+  "scripts": {
+    "docify": "node docify.js"
+  },
+  "devDependencies": {
+    "@openzeppelin/contracts": "^4.3.2",
+    "@openzeppelin/contracts-upgradeable": "^4.4.2",
+    "solc": "0.8.15",
+    "solidity-docgen": "0.5.16"
+  },
+  "dependencies": {
+    "@rari-capital/solmate": "^6.2.0"
+  }
+}
