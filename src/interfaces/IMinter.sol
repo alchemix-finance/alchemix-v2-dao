@@ -11,6 +11,7 @@ interface IMinter {
         address ve; // veALCX token system
         address rewardsDistributor; // veALCX distribution system
         address revenueHandler; // veALCX revenue handler
+        address timeGauge; // TIME gauge
         uint256 supply; // Current emissions supply
         uint256 rewards; // Current amount of emissions
         uint256 stepdown; // Rate rewards decreases by
