@@ -98,7 +98,7 @@ contract VotingTest is BaseTest {
     }
 
     // veALCX holders should be able to accrue their unclaimed flux over epochs
-    function testaccrueFlux() public {
+    function testAccrueFlux() public {
         uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
 
         hevm.startPrank(admin);
