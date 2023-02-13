@@ -4,6 +4,9 @@ pragma solidity ^0.8.15;
 import "src/interfaces/IVotingEscrow.sol";
 import "src/interfaces/IFluxToken.sol";
 import "src/interfaces/IRewardsDistributor.sol";
+import "src/interfaces/aura/IRewardPool4626.sol";
+import "src/interfaces/aura/IRewardStaking.sol";
+import "src/interfaces/aura/MockCurveGauge.sol";
 import "src/libraries/Base64.sol";
 import "openzeppelin-contracts/contracts/token/ERC721/extensions/IERC721Metadata.sol";
 import "openzeppelin-contracts/contracts/governance/utils/IVotes.sol";
@@ -85,6 +88,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     address public ALCX;
     address public FLUX;
     address public BPT;
+    address public rewardPool; // destination for BPT
     address public admin; // the timelock executor
     address public pendingAdmin; // the timelock executor
     address public voter;
@@ -171,10 +175,11 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
      * @param _alcx `ALCX` token address
      * @param _flux `FLUX` token address
      */
-    constructor(address _bpt, address _alcx, address _flux) {
+    constructor(address _bpt, address _alcx, address _flux, address _rewardPool) {
         BPT = _bpt;
         ALCX = _alcx;
         FLUX = _flux;
+        rewardPool = _rewardPool;
         voter = msg.sender;
         admin = msg.sender;
         distributor = msg.sender;
@@ -803,6 +808,9 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         // Both can have >= 0 amount
         _checkpoint(_tokenId, _locked, LockedBalance(0, 0, false, 0));
 
+        // Withdraws BPT from reward pool
+        require(_withdrawFromRewardPool(value));
+
         require(IERC20(BPT).transfer(msg.sender, value));
 
         // Claim any unclaimed ALCX rewards and FLUX
@@ -870,6 +878,40 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         }
 
         emit CooldownStarted(msg.sender, _tokenId, _locked.cooldown);
+    }
+
+    /**
+     * @notice Deposit amount into rewardPool
+     * @dev Can only be called by governance
+     */
+    function depositIntoRewardPool(uint256 _amount) external {
+        require(msg.sender == admin, "not admin");
+        _depositIntoRewardPool(_amount);
+    }
+
+    /**
+     * @notice Withdraw amount from rewardPool
+     * @dev Can only be called by governance
+     */
+    function withdrawFromRewardPool(uint256 _amount) external {
+        require(msg.sender == admin, "not admin");
+        _withdrawFromRewardPool(_amount);
+    }
+
+    /**
+     * @notice Update the address of the rewardPool
+     */
+    function updateRewardPool(address _newRewardPool) external {
+        require(msg.sender == admin, "not admin");
+        rewardPool = _newRewardPool;
+    }
+
+    /**
+     * @notice Claim rewards from the rewardPool
+     */
+    function claimRewardPoolRewards() external {
+        // TODO: update to IRewardStaking(rewardPool).getReward(address(this), false); when Aura pool is live
+        MockCurveGauge(rewardPool).claim_rewards();
     }
 
     /*
@@ -1350,6 +1392,8 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         address from = msg.sender;
         if (_value != 0 && depositType != DepositType.MERGE_TYPE) {
             require(IERC20(BPT).transferFrom(from, address(this), _value));
+            // Deposits BPT into reward pool
+            require(_depositIntoRewardPool(_value));
         }
 
         emit Deposit(from, _tokenId, _value, _locked.end, _locked.maxLockEnabled, depositType, block.timestamp);
@@ -1384,6 +1428,27 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
         _depositFor(_tokenId, _value, unlockTime, _maxLockEnabled, locked[_tokenId], DepositType.CREATE_LOCK_TYPE);
         return _tokenId;
+    }
+
+    /**
+     * @notice Deposit amount into rewardPool
+     * @param _amount Amount to deposit
+     */
+    function _depositIntoRewardPool(uint256 _amount) internal returns (bool) {
+        IERC20(BPT).approve(rewardPool, _amount);
+        // TODO: Update to IRewardPool4626(rewardPool).deposit(_amount, address(this)); when Aura pool is live
+        MockCurveGauge(rewardPool).deposit(_amount);
+        return true;
+    }
+
+    /**
+     * @notice Withdraw amount from rewardPool
+     * @param _amount Amount to withdraw
+     */
+    function _withdrawFromRewardPool(uint256 _amount) internal returns (bool) {
+        // TODO: Update to IRewardPool4626(rewardPool).withdraw(_amount, address(this), address(this)); when Aura pool is live
+        MockCurveGauge(rewardPool).withdraw(_amount);
+        return true;
     }
 
     // The following ERC20/minime-compatible methods are not real balanceOf and supply!
