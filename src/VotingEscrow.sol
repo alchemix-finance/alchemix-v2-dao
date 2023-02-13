@@ -4,8 +4,8 @@ pragma solidity ^0.8.15;
 import "src/interfaces/IVotingEscrow.sol";
 import "src/interfaces/IFluxToken.sol";
 import "src/interfaces/IRewardsDistributor.sol";
-import "src/interfaces/IRewardPool4626.sol";
-import "src/interfaces/IRewardStaking.sol";
+import "src/interfaces/aura/IRewardPool4626.sol";
+import "src/interfaces/aura/IRewardStaking.sol";
 import "src/libraries/Base64.sol";
 import "openzeppelin-contracts/contracts/token/ERC721/extensions/IERC721Metadata.sol";
 import "openzeppelin-contracts/contracts/governance/utils/IVotes.sol";
@@ -1448,11 +1448,6 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         IRewardPool4626(receiver).withdraw(_amount, address(this), address(this));
         return true;
     }
-
-    /**
-     * @notice Collect rewards earned from the receiver contract
-     */
-    function _collectRewardsFromReceiver() internal returns (uint256) {}
 
     // The following ERC20/minime-compatible methods are not real balanceOf and supply!
     // They measure the weights for the purpose of voting, so they don't represent
