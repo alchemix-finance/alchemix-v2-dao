@@ -47,6 +47,7 @@ contract RevenueHandler is IRevenueHandler, Ownable {
     }
 
     uint256 internal constant WEEK = 1 weeks;
+    uint256 internal constant BPS = 10_000;
 
     address public veALCX;
     address[] public debtTokens;
@@ -58,9 +59,15 @@ contract RevenueHandler is IRevenueHandler, Ownable {
     mapping(uint256 => mapping(address => Claimable)) /* tokenId */ /* debtToken */
         public userCheckpoints;
     uint256 public currentEpoch;
+    address public treasury;
+    uint256 public treasuryPct;
 
-    constructor(address _veALCX) Ownable() {
+    constructor(address _veALCX, address _treasury, uint256 _treasuryPct) Ownable() {
         veALCX = _veALCX;
+        require(_treasury != address(0), "treasury cannot be 0x0");
+        treasury = _treasury;
+        require(treasuryPct <= BPS, "treasury pct too large");
+        treasuryPct = _treasuryPct;
     }
 
     /*
@@ -144,6 +151,18 @@ contract RevenueHandler is IRevenueHandler, Ownable {
         revenueTokenConfigs[revenueToken].disabled = false;
     }
 
+    /// @inheritdoc IRevenueHandler
+    function setTreasury(address _treasury) external override onlyOwner {
+        require(_treasury != address(0), "treasury cannot be 0x0");
+        treasury = _treasury;
+    }
+
+    /// @inheritdoc IRevenueHandler
+    function setTreasuryPct(uint256 _treasuryPct) external override onlyOwner {
+        require(treasuryPct <= BPS, "treasury pct too large");
+        treasuryPct = _treasuryPct;
+    }
+
     /*
         User functions
     */
@@ -189,8 +208,11 @@ contract RevenueHandler is IRevenueHandler, Ownable {
                 // If a revenue token is disabled, skip it.
                 if (revenueTokenConfigs[revenueTokens[i]].disabled) continue;
 
+                uint256 treasuryAmt = IERC20(revenueTokens[i]).balanceOf(address(this)) * treasuryPct / BPS;
+                IERC20(revenueTokens[i]).safeTransfer(treasury, treasuryAmt);
                 uint256 amountReceived = _melt(revenueTokens[i]);
                 epochRevenues[currentEpoch][revenueTokenConfigs[revenueTokens[i]].debtToken] += amountReceived;
+                emit RevenueRealized(currentEpoch, revenueTokens[i], revenueTokenConfigs[revenueTokens[i]].debtToken, amountReceived, treasuryAmt);
             }
         }
     }

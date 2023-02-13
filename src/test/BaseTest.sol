@@ -139,7 +139,7 @@ contract BaseTest is DSTestPlus {
 
         FluxToken(flux).setMinter(address(veALCX));
 
-        revenueHandler = new RevenueHandler(address(veALCX));
+        revenueHandler = new RevenueHandler(address(veALCX), admin, 0);
         gaugeFactory = new GaugeFactory();
         bribeFactory = new BribeFactory();
         voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory), address(flux));
