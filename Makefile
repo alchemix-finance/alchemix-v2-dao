@@ -26,8 +26,17 @@ MATCH_TEST=--match-test $(TEST)
 # rpc url
 FORK_URL=--fork-url https://eth-mainnet.alchemyapi.io/v2/$(ALCHEMY_API_KEY)
 
+# generates and serves documentation locally on port 4000
+docs_local :; forge doc --serve --port 4000
+
+# generates and builds documentation to ./documentation
+docs_build :; forge doc --build --out ./documentation
+
 # runs all tests: "make test_all"
 test_all :; FOUNDRY_PROFILE=$(PROFILE) forge test $(FORK_URL)
+
+# runs all tests from a given block (setting block is optional): "make test_block BLOCK=16213697" (16213697 is a block where revenue handler deltas are passing)
+test_block :; FOUNDRY_PROFILE=$(PROFILE) forge test $(FORK_URL) $(FORK_BLOCK)
 
 # runs test coverage: "make test_coverage" add "--report lcov" to use with lcov reporter
 test_coverage :; FOUNDRY_PROFILE=$(PROFILE) forge coverage $(FORK_URL) --report lcov
@@ -40,9 +49,6 @@ test_coverage_file :; FOUNDRY_PROFILE=$(PROFILE) forge coverage $(FORK_URL) $(MA
 
 # runs test coverage for specific file: "make test_summary_file FILE=Minter"
 test_summary_file :; FOUNDRY_PROFILE=$(PROFILE) forge coverage $(FORK_URL) $(MATCH_PATH) --report summary
-
-# runs all tests from a given block (setting block is optional): "make test_block BLOCK=16213697" (16213697 is a block where revenue handler deltas are passing)
-test_block :; FOUNDRY_PROFILE=$(PROFILE) forge test $(FORK_URL) $(FORK_BLOCK)
 
 # runs all tests with added verbosity for failing tests: "make test_debug"
 test_debug :; FOUNDRY_PROFILE=$(PROFILE) forge test $(FORK_URL) -vvv

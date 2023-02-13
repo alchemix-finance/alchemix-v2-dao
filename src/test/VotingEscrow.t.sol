@@ -29,52 +29,56 @@ contract VotingEscrowTest is BaseTest {
         hevm.stopPrank();
     }
 
-    // Test depositing, withdrawing from a receiver (Aura pool)
+    // Test depositing, withdrawing from a rewardPool (Aura pool)
     // TODO update to ALCX Aura pool once deployment is done
-    function testReceiver() public {
-        deal(testBPT, address(veALCX), TOKEN_1);
+    function testRewardPool() public {
+        deal(bpt, address(veALCX), TOKEN_1);
+        deal(bal, address(rewardPool), TOKEN_100K);
+
+        hevm.prank(address(veALCX));
+        MockCurveGauge(rewardPool).set_rewards_receiver(address(veALCX));
 
         // Initial BPT balance of veALCX
-        uint256 amount = IERC20(testBPT).balanceOf(address(veALCX));
+        uint256 amount = IERC20(bpt).balanceOf(address(veALCX));
         assertEq(amount, TOKEN_1);
 
         // Inital amount of bal rewards veALCX contract has earned
         uint256 rewardBalanceBefore = IERC20(bal).balanceOf(address(veALCX));
         assertEq(rewardBalanceBefore, 0, "reward balance should be 0");
 
-        // Deposit BPT balance into receiver
-        veALCX.depositIntoReceiver(amount);
+        // Deposit BPT balance into rewardPool
+        veALCX.depositIntoRewardPool(amount);
 
-        uint256 amountAfterDeposit = IERC20(testBPT).balanceOf(address(veALCX));
+        uint256 amountAfterDeposit = IERC20(bpt).balanceOf(address(veALCX));
         assertEq(amountAfterDeposit, 0, "full balance should be deposited");
 
         // Fast forward to accumulate rewards
         hevm.warp(block.timestamp + 2 weeks);
 
-        veALCX.claimReceiverRewards();
+        veALCX.claimRewardPoolRewards();
         uint256 rewardBalanceAfter = IERC20(bal).balanceOf(address(veALCX));
 
         // After claiming rewards veALCX bal balance should increase
         assertGt(rewardBalanceAfter, rewardBalanceBefore, "should accumulate rewards");
 
-        veALCX.withdrawFromReceiver(amount);
+        veALCX.withdrawFromRewardPool(amount);
 
-        // veALCX BPT balance should equal original amount after withdrawing from receiver
-        uint256 amountAfterWithdraw = IERC20(testBPT).balanceOf(address(veALCX));
+        // veALCX BPT balance should equal original amount after withdrawing from rewardPool
+        uint256 amountAfterWithdraw = IERC20(bpt).balanceOf(address(veALCX));
         assertEq(amountAfterWithdraw, amount, "should equal original amount");
 
-        // Receiver should be set
-        assertEq(receiver, veALCX.receiver());
+        // Reward pool should be set
+        assertEq(rewardPool, veALCX.rewardPool());
 
-        // Only veALCX admin can update receiver
+        // Only veALCX admin can update rewardPool
         hevm.prank(admin);
         hevm.expectRevert(abi.encodePacked("not admin"));
-        veALCX.updateReceiver(sushiPoolAddress);
+        veALCX.updateRewardPool(sushiPoolAddress);
 
-        veALCX.updateReceiver(sushiPoolAddress);
+        veALCX.updateRewardPool(sushiPoolAddress);
 
-        // Receiver should update
-        assertEq(sushiPoolAddress, veALCX.receiver(), "receiver not updated");
+        // Reward pool should update
+        assertEq(sushiPoolAddress, veALCX.rewardPool(), "rewardPool not updated");
     }
 
     function testUpdateLockDuration() public {

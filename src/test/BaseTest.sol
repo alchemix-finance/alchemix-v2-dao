@@ -20,6 +20,7 @@ import "src/governance/TimelockExecutor.sol";
 import "src/factories/BribeFactory.sol";
 import "src/factories/GaugeFactory.sol";
 import "src/interfaces/aura/RewardPoolFactory.sol";
+import "src/interfaces/aura/MockCurveGaugeFactory.sol";
 
 import "src/interfaces/IAlchemixToken.sol";
 import "src/interfaces/IMinter.sol";
@@ -47,8 +48,8 @@ contract BaseTest is DSTestPlus {
     address public alusd3crv = 0x43b4FdFD4Ff969587185cDB6f0BD875c5Fc83f8c;
     address public alethcrv = 0xC4C319E2D4d66CcA4464C0c2B32c9Bd23ebe784e;
     address public priceFeed = 0x194a9AaF2e0b67c35915cD01101585A33Fe25CAa;
-    address public receiver = 0x6256518aE9a97C408a03AAF1A244989Ce6B937F6;
-    address public testBPT = 0x92762B42A06dCDDDc5B7362Cfb01E631c4D44B40;
+    // address public rewardPool = 0x6256518aE9a97C408a03AAF1A244989Ce6B937F6;
+    // address public testBPT = 0x92762B42A06dCDDDc5B7362Cfb01E631c4D44B40;
     address public holder = 0x000000000000000000000000000000000000dEaD;
     address public beef = address(0xbeef);
     address public dead = address(0xdead);
@@ -101,6 +102,7 @@ contract BaseTest is DSTestPlus {
     FluxToken public flux = new FluxToken(admin);
 
     RewardPoolFactory public rewardPoolFactory = new RewardPoolFactory();
+    MockCurveGaugeFactory public mockCurveGaugeFactory = new MockCurveGaugeFactory();
 
     VotingEscrow public veALCX;
     Voter public voter;
@@ -122,13 +124,15 @@ contract BaseTest is DSTestPlus {
     function setupContracts(uint256 _time) public {
         bpt = createBalancerPool();
 
-        rewardPool = rewardPoolFactory.createRewardPool(1, bpt, bal, admin, admin, bpt);
-        console2.log("rewardPool", rewardPool);
+        address[] memory rewardTokens = new address[](1);
+        rewardTokens[0] = bal;
+        // rewardPool = rewardPoolFactory.createRewardPool(1, bpt, bal, admin, admin, bpt);
+        rewardPool = mockCurveGaugeFactory.createMockPool("MockAuraPool", "aurALCX", bpt, rewardTokens);
 
         // Run contracts at specific point in time
         hevm.warp(_time);
 
-        veALCX = new VotingEscrow(bpt, address(alcx), address(flux), address(receiver));
+        veALCX = new VotingEscrow(bpt, address(alcx), address(flux), address(rewardPool));
 
         veALCX.setVoter(admin);
         veALCX.setRewardsDistributor(admin);
