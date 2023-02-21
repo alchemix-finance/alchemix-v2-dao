@@ -910,7 +910,9 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
      * @notice Claim rewards from the rewardPool
      */
     function claimRewardPoolRewards() external {
+        require(msg.sender == admin, "not admin");
         // TODO: update to IRewardStaking(rewardPool).getReward(address(this), false); when Aura pool is live
+        // TODO: set a destination address for rewards claimed to be sent
         MockCurveGauge(rewardPool).claim_rewards();
     }
 
@@ -1421,6 +1423,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         require(_value > 0); // dev: need non-zero value
         require(unlockTime > block.timestamp, "Can only lock until time in the future");
         require(unlockTime <= block.timestamp + MAXTIME, "Voting lock can be 1 year max");
+        require(unlockTime >= block.timestamp + EPOCH, "Voting lock must be 1 epoch");
 
         ++tokenId;
         uint256 _tokenId = tokenId;

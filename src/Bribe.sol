@@ -88,6 +88,7 @@ contract Bribe is IBribe {
         require(amount > 0);
         if (!isReward[token]) {
             require(rewards.length < MAX_REWARD_TOKENS, "too many rewards tokens");
+            require(IVoter(voter).isWhitelisted(token), "bribe tokens must be whitelisted");
         }
         // bribes kick in at the start of next bribe period
         uint256 adjustedTstamp = getEpochStart(block.timestamp);
@@ -110,6 +111,8 @@ contract Bribe is IBribe {
         require(msg.sender == gauge);
         if (!isReward[token] && token != address(0)) {
             require(rewards.length < MAX_REWARD_TOKENS, "too many rewards tokens");
+            require(IVoter(voter).isWhitelisted(token), "bribe tokens must be whitelisted");
+
             isReward[token] = true;
             rewards.push(token);
         }
@@ -120,6 +123,8 @@ contract Bribe is IBribe {
         for (uint256 i; i < tokens.length; i++) {
             if (!isReward[tokens[i]] && tokens[i] != address(0)) {
                 require(rewards.length < MAX_REWARD_TOKENS, "too many rewards tokens");
+                require(IVoter(voter).isWhitelisted(tokens[i]), "bribe tokens must be whitelisted");
+
                 isReward[tokens[i]] = true;
                 rewards.push(tokens[i]);
             }
@@ -128,7 +133,7 @@ contract Bribe is IBribe {
 
     /// @inheritdoc IBribe
     function swapOutRewardToken(uint256 i, address oldToken, address newToken) external {
-        require(msg.sender == gauge);
+        require(IVoter(voter).isWhitelisted(newToken), "bribe tokens must be whitelisted");
         require(rewards[i] == oldToken);
         require(newToken != address(0));
 

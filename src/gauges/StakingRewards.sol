@@ -33,11 +33,7 @@ contract StakingRewards is IStakingRewards, ReentrancyGuard, Pausable {
 
     /* ========== CONSTRUCTOR ========== */
 
-    constructor(
-        address _owner,
-        address _rewardsToken,
-        address _stakingToken
-    ) public Owned(_owner) {
+    constructor(address _owner, address _rewardsToken, address _stakingToken) Owned(_owner) {
         rewardsToken = _rewardsToken;
         stakingToken = _stakingToken;
     }
@@ -72,7 +68,10 @@ contract StakingRewards is IStakingRewards, ReentrancyGuard, Pausable {
     }
 
     function earned(address account) public view returns (uint256) {
-        return _balances[account].mul(rewardPerToken().sub(userRewardPerTokenPaid[account])).div(1e18).add(rewards[account]);
+        return
+            _balances[account].mul(rewardPerToken().sub(userRewardPerTokenPaid[account])).div(1e18).add(
+                rewards[account]
+            );
     }
 
     function getRewardForDuration() external view returns (uint256) {

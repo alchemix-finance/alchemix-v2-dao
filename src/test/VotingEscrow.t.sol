@@ -5,6 +5,7 @@ import "./BaseTest.sol";
 
 contract VotingEscrowTest is BaseTest {
     uint256 internal constant ONE_WEEK = 1 weeks;
+    uint256 internal constant THREE_WEEKS = 3 weeks;
     uint256 maxDuration = ((block.timestamp + MAXTIME) / ONE_WEEK) * ONE_WEEK;
 
     function setUp() public {
@@ -17,7 +18,7 @@ contract VotingEscrowTest is BaseTest {
 
         assertEq(veALCX.balanceOf(admin), 0);
 
-        uint256 tokenId = veALCX.createLock(TOKEN_1, ONE_WEEK, false);
+        uint256 tokenId = veALCX.createLock(TOKEN_1, THREE_WEEKS, false);
 
         assertEq(veALCX.isApprovedForAll(admin, address(0)), false);
         assertEq(veALCX.getApproved(1), address(0));
@@ -138,8 +139,8 @@ contract VotingEscrowTest is BaseTest {
     function testVotes() public {
         hevm.startPrank(admin);
 
-        uint256 tokenId1 = veALCX.createLock(TOKEN_1 / 2, ONE_WEEK, false);
-        uint256 tokenId2 = veALCX.createLock(TOKEN_1 / 2, ONE_WEEK * 2, false);
+        uint256 tokenId1 = veALCX.createLock(TOKEN_1 / 2, THREE_WEEKS, false);
+        uint256 tokenId2 = veALCX.createLock(TOKEN_1 / 2, THREE_WEEKS * 2, false);
 
         uint256 maxVotingPower = getMaxVotingPower(TOKEN_1 / 2, veALCX.lockEnd(tokenId1)) +
             getMaxVotingPower(TOKEN_1 / 2, veALCX.lockEnd(tokenId2));
@@ -163,7 +164,7 @@ contract VotingEscrowTest is BaseTest {
     function testWithdraw() public {
         hevm.startPrank(admin);
 
-        uint256 tokenId = veALCX.createLock(TOKEN_1, nextEpoch, false);
+        uint256 tokenId = veALCX.createLock(TOKEN_1, THREE_WEEKS, false);
 
         uint256 bptBalanceBefore = IERC20(bpt).balanceOf(admin);
 
@@ -175,7 +176,7 @@ contract VotingEscrowTest is BaseTest {
 
         voter.reset(tokenId);
 
-        hevm.warp(block.timestamp + nextEpoch);
+        hevm.warp(block.timestamp + THREE_WEEKS);
 
         minter.updatePeriod();
 
@@ -214,12 +215,12 @@ contract VotingEscrowTest is BaseTest {
     function testTokenURICalls() public {
         hevm.startPrank(admin);
 
-        uint256 tokenId = veALCX.createLock(TOKEN_1, ONE_WEEK, false);
+        uint256 tokenId = veALCX.createLock(TOKEN_1, THREE_WEEKS, false);
 
         hevm.expectRevert(abi.encodePacked("Query for nonexistent token"));
         veALCX.tokenURI(999);
 
-        hevm.warp(block.timestamp + ONE_WEEK);
+        hevm.warp(block.timestamp + THREE_WEEKS);
         hevm.roll(block.number + 1);
 
         // Check that new token doesn't revert
@@ -227,7 +228,7 @@ contract VotingEscrowTest is BaseTest {
 
         veALCX.startCooldown(tokenId);
 
-        hevm.warp(block.timestamp + ONE_WEEK);
+        hevm.warp(block.timestamp + THREE_WEEKS);
 
         // Withdraw, which destroys the token
         veALCX.withdraw(tokenId);
@@ -293,7 +294,7 @@ contract VotingEscrowTest is BaseTest {
     // Check merging of two veALCX
     function testMergeTokens() public {
         uint256 tokenId1 = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
-        uint256 tokenId2 = createVeAlcx(admin, TOKEN_100K, nextEpoch, false);
+        uint256 tokenId2 = createVeAlcx(admin, TOKEN_100K, THREE_WEEKS, false);
 
         hevm.startPrank(admin);
 
@@ -320,7 +321,7 @@ contract VotingEscrowTest is BaseTest {
     function testRagequit() public {
         hevm.startPrank(admin);
 
-        uint256 tokenId = veALCX.createLock(TOKEN_1, ONE_WEEK, false);
+        uint256 tokenId = veALCX.createLock(TOKEN_1, THREE_WEEKS, false);
 
         // Show that veALCX is not expired
         hevm.expectRevert(abi.encodePacked("Cooldown period has not started"));

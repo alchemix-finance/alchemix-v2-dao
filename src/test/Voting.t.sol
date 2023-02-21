@@ -342,11 +342,11 @@ contract VotingTest is BaseTest {
 
     // veALCX voting power should decay to veALCX amount
     function testVotingPowerDecay() public {
-        uint256 tokenId = createVeAlcx(admin, TOKEN_1, 1 weeks, false);
+        uint256 tokenId = createVeAlcx(admin, TOKEN_1, 3 weeks, false);
 
         hevm.startPrank(admin);
 
-        hevm.warp(block.timestamp + nextEpoch);
+        hevm.warp(block.timestamp + 3 weeks);
 
         uint256 balance = veALCX.balanceOfToken(tokenId);
 

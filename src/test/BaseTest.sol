@@ -314,6 +314,9 @@ contract BaseTest is DSTestPlus {
 
         IERC20(_token).approve(_bribeAddress, _amount);
 
+        hevm.prank(address(timelockExecutor));
+        IVoter(voter).whitelist(_token);
+
         IBribe(_bribeAddress).notifyRewardAmount(_token, _amount);
     }
 }
