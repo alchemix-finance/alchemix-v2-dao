@@ -65,7 +65,6 @@ Generate and build documentation to ./documentation with `make docs_build`
 - CurveGauge.sol
 - PassthroughGauge.sol
 - StakingGauge.sol
-- StakingRewards.sol
 
 ### src/factories
 
