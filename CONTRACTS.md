@@ -1,4 +1,4 @@
-# Alchemix DAO
+# Alchemix DAO Contracts
 
 ## veALCX (VotingEscrow.sol)
 The VotingEscrow contract is a ERC721 compliant NFT that allows users to lock their ALCX (in the form of an 80/20 BPT token) in order to gain voting power in the DAO.
