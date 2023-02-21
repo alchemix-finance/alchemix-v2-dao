@@ -811,7 +811,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         // Withdraws BPT from reward pool
         require(_withdrawFromRewardPool(value));
 
-        require(IERC20(BPT).transfer(msg.sender, value));
+        require(IERC20(BPT).transfer(ownerOf(_tokenId), value));
 
         // Claim any unclaimed ALCX rewards and FLUX
         IRewardsDistributor(distributor).claim(_tokenId, false);
