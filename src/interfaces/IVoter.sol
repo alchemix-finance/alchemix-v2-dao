@@ -28,6 +28,14 @@ interface IVoter {
 
     function emergencyCouncil() external view returns (address);
 
+    function isWhitelisted(address token) external view returns (bool);
+
+    /**
+     * @notice Whitelist a token to be a permitted bribe token
+     * @param _token address of the token
+     */
+    function whitelist(address _token) external;
+
     /**
      * @notice Get the maximum voting power a given veALCX can have by using FLUX
      * @param _tokenId ID of the token
