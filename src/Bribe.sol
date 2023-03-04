@@ -143,16 +143,6 @@ contract Bribe is IBribe {
     }
 
     /// @inheritdoc IBribe
-    function deliverReward(address token, uint256 epochStart) external lock returns (uint256) {
-        require(msg.sender == gauge);
-        uint256 rewardPerEpoch = tokenRewardsPerEpoch[token][epochStart];
-        if (rewardPerEpoch > 0) {
-            _safeTransfer(token, address(gauge), rewardPerEpoch);
-        }
-        return rewardPerEpoch;
-    }
-
-    /// @inheritdoc IBribe
     function getPriorBalanceIndex(uint256 tokenId, uint256 timestamp) public view returns (uint256) {
         uint256 nCheckpoints = numCheckpoints[tokenId];
         if (nCheckpoints == 0) {
