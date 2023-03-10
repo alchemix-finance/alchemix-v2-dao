@@ -26,8 +26,6 @@ import "src/interfaces/IMinter.sol";
 import "src/interfaces/balancer/WeightedPool2TokensFactory.sol";
 import "src/interfaces/balancer/WeightedPoolUserData.sol";
 import "src/interfaces/balancer/IVault.sol";
-import "src/interfaces/balancer/IBasePool.sol";
-import "src/interfaces/balancer/IAsset.sol";
 import "src/interfaces/IWETH9.sol";
 import "src/gauges/StakingRewards.sol";
 import "src/interfaces/aura/IRewardPool4626.sol";
@@ -52,7 +50,7 @@ contract BaseTest is DSTestPlus {
     address public holder = 0x000000000000000000000000000000000000dEaD;
     address public beef = address(0xbeef);
     address public dead = address(0xdead);
-    address public bpt;
+    address public bpt = 0xf16aEe6a71aF1A9Bc8F56975A4c2705ca7A782Bc;
     address public rewardPool;
 
     // Pool addresses
@@ -121,7 +119,8 @@ contract BaseTest is DSTestPlus {
 
     // Initialize all DAO contracts and their dependencies
     function setupContracts(uint256 _time) public {
-        bpt = createBalancerPool();
+        deal(bpt, admin, TOKEN_100M);
+        deal(address(weth), admin, TOKEN_100M);
 
         address[] memory rewardTokens = new address[](1);
         rewardTokens[0] = bal;
@@ -216,66 +215,6 @@ contract BaseTest is DSTestPlus {
 
         hevm.prank(address(timelockExecutor));
         voter.acceptAdmin();
-    }
-
-    // Initializes 80 ALCX 20 WETH Balancer pool and makes an initial deposit
-    function createBalancerPool() public returns (address) {
-        deal(address(alcx), admin, TOKEN_100M);
-        deal(address(weth), admin, TOKEN_100M);
-
-        hevm.startPrank(admin);
-
-        string memory name = "Balancer 80 ALCX 20 WETH";
-        string memory symbol = "B-80ALCX-20WETH";
-        address[] memory tokens = new address[](2);
-        tokens[0] = address(weth);
-        tokens[1] = address(alcx);
-        uint256[] memory weights = new uint256[](2);
-        weights[0] = uint256(200000000000000000);
-        weights[1] = uint256(800000000000000000);
-        uint256 swapFeePercentage = 3000000000000000;
-        bool oracleEnabled = true;
-        address owner = 0x0000000000000000000000000000000000000000;
-
-        address balancerPool = poolFactory.create(
-            name,
-            symbol,
-            tokens,
-            weights,
-            swapFeePercentage,
-            oracleEnabled,
-            owner
-        );
-
-        bytes32 poolId = IBasePool(balancerPool).getPoolId();
-
-        alcx.approve(address(balancerVault), TOKEN_1M * 2);
-        weth.approve(address(balancerVault), TOKEN_1M);
-
-        IAsset[] memory _assets = new IAsset[](2);
-        _assets[0] = IAsset(address(weth));
-        _assets[1] = IAsset(address(alcx));
-
-        uint256[] memory amountsIn = new uint256[](2);
-        amountsIn[0] = TOKEN_1M;
-        amountsIn[1] = TOKEN_1M * 2;
-
-        uint256 amountOut = 0;
-
-        bytes memory _userData = abi.encode(WeightedPoolUserData.JoinKind.INIT, amountsIn, amountOut);
-
-        IVault.JoinPoolRequest memory request = IVault.JoinPoolRequest({
-            assets: _assets,
-            maxAmountsIn: amountsIn,
-            userData: _userData,
-            fromInternalBalance: false
-        });
-
-        balancerVault.joinPool(poolId, admin, admin, request);
-
-        hevm.stopPrank();
-
-        return balancerPool;
     }
 
     // Creates a veALCX position for a given account

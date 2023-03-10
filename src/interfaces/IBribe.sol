@@ -59,14 +59,6 @@ interface IBribe {
     function lastTimeRewardApplicable(address token) external view returns (uint256);
 
     /**
-     * @notice Distribute the bribes for an epoch
-     * @param token         The bribe token being given
-     * @param epochStart    The epoch for the bribes
-     * @return uint256      Amount of bribes for the epoch
-     */
-    function deliverReward(address token, uint256 epochStart) external returns (uint256);
-
-    /**
      * @return address Address of a reward token given the index
      */
     function rewards(uint256 i) external view returns (address);
