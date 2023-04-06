@@ -468,4 +468,17 @@ contract RevenueHandlerTest is BaseTest {
         assertEq(revAmt / 2, tBalAfterDai - tBalBeforeDai);
         assertEq(usdcRevAmt / 2, tBalAfterUsdc - tBalBeforeUsdc);
     }
+
+    function testSetTreasuryPct(uint256 newPct) external {
+        if (newPct == revenueHandler.treasuryPct()) {
+            hevm.expectRevert(abi.encodePacked("treasury pct unchanged"));
+            revenueHandler.setTreasuryPct(newPct);
+        } else if (newPct > BPS) {
+            hevm.expectRevert(abi.encodePacked("treasury pct too large"));
+            revenueHandler.setTreasuryPct(newPct);
+        } else {
+            revenueHandler.setTreasuryPct(newPct);
+            assertEq(revenueHandler.treasuryPct(), newPct);
+        }
+    }
 }

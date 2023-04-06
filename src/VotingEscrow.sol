@@ -611,6 +611,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
     function setVoter(address _voter) external {
         require(msg.sender == voter, "not voter");
+        // require(msg.sender == admin, "not admin");
         voter = _voter;
     }
 
@@ -1225,12 +1226,12 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
             // Kept at zero when they have to
             if (oldLocked.end > block.timestamp && oldLocked.amount > 0) {
                 oldPoint.slope = (oldLocked.amount * iMULTIPLIER) / iMAXTIME;
-                oldPoint.bias = (oldPoint.slope * (int256(oldLocked.end - block.timestamp))) + oldLocked.amount;
+                oldPoint.bias = (oldPoint.slope * (int256(oldLocked.end - block.timestamp)));
             }
 
             if (newLocked.end > block.timestamp && newLocked.amount > 0) {
                 newPoint.slope = (newLocked.amount * iMULTIPLIER) / iMAXTIME;
-                newPoint.bias = (newPoint.slope * (int256(newLocked.end - block.timestamp))) + newLocked.amount;
+                newPoint.bias = (newPoint.slope * (int256(newLocked.end - block.timestamp)));
             }
 
             // Read values of scheduled changes in the slope

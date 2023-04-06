@@ -123,7 +123,7 @@ contract TimelockExecutor is IERC721Receiver, IERC1155Receiver {
     }
 
     /**
-     * @dev Returns the timestamp at with an operation becomes ready (0 for
+     * @dev Returns the timestamp at which an operation becomes ready (0 for
      * unset operations, 1 for done operations).
      */
     function getTimestamp(bytes32 id) public view virtual returns (uint256 timestamp) {
@@ -187,6 +187,8 @@ contract TimelockExecutor is IERC721Receiver, IERC1155Receiver {
         uint256 chainId,
         uint256 delay
     ) public virtual {
+        require(msg.sender == admin, "not admin");
+
         bytes32 id = hashOperation(target, value, data, predecessor, descriptionHash, chainId);
         _schedule(id, delay);
         emit CallScheduled(id, 0, target, value, data, predecessor, _delay);
@@ -210,6 +212,8 @@ contract TimelockExecutor is IERC721Receiver, IERC1155Receiver {
         uint256 chainId,
         uint256 delay
     ) public virtual {
+        require(msg.sender == admin, "not admin");
+
         require(targets.length == values.length, "TimelockExecutor: length mismatch");
         require(targets.length == payloads.length, "TimelockExecutor: length mismatch");
 
@@ -300,13 +304,7 @@ contract TimelockExecutor is IERC721Receiver, IERC1155Receiver {
     /**
      * @dev Execute an operation's call.
      */
-    function _execute(
-        bytes32 id,
-        uint256 index,
-        address target,
-        uint256 value,
-        bytes calldata data
-    ) private {
+    function _execute(bytes32 id, uint256 index, address target, uint256 value, bytes calldata data) private {
         string memory errorMessage = "Governor: call reverted without message";
         (bool success, bytes memory returndata) = target.call{ value: value }(data);
         Address.verifyCallResult(success, returndata, errorMessage);
@@ -334,12 +332,7 @@ contract TimelockExecutor is IERC721Receiver, IERC1155Receiver {
     /**
      * @dev See {IERC721Receiver-onERC721Received}.
      */
-    function onERC721Received(
-        address,
-        address,
-        uint256,
-        bytes memory
-    ) public virtual override returns (bytes4) {
+    function onERC721Received(address, address, uint256, bytes memory) public virtual override returns (bytes4) {
         return this.onERC721Received.selector;
     }
 

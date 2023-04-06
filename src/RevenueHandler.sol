@@ -159,7 +159,8 @@ contract RevenueHandler is IRevenueHandler, Ownable {
 
     /// @inheritdoc IRevenueHandler
     function setTreasuryPct(uint256 _treasuryPct) external override onlyOwner {
-        require(treasuryPct <= BPS, "treasury pct too large");
+        require(_treasuryPct <= BPS, "treasury pct too large");
+        require(_treasuryPct != treasuryPct, "treasury pct unchanged");
         treasuryPct = _treasuryPct;
     }
 
