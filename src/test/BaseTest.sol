@@ -90,6 +90,7 @@ contract BaseTest is DSTestPlus {
 
     uint256 internal constant MAXTIME = 365 days;
     uint256 internal constant MULTIPLIER = 26 ether;
+    uint256 internal constant BPS = 10_000;
 
     WeightedPool2TokensFactory poolFactory = WeightedPool2TokensFactory(0xA5bf2ddF098bb0Ef6d120C98217dD6B141c74EE0);
     IAlchemixToken public alcx = IAlchemixToken(0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF);
@@ -243,7 +244,7 @@ contract BaseTest is DSTestPlus {
     function getMaxVotingPower(uint256 _amount, uint256 _end) public view returns (uint256) {
         uint256 slope = (_amount * MULTIPLIER) / MAXTIME;
 
-        uint256 bias = (slope * (_end - block.timestamp)) + _amount;
+        uint256 bias = (slope * (_end - block.timestamp));
 
         return bias;
     }

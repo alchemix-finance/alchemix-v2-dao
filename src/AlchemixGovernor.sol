@@ -20,7 +20,10 @@ contract AlchemixGovernor is L2Governor, L2GovernorVotes, L2GovernorVotesQuorumF
     uint256 public constant PROPOSAL_DENOMINATOR = 1000;
     uint256 public proposalNumerator = 2; // 0.02%
 
-    constructor(IVotes _ve, TimelockExecutor timelockAddress)
+    constructor(
+        IVotes _ve,
+        TimelockExecutor timelockAddress
+    )
         L2Governor("Alchemix Governor", timelockAddress)
         L2GovernorVotes(_ve)
         L2GovernorVotesQuorumFraction(4) // 4%

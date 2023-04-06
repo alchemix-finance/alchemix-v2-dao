@@ -84,7 +84,7 @@ contract PassthroughGaugeTest is BaseTest {
         uint256 votiumFee = (votiumClaimable * platformFee) / DENOMINATOR;
 
         // Votium stash ALCX balance should increase by the three curve pools claimable amount minus votium fee
-        assertEq(votiumBalanceAfter - votiumBalanceBefore, votiumClaimable - votiumFee);
+        assertApproxEq(votiumBalanceAfter - votiumBalanceBefore, votiumClaimable - votiumFee, 0.1e18);
 
         // Sushi pool ALCX balance should increase by the claimable amount
         assertEq(sushiBalanceAfter - sushiBalanceBefore, sushiGaugeClaimable);

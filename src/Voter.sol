@@ -343,6 +343,7 @@ contract Voter is IVoter {
                 weights[_pool] -= _votes;
                 votes[_tokenId][_pool] -= _votes;
                 if (_votes > 0) {
+                    IBribe(bribes[gauges[_pool]]).withdraw(uint256(_votes), _tokenId);
                     _totalWeight += _votes;
                 }
                 emit Abstained(_tokenId, _votes);

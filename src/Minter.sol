@@ -7,8 +7,8 @@ import "src/interfaces/IVoter.sol";
 import "src/interfaces/IVotingEscrow.sol";
 import "src/interfaces/IAlchemixToken.sol";
 import "src/interfaces/IRevenueHandler.sol";
+import "src/interfaces/synthetix/IStakingRewards.sol";
 import "src/libraries/Math.sol";
-import "./interfaces/synthetix/IStakingRewards.sol";
 import "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /**
