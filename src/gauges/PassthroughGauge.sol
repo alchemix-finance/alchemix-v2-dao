@@ -43,8 +43,6 @@ contract PassthroughGauge is BaseGauge {
         uint256 rewardBalance = IERC20(rewardToken).balanceOf(address(this));
         require(rewardBalance >= _amount, "insufficient rewards");
 
-        _updateRewardForAllTokens();
-
         _safeTransfer(rewardToken, receiver, _amount);
 
         emit Passthrough(msg.sender, rewardToken, _amount, receiver);

@@ -113,8 +113,6 @@ contract CurveGauge is BaseGauge {
         uint256 rewardBalance = IERC20(rewardToken).balanceOf(address(this));
         require(rewardBalance >= _amount, "insufficient rewards");
 
-        _updateRewardForAllTokens();
-
         IERC20(rewardToken).approve(receiver, _amount);
         IVotiumBribe(receiver).depositBribe(rewardToken, _amount, proposalHash, poolIndex);
 
