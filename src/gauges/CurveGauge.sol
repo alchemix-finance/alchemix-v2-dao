@@ -57,6 +57,7 @@ contract CurveGauge is BaseGauge {
      * @param _receiver Votium contract that is sent rewards
      */
     function initialize(uint256 _poolIndex, address _receiver) external {
+        require(!initialized, "already initialized");
         require(msg.sender == admin, "not admin");
         receiver = _receiver;
         poolIndex = _poolIndex;

@@ -105,6 +105,10 @@ contract Voter is IVoter {
         return pools.length;
     }
 
+    function getPoolVote(uint256 _tokenId) public view returns (address[] memory) {
+        return poolVote[_tokenId];
+    }
+
     /*
         External functions
     */
@@ -197,9 +201,6 @@ contract Voter is IVoter {
         // Handle gauge type
         address _gauge;
 
-        if (_gaugeType == IVoter.GaugeType.Staking) {
-            _gauge = IGaugeFactory(gaugefactory).createStakingGauge(_pool, _bribe, veALCX);
-        }
         if (_gaugeType == IVoter.GaugeType.Curve) {
             _gauge = IGaugeFactory(gaugefactory).createCurveGauge(_bribe, veALCX);
         }

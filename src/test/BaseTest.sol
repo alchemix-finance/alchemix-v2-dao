@@ -15,7 +15,6 @@ import "src/RevenueHandler.sol";
 import "src/Bribe.sol";
 import "src/gauges/CurveGauge.sol";
 import "src/gauges/PassthroughGauge.sol";
-import "src/gauges/StakingGauge.sol";
 import "src/governance/TimelockExecutor.sol";
 import "src/factories/BribeFactory.sol";
 import "src/factories/GaugeFactory.sol";
@@ -114,8 +113,6 @@ contract BaseTest is DSTestPlus {
     CurveGauge public alEthGauge;
     CurveGauge public alUsdFraxBpGauge;
     PassthroughGauge public sushiGauge;
-    StakingGauge public stakingGauge;
-    StakingGauge public stakingGauge2;
     StakingRewards public timeGauge;
 
     // Initialize all DAO contracts and their dependencies
@@ -185,24 +182,16 @@ contract BaseTest is DSTestPlus {
         // Create sushi gauge
         voter.createGauge(sushiPoolAddress, IVoter.GaugeType.Passthrough);
 
-        // Create staking gauges
-        voter.createGauge(address(alcx), IVoter.GaugeType.Staking);
-        voter.createGauge(alUSDPool, IVoter.GaugeType.Staking);
-
         // Get address of new gauges
         address alUsdGaugeAddress = voter.gauges(alUsdPoolAddress);
         address alEthGaugeAddress = voter.gauges(alEthPoolAddress);
         address alUsdFraxBpGaugeAddress = voter.gauges(alUsdFraxBpPoolAddress);
         address sushiGaugeAddress = voter.gauges(sushiPoolAddress);
-        address gaugeAddress = voter.gauges(address(alcx));
-        address gaugeAddress2 = voter.gauges(alUSDPool);
 
         alUsdGauge = CurveGauge(alUsdGaugeAddress);
         alEthGauge = CurveGauge(alEthGaugeAddress);
         alUsdFraxBpGauge = CurveGauge(alUsdFraxBpGaugeAddress);
         sushiGauge = PassthroughGauge(sushiGaugeAddress);
-        stakingGauge = StakingGauge(gaugeAddress);
-        stakingGauge2 = StakingGauge(gaugeAddress2);
 
         alUsdGauge.initialize(alUsdIndex, votiumReceiver);
         alEthGauge.initialize(alEthIndex, votiumReceiver);

@@ -70,23 +70,27 @@ contract VotingTest is BaseTest {
 
         voter.vote(tokenId, pools, weights, 0);
 
+        address[] memory poolVote = voter.getPoolVote(tokenId);
+        assertEq(poolVote[0], alETHPool);
+
         // Next epoch
         hevm.warp(block.timestamp + nextEpoch);
 
         // New vote succeeds
-        pools[0] = alUSDPool;
+        pools[0] = sushiPoolAddress;
         voter.vote(tokenId, pools, weights, 0);
 
-        address poolVote = voter.poolVote(tokenId, 0);
-        assertEq(poolVote, alUSDPool);
+        poolVote = voter.getPoolVote(tokenId);
+        assertEq(poolVote[0], sushiPoolAddress);
 
         // Next epoch
         hevm.warp(block.timestamp + nextEpoch);
 
         voter.poke(tokenId, 0);
 
-        poolVote = voter.poolVote(tokenId, 0);
-        assertEq(poolVote, alUSDPool);
+        // Pool vote should remain the same after poke
+        poolVote = voter.getPoolVote(tokenId);
+        assertEq(poolVote[0], sushiPoolAddress);
 
         // Next epoch
         hevm.warp(block.timestamp + nextEpoch);

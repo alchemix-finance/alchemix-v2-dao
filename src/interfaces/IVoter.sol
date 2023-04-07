@@ -4,7 +4,6 @@ pragma solidity ^0.8.15;
 interface IVoter {
     // Type of gauge being created
     enum GaugeType {
-        Staking,
         Passthrough,
         Curve
     }
@@ -29,6 +28,8 @@ interface IVoter {
     function emergencyCouncil() external view returns (address);
 
     function isWhitelisted(address token) external view returns (bool);
+
+    function getPoolVote(uint256 tokenId) external view returns (address[] memory);
 
     /**
      * @notice Whitelist a token to be a permitted bribe token

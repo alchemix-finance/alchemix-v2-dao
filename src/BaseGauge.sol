@@ -19,7 +19,6 @@ abstract contract BaseGauge is IBaseGauge {
     uint256 internal constant MAX_REWARD_TOKENS = 16;
     uint256 internal constant PRECISION = 10 ** 18;
 
-    address public stake; // token that needs to be staked for rewards
     address public ve; // Ve token used for gauges
     address public bribe;
     address public voter;
@@ -30,7 +29,6 @@ abstract contract BaseGauge is IBaseGauge {
     address public gaugeFactory;
 
     uint256 public derivedSupply;
-    uint256 public totalSupply;
     uint256 public supplyNumCheckpoints; // The number of checkpoints
 
     address[] public rewards;
@@ -323,7 +321,6 @@ abstract contract BaseGauge is IBaseGauge {
     /// @inheritdoc IBaseGauge
     function notifyRewardAmount(address _token, uint256 _amount) external lock {
         require(msg.sender == voter, "not voter");
-        require(_token != stake);
         require(_amount > 0);
 
         if (!isReward[_token]) {
@@ -480,6 +477,8 @@ abstract contract BaseGauge is IBaseGauge {
         }
 
         uint256 _startIndex = getPriorSupplyIndex(_startTimestamp);
+
+        // Number of loop iterations
         uint256 _endIndex = Math.min(supplyNumCheckpoints - 1, maxRuns);
 
         if (_endIndex > 0) {

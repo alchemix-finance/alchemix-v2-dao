@@ -20,7 +20,7 @@ contract AlchemixGovernorTest is BaseTest {
         hevm.assume(a != address(0));
 
         hevm.startPrank(address(timelockExecutor));
-        voter.createGauge(a, IVoter.GaugeType.Staking);
+        voter.createGauge(a, IVoter.GaugeType.Passthrough);
         hevm.stopPrank();
     }
 
