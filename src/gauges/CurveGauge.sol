@@ -57,6 +57,7 @@ contract CurveGauge is BaseGauge {
      * @param _receiver Votium contract that is sent rewards
      */
     function initialize(uint256 _poolIndex, address _receiver) external {
+        require(!initialized, "already initialized");
         require(msg.sender == admin, "not admin");
         receiver = _receiver;
         poolIndex = _poolIndex;
@@ -111,8 +112,6 @@ contract CurveGauge is BaseGauge {
 
         uint256 rewardBalance = IERC20(rewardToken).balanceOf(address(this));
         require(rewardBalance >= _amount, "insufficient rewards");
-
-        _updateRewardForAllTokens();
 
         IERC20(rewardToken).approve(receiver, _amount);
         IVotiumBribe(receiver).depositBribe(rewardToken, _amount, proposalHash, poolIndex);
