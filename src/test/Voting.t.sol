@@ -232,6 +232,38 @@ contract VotingTest is BaseTest {
         assertGt(IERC20(bal).balanceOf(admin), IERC20(bal).balanceOf(beef));
     }
 
+    // veALCX holders should be able to maintain their vote without re-voting each epoch
+    function testPoke() public {
+        uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+
+        hevm.warp(block.timestamp + nextEpoch);
+
+        address[] memory pools = new address[](1);
+        pools[0] = alETHPool;
+        uint256[] memory weights = new uint256[](1);
+        weights[0] = 5000;
+
+        hevm.prank(admin);
+        voter.vote(tokenId, pools, weights, 0);
+
+        address[] memory poolVote = voter.getPoolVote(tokenId);
+        assertEq(poolVote[0], alETHPool);
+
+        // Next epoch
+        hevm.warp(block.timestamp + nextEpoch);
+
+        // Only approved or owner can call poke for a given tokenId
+        hevm.expectRevert(abi.encodePacked("not approved or owner"));
+        voter.poke(tokenId, 0);
+
+        hevm.prank(admin);
+        voter.poke(tokenId, 0);
+
+        // Pool vote should remain the same after poke
+        poolVote = voter.getPoolVote(tokenId);
+        assertEq(poolVote[0], alETHPool);
+    }
+
     // Test voting on gauges to earn third party bribes
     function testBribes() public {
         uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);

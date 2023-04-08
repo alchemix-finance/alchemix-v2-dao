@@ -154,6 +154,7 @@ contract Voter is IVoter {
 
     /// @inheritdoc IVoter
     function poke(uint256 _tokenId, uint256 _boost) external {
+        require(IVotingEscrow(veALCX).isApprovedOrOwner(msg.sender, _tokenId), "not approved or owner");
         require(IVotingEscrow(veALCX).claimableFlux(_tokenId) >= _boost, "insufficient claimable FLUX balance");
 
         address[] memory _poolVote = poolVote[_tokenId];
