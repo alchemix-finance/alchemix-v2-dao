@@ -138,11 +138,25 @@ interface IVotingEscrow {
     function claimableFlux(uint256 tokenId) external view returns (uint256);
 
     /**
+     * @notice Total amount of flux accrued
+     * @param tokenId ID of the token
+     * @return uint256 Total amount of flux accrued
+     */
+    function unclaimedFlux(uint256 tokenId) external view returns (uint256);
+
+    /**
      * @notice Accrue unclaimed flux for a given veALCX
      * @param tokenId ID of the token flux is being accrued to
      * @param amount Amount of flux being accrued
      */
     function accrueFlux(uint256 tokenId, uint256 amount) external;
+
+    /**
+     * @notice Update unclaimed flux balance for a given veALCX
+     * @param tokenId ID of the token flux is being updated for
+     * @param amount Amount of flux being used
+     */
+    function updateFlux(uint256 tokenId, uint256 amount) external;
 
     /**
      * @notice Claim unclaimed flux for a given veALCX

@@ -836,6 +836,17 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     }
 
     /**
+     * @notice Update unclaimed flux balance for a given veALCX
+     * @param _tokenId ID of the token flux is being updated for
+     * @param _amount Amount of flux being used
+     */
+    function updateFlux(uint256 _tokenId, uint256 _amount) external {
+        require(msg.sender == voter, "not voter");
+        require(_amount <= unclaimedFlux[_tokenId], "not enough flux");
+        unclaimedFlux[_tokenId] -= _amount;
+    }
+
+    /**
      * @notice Claim unclaimed flux for a given veALCX
      * @param _tokenId ID of the token flux is being accrued to
      * @param _amount Amount of flux being claimed

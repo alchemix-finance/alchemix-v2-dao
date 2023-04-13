@@ -196,13 +196,18 @@ contract VotingTest is BaseTest {
         uint256 votingWeight = veALCX.balanceOfToken(tokenId);
         uint256 maxBoostAmount = voter.maxVotingPower(tokenId);
         uint256 maxFluxAmount = voter.maxFluxBoost(tokenId);
+        uint256 fluxAccessable = claimableFlux + veALCX.unclaimedFlux(tokenId);
 
         // Max boost amount should be the voting weight plus the boost multiplier
         assertEq(maxBoostAmount, votingWeight + maxFluxAmount);
 
+        // Voter should revert if attempting to boost more amount of flux they have accrued and can claim
+        hevm.expectRevert(abi.encodePacked("insufficient claimable FLUX balance"));
+        voter.vote(tokenId, pools, weights, fluxAccessable + 1);
+
         // Vote should revert if attempting to boost more than the allowed amount
         hevm.expectRevert(abi.encodePacked("cannot exceed max boost"));
-        voter.vote(tokenId, pools, weights, claimableFlux);
+        voter.vote(tokenId, pools, weights, fluxAccessable);
 
         hevm.stopPrank();
 
