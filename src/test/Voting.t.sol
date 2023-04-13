@@ -196,13 +196,18 @@ contract VotingTest is BaseTest {
         uint256 votingWeight = veALCX.balanceOfToken(tokenId);
         uint256 maxBoostAmount = voter.maxVotingPower(tokenId);
         uint256 maxFluxAmount = voter.maxFluxBoost(tokenId);
+        uint256 fluxAccessable = claimableFlux + veALCX.unclaimedFlux(tokenId);
 
         // Max boost amount should be the voting weight plus the boost multiplier
         assertEq(maxBoostAmount, votingWeight + maxFluxAmount);
 
+        // Voter should revert if attempting to boost more amount of flux they have accrued and can claim
+        hevm.expectRevert(abi.encodePacked("insufficient claimable FLUX balance"));
+        voter.vote(tokenId, pools, weights, fluxAccessable + 1);
+
         // Vote should revert if attempting to boost more than the allowed amount
         hevm.expectRevert(abi.encodePacked("cannot exceed max boost"));
-        voter.vote(tokenId, pools, weights, claimableFlux);
+        voter.vote(tokenId, pools, weights, fluxAccessable);
 
         hevm.stopPrank();
 
@@ -259,9 +264,32 @@ contract VotingTest is BaseTest {
         hevm.prank(admin);
         voter.poke(tokenId, 0);
 
+        address[] memory poolVoteBefore = voter.getPoolVote(tokenId);
+
+        hevm.prank(admin);
+        voter.poke(tokenId, 0);
+
+        address[] memory poolVoteAfter = voter.getPoolVote(tokenId);
+
+        // Calling poke multiple times should not inflate the voting balance
+        assertEq(poolVoteBefore[0], poolVoteAfter[0], "voting balance inflated");
+
+        // Last voted should be updated
+        assertEq(voter.lastVoted(tokenId), block.timestamp, "last voted not updated");
+
         // Pool vote should remain the same after poke
         poolVote = voter.getPoolVote(tokenId);
         assertEq(poolVote[0], alETHPool);
+
+        // Next epoch
+        hevm.warp(block.timestamp + nextEpoch);
+
+        uint256 claimableFlux = veALCX.claimableFlux(tokenId);
+
+        // Poke should revert if attempting to boost more than the allowed amount
+        hevm.prank(admin);
+        hevm.expectRevert(abi.encodePacked("cannot exceed max boost"));
+        voter.poke(tokenId, claimableFlux);
     }
 
     // Test voting on gauges to earn third party bribes

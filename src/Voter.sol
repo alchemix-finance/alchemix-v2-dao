@@ -155,7 +155,14 @@ contract Voter is IVoter {
     /// @inheritdoc IVoter
     function poke(uint256 _tokenId, uint256 _boost) external {
         require(IVotingEscrow(veALCX).isApprovedOrOwner(msg.sender, _tokenId), "not approved or owner");
-        require(IVotingEscrow(veALCX).claimableFlux(_tokenId) >= _boost, "insufficient claimable FLUX balance");
+        require(
+            IVotingEscrow(veALCX).claimableFlux(_tokenId) + IVotingEscrow(veALCX).unclaimedFlux(_tokenId) >= _boost,
+            "insufficient claimable FLUX balance"
+        );
+        require(
+            (IVotingEscrow(veALCX).balanceOfToken(_tokenId) + _boost) <= maxVotingPower(_tokenId),
+            "cannot exceed max boost"
+        );
 
         address[] memory _poolVote = poolVote[_tokenId];
         uint256 _poolCnt = _poolVote.length;
@@ -177,13 +184,15 @@ contract Voter is IVoter {
     ) external onlyNewEpoch(_tokenId) {
         require(IVotingEscrow(veALCX).isApprovedOrOwner(msg.sender, _tokenId));
         require(_poolVote.length == _weights.length);
-        require(IVotingEscrow(veALCX).claimableFlux(_tokenId) >= _boost, "insufficient claimable FLUX balance");
+        require(
+            IVotingEscrow(veALCX).claimableFlux(_tokenId) + IVotingEscrow(veALCX).unclaimedFlux(_tokenId) >= _boost,
+            "insufficient claimable FLUX balance"
+        );
         require(
             (IVotingEscrow(veALCX).balanceOfToken(_tokenId) + _boost) <= maxVotingPower(_tokenId),
             "cannot exceed max boost"
         );
 
-        lastVoted[_tokenId] = block.timestamp;
         _vote(_tokenId, _poolVote, _weights, _boost);
     }
 
@@ -365,6 +374,7 @@ contract Voter is IVoter {
             address _gauge = gauges[_pool];
 
             if (isGauge[_gauge]) {
+                IVotingEscrow(veALCX).accrueFlux(_tokenId, IVotingEscrow(veALCX).claimableFlux(_tokenId));
                 uint256 _poolWeight = (_weights[i] * (IVotingEscrow(veALCX).balanceOfToken(_tokenId) + _boost)) /
                     _totalVoteWeight;
                 require(votes[_tokenId][_pool] == 0);
@@ -384,10 +394,12 @@ contract Voter is IVoter {
         if (_usedWeight > 0) IVotingEscrow(veALCX).voting(_tokenId);
         totalWeight += uint256(_totalWeight);
         usedWeights[_tokenId] = uint256(_usedWeight);
+        lastVoted[_tokenId] = block.timestamp;
 
-        // Accrue any flux not used for vote boost
-        if (IVotingEscrow(veALCX).claimableFlux(_tokenId) > _boost)
-            IVotingEscrow(veALCX).accrueFlux(_tokenId, IVotingEscrow(veALCX).claimableFlux(_tokenId) - _boost);
+        // Update flux balance of token if boost was used
+        if (_boost > 0) {
+            IVotingEscrow(veALCX).updateFlux(_tokenId, _boost);
+        }
     }
 
     function _whitelist(address _token) internal {
