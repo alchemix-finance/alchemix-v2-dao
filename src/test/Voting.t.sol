@@ -275,6 +275,16 @@ contract VotingTest is BaseTest {
         // Pool vote should remain the same after poke
         poolVote = voter.getPoolVote(tokenId);
         assertEq(poolVote[0], alETHPool);
+
+        // Next epoch
+        hevm.warp(block.timestamp + nextEpoch);
+
+        uint256 claimableFlux = veALCX.claimableFlux(tokenId);
+
+        // Poke should revert if attempting to boost more than the allowed amount
+        hevm.prank(admin);
+        hevm.expectRevert(abi.encodePacked("cannot exceed max boost"));
+        voter.poke(tokenId, claimableFlux);
     }
 
     // Test voting on gauges to earn third party bribes
