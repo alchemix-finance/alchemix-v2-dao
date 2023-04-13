@@ -183,7 +183,6 @@ contract Voter is IVoter {
             "cannot exceed max boost"
         );
 
-        lastVoted[_tokenId] = block.timestamp;
         _vote(_tokenId, _poolVote, _weights, _boost);
     }
 
@@ -384,6 +383,7 @@ contract Voter is IVoter {
         if (_usedWeight > 0) IVotingEscrow(veALCX).voting(_tokenId);
         totalWeight += uint256(_totalWeight);
         usedWeights[_tokenId] = uint256(_usedWeight);
+        lastVoted[_tokenId] = block.timestamp;
 
         // Accrue any flux not used for vote boost
         if (IVotingEscrow(veALCX).claimableFlux(_tokenId) > _boost)

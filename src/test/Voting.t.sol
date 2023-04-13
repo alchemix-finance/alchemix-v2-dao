@@ -259,6 +259,19 @@ contract VotingTest is BaseTest {
         hevm.prank(admin);
         voter.poke(tokenId, 0);
 
+        address[] memory poolVoteBefore = voter.getPoolVote(tokenId);
+
+        hevm.prank(admin);
+        voter.poke(tokenId, 0);
+
+        address[] memory poolVoteAfter = voter.getPoolVote(tokenId);
+
+        // Calling poke multiple times should not inflate the voting balance
+        assertEq(poolVoteBefore[0], poolVoteAfter[0], "voting balance inflated");
+
+        // Last voted should be updated
+        assertEq(voter.lastVoted(tokenId), block.timestamp, "last voted not updated");
+
         // Pool vote should remain the same after poke
         poolVote = voter.getPoolVote(tokenId);
         assertEq(poolVote[0], alETHPool);
