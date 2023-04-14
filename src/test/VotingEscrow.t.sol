@@ -6,6 +6,7 @@ import "./BaseTest.sol";
 contract VotingEscrowTest is BaseTest {
     uint256 internal constant ONE_WEEK = 1 weeks;
     uint256 internal constant THREE_WEEKS = 3 weeks;
+    uint256 internal constant FOUR_WEEKS = 4 weeks;
     uint256 maxDuration = ((block.timestamp + MAXTIME) / ONE_WEEK) * ONE_WEEK;
 
     function setUp() public {
@@ -322,33 +323,60 @@ contract VotingEscrowTest is BaseTest {
     function testManipulateEarlyUnlock() public {
         uint256 tokenId1 = createVeAlcx(admin, TOKEN_100K, MAXTIME, false);
         uint256 tokenId2 = createVeAlcx(admin, TOKEN_1, THREE_WEEKS, false);
+        uint256 tokenId3 = createVeAlcx(admin, TOKEN_1, FOUR_WEEKS, false);
+        uint256 tokenId4 = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+
+        // Mint the necessary amount of flux to ragequit
+        uint256 ragequitAmount = veALCX.amountToRagequit(tokenId4);
+        hevm.prank(address(veALCX));
+        flux.mint(admin, ragequitAmount);
 
         // Fast forward to lock end of tokenId2
         hevm.warp(block.timestamp + THREE_WEEKS);
 
         hevm.startPrank(admin);
 
-        // User should not be able to withdraw BPT
+        // Should not be able to withdraw BPT
         hevm.expectRevert(abi.encodePacked("Cooldown period has not started"));
         veALCX.withdraw(tokenId1);
 
+        // Should not be able to withdraw BPT
         hevm.expectRevert(abi.encodePacked("Cooldown period has not started"));
         veALCX.withdraw(tokenId2);
 
-        veALCX.startCooldown(tokenId2);
-
+        // Merge should not be possible with expired token
+        hevm.expectRevert(abi.encodePacked("Cannot merge when lock expired"));
         veALCX.merge(tokenId1, tokenId2);
 
-        hevm.warp(block.timestamp + nextEpoch);
+        flux.approve(address(veALCX), ragequitAmount);
+        veALCX.startCooldown(tokenId4);
+        // Dispose of flux minted for testing
+        flux.transfer(beef, flux.balanceOf(admin));
 
-        // Get lock end of tokenId2
-        uint256 lockEnd = veALCX.lockEnd(tokenId2);
+        // Merge should not be possible when token lock has expired
+        hevm.expectRevert(abi.encodePacked("Cannot merge when lock expired"));
+        veALCX.merge(tokenId1, tokenId2);
 
-        // Lock end should be greater than current time
-        assertGt(lockEnd, block.timestamp);
+        // Merge should not be possible when token cooldown has started
+        hevm.expectRevert(abi.encodePacked("Cannot merge when cooldown period in progress"));
+        veALCX.merge(tokenId1, tokenId4);
 
-        // Withdraw from tokenId2 should not be possible
-        veALCX.withdraw(tokenId2);
+        uint256 oldLockEnd = veALCX.lockEnd(tokenId1);
+
+        // Merge with valid token should be possible
+        veALCX.merge(tokenId1, tokenId3);
+
+        // Early unlock should not be possible since balance has increased
+        hevm.expectRevert(abi.encodePacked("insufficient FLUX balance"));
+        veALCX.startCooldown(tokenId3);
+
+        // Withdraw from tokenId3 should not be possible
+        hevm.expectRevert(abi.encodePacked("Cooldown period has not started"));
+        veALCX.withdraw(tokenId3);
+
+        // Lock end of token should be updated
+        uint256 newLockEnd = veALCX.lockEnd(tokenId3);
+        assertEq(newLockEnd, oldLockEnd);
 
         hevm.stopPrank();
     }

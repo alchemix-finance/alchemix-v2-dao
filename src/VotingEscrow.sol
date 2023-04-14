@@ -674,11 +674,11 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         LockedBalance memory _locked0 = locked[_from];
         LockedBalance memory _locked1 = locked[_to];
 
-        // Cannot merge if the token lock is expired or cooldown is active
-        // require(_locked0.end > block.timestamp, "Lock expired");
-        // require(_locked1.end > block.timestamp, "Lock expired");
-        // require(_locked0.cooldown == 0, "Cooldown period in progress");
-        // require(_locked1.cooldown == 0, "Cooldown period in progress");
+        // Cannot merge if cooldown is active or lock is expired
+        require(_locked0.cooldown == 0, "Cannot merge when cooldown period in progress");
+        require(_locked1.cooldown == 0, "Cannot merge when cooldown period in progress");
+        require(_locked0.end > block.timestamp, "Cannot merge when lock expired");
+        require(_locked1.end > block.timestamp, "Cannot merge when lock expired");
 
         uint256 value0 = uint256(_locked0.amount);
 
