@@ -318,6 +318,41 @@ contract VotingEscrowTest is BaseTest {
         hevm.stopPrank();
     }
 
+    // A user should not be able to withdraw BPT early
+    function testManipulateEarlyUnlock() public {
+        uint256 tokenId1 = createVeAlcx(admin, TOKEN_100K, MAXTIME, false);
+        uint256 tokenId2 = createVeAlcx(admin, TOKEN_1, THREE_WEEKS, false);
+
+        // Fast forward to lock end of tokenId2
+        hevm.warp(block.timestamp + THREE_WEEKS);
+
+        hevm.startPrank(admin);
+
+        // User should not be able to withdraw BPT
+        hevm.expectRevert(abi.encodePacked("Cooldown period has not started"));
+        veALCX.withdraw(tokenId1);
+
+        hevm.expectRevert(abi.encodePacked("Cooldown period has not started"));
+        veALCX.withdraw(tokenId2);
+
+        veALCX.startCooldown(tokenId2);
+
+        veALCX.merge(tokenId1, tokenId2);
+
+        hevm.warp(block.timestamp + nextEpoch);
+
+        // Get lock end of tokenId2
+        uint256 lockEnd = veALCX.lockEnd(tokenId2);
+
+        // Lock end should be greater than current time
+        assertGt(lockEnd, block.timestamp);
+
+        // Withdraw from tokenId2 should not be possible
+        veALCX.withdraw(tokenId2);
+
+        hevm.stopPrank();
+    }
+
     function testRagequit() public {
         hevm.startPrank(admin);
 
