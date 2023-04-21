@@ -169,4 +169,41 @@ contract AlchemixGovernorTest is BaseTest {
 
         hevm.stopPrank();
     }
+
+    function testProposalThresholdMetBeforeProposalBlock() public {
+        // TODO: this test should fail once the timestamp bug is fixed
+
+        uint256 proposalThreshold = governor.proposalThreshold();
+
+        createVeAlcx(dead, proposalThreshold, MAXTIME, false);
+
+        assertFalse(voter.isWhitelisted(usdc));
+
+        address[] memory targets = new address[](1);
+        targets[0] = address(voter);
+        uint256[] memory values = new uint256[](1);
+        values[0] = 0;
+        bytes[] memory calldatas = new bytes[](1);
+        calldatas[0] = abi.encodeWithSelector(voter.whitelist.selector, usdc);
+        string memory description = "Whitelist USDC";
+
+        // proposal should fail to meet threshold when veALCX amount is too low
+        hevm.startPrank(dead);
+
+        // TODO: uncomment the following line to make this test pass once the timestamp bug is fixed
+        // hevm.expectRevert(abi.encodePacked("Governor: proposer votes below proposal threshold"));
+        governor.propose(targets, values, calldatas, description, MAINNET);
+
+        // TODO: then uncomment these lines
+        // warp(block.timestamp + 12);
+        // roll(block.number + 1);
+        // governor.propose(targets, values, calldatas, description, MAINNET);
+        
+        uint256 votes = governor.getVotes(dead, block.timestamp);
+
+        assertLt(proposalThreshold, votes);
+
+        hevm.stopPrank();
+        
+    }
 }
