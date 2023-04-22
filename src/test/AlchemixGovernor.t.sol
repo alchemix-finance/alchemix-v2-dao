@@ -139,7 +139,6 @@ contract AlchemixGovernorTest is BaseTest {
         hevm.startPrank(admin);
         uint256 pid = governor.propose(targets, values, calldatas, description, MAINNET);
         hevm.warp(block.timestamp + 2 days); // delay
-        hevm.roll(block.number + 1);
         hevm.stopPrank();
 
         // vote
@@ -200,7 +199,6 @@ contract AlchemixGovernorTest is BaseTest {
         governor.propose(targets, values, calldatas, description, MAINNET);
 
         hevm.warp(block.timestamp + 12);
-        hevm.roll(block.number + 1);
         governor.propose(targets, values, calldatas, description, MAINNET);
 
         uint256 votes = governor.getVotes(dead, block.timestamp);
