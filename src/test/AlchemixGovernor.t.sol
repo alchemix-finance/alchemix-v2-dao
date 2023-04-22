@@ -4,14 +4,18 @@ pragma solidity ^0.8.15;
 import "./BaseTest.sol";
 
 contract AlchemixGovernorTest is BaseTest {
+    uint256 tokenId1;
+    uint256 tokenId2;
+    uint256 tokenId3;
+
     function setUp() public {
         setupContracts(block.timestamp);
 
         // Create veALCX for admin
-        createVeAlcx(admin, 90 * TOKEN_1, MAXTIME, false);
+        tokenId1 = createVeAlcx(admin, TOKEN_100K, MAXTIME, false);
 
         // Create veALCX for 0xbeef
-        createVeAlcx(beef, TOKEN_1, MAXTIME, false);
+        tokenId2 = createVeAlcx(beef, TOKEN_1, MAXTIME, false);
 
         assertEq(governor.timelock(), address(timelockExecutor));
     }
@@ -25,23 +29,22 @@ contract AlchemixGovernorTest is BaseTest {
     }
 
     function testVeAlcxMergesAutoDelegates() public {
-        // 0xbeef + 0xdead > quorum
-        createVeAlcx(dead, TOKEN_1 / 3, MAXTIME, false);
-
-        hevm.startPrank(dead);
+        tokenId3 = createVeAlcx(dead, TOKEN_1 / 3, MAXTIME, false);
 
         uint256 pre2 = veALCX.getVotes(beef);
         uint256 pre3 = veALCX.getVotes(dead);
 
+        hevm.startPrank(dead);
+
         // merge
-        veALCX.approve(beef, 3);
-        veALCX.transferFrom(dead, beef, 3);
+        veALCX.approve(beef, tokenId3);
+        veALCX.transferFrom(dead, beef, tokenId3);
 
         hevm.stopPrank();
 
         hevm.startPrank(beef);
 
-        veALCX.merge(3, 2);
+        veALCX.merge(tokenId3, tokenId2);
 
         hevm.stopPrank();
 
@@ -97,6 +100,7 @@ contract AlchemixGovernorTest is BaseTest {
 
         // propose
         hevm.startPrank(admin);
+
         uint256 pid = governor.propose(targets, values, calldatas, description, MAINNET);
         hevm.warp(block.timestamp + 2 days); // delay
         hevm.stopPrank();

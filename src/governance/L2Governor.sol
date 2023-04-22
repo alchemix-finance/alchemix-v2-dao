@@ -289,7 +289,7 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
         uint256 chainId
     ) public virtual override returns (uint256) {
         require(
-            getVotes(_msgSender(), block.number - 1) >= proposalThreshold(),
+            getVotes(_msgSender(), block.timestamp) >= proposalThreshold(),
             "Governor: proposer votes below proposal threshold"
         );
 
