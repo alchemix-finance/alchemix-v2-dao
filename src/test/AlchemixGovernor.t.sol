@@ -101,6 +101,8 @@ contract AlchemixGovernorTest is BaseTest {
         // propose
         hevm.startPrank(admin);
 
+        hevm.warp(block.timestamp + 2 days); // delay
+
         uint256 pid = governor.propose(targets, values, calldatas, description, MAINNET);
         hevm.warp(block.timestamp + 2 days); // delay
         hevm.stopPrank();
@@ -130,6 +132,8 @@ contract AlchemixGovernorTest is BaseTest {
         bytes[] memory calldatas = new bytes[](1);
         calldatas[0] = abi.encodeWithSelector(voter.whitelist.selector, usdc);
         string memory description = "Whitelist USDC";
+
+        hevm.warp(block.timestamp + 2 days); // delay
 
         // propose
         hevm.startPrank(admin);
@@ -170,6 +174,38 @@ contract AlchemixGovernorTest is BaseTest {
         governor.setProposalNumerator(50);
 
         assertEq(governor.proposalNumerator(), 50);
+
+        hevm.stopPrank();
+    }
+
+    function testProposalThresholdMetBeforeProposalBlock() public {
+        uint256 proposalThreshold = governor.proposalThreshold();
+
+        createVeAlcx(dead, proposalThreshold, MAXTIME, false);
+
+        assertFalse(voter.isWhitelisted(usdc));
+
+        address[] memory targets = new address[](1);
+        targets[0] = address(voter);
+        uint256[] memory values = new uint256[](1);
+        values[0] = 0;
+        bytes[] memory calldatas = new bytes[](1);
+        calldatas[0] = abi.encodeWithSelector(voter.whitelist.selector, usdc);
+        string memory description = "Whitelist USDC";
+
+        // proposal should fail to meet threshold when veALCX amount is too low
+        hevm.startPrank(dead);
+
+        hevm.expectRevert(abi.encodePacked("Governor: proposer votes below proposal threshold"));
+        governor.propose(targets, values, calldatas, description, MAINNET);
+
+        hevm.warp(block.timestamp + 12);
+        hevm.roll(block.number + 1);
+        governor.propose(targets, values, calldatas, description, MAINNET);
+
+        uint256 votes = governor.getVotes(dead, block.timestamp);
+
+        assertLt(proposalThreshold, votes);
 
         hevm.stopPrank();
     }
