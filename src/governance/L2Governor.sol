@@ -271,7 +271,7 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
     }
 
     function votingDelay() public pure override returns (uint256) {
-        return 15 minutes; // 1 block
+        return 15 minutes;
     }
 
     function votingPeriod() public pure override returns (uint256) {
@@ -289,7 +289,7 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
         uint256 chainId
     ) public virtual override returns (uint256) {
         require(
-            getVotes(_msgSender(), block.number - 1) >= proposalThreshold(),
+            getVotes(_msgSender(), block.timestamp - 1) >= proposalThreshold(),
             "Governor: proposer votes below proposal threshold"
         );
 
