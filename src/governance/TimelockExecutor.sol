@@ -30,7 +30,7 @@ contract TimelockExecutor is IERC721Receiver, IERC1155Receiver {
     uint256 internal constant _DONE_TIMESTAMP = uint256(1);
 
     mapping(bytes32 => uint256) private _timestamps;
-    uint256 private _delay;
+    uint256 public executionDelay;
 
     /**
      * @dev Emitted when a call is scheduled as part of operation `id`.
@@ -42,7 +42,7 @@ contract TimelockExecutor is IERC721Receiver, IERC1155Receiver {
         uint256 value,
         bytes data,
         bytes32 predecessor,
-        uint256 delay
+        uint256 executionDelay
     );
 
     /**
@@ -56,18 +56,18 @@ contract TimelockExecutor is IERC721Receiver, IERC1155Receiver {
     event Cancelled(bytes32 indexed id);
 
     /**
-     * @dev Emitted when the delay for future operations is modified.
+     * @dev Emitted when the executionDelay for future operations is modified.
      */
     event DelayChange(uint256 oldDuration, uint256 newDuration);
 
     /**
-     * @dev Initializes the contract with a given `delay`, and an admin.
+     * @dev Initializes the contract with a given `executionDelay`, and an admin.
      */
-    constructor(uint256 delay) {
+    constructor(uint256 _executionDelay) {
         admin = msg.sender;
 
-        _delay = delay;
-        emit DelayChange(0, delay);
+        executionDelay = _executionDelay;
+        emit DelayChange(0, executionDelay);
     }
 
     /**
@@ -131,15 +131,6 @@ contract TimelockExecutor is IERC721Receiver, IERC1155Receiver {
     }
 
     /**
-     * @dev Returns the delay for an operation to become valid.
-     *
-     * This value can be changed by executing an operation that calls `updateDelay`.
-     */
-    function getDelay() public view virtual returns (uint256 duration) {
-        return _delay;
-    }
-
-    /**
      * @dev Returns the identifier of an operation containing a single
      * transaction.
      */
@@ -191,7 +182,7 @@ contract TimelockExecutor is IERC721Receiver, IERC1155Receiver {
 
         bytes32 id = hashOperation(target, value, data, predecessor, descriptionHash, chainId);
         _schedule(id, delay);
-        emit CallScheduled(id, 0, target, value, data, predecessor, _delay);
+        emit CallScheduled(id, 0, target, value, data, predecessor, delay);
     }
 
     /**
@@ -220,18 +211,18 @@ contract TimelockExecutor is IERC721Receiver, IERC1155Receiver {
         bytes32 id = hashOperationBatch(targets, values, payloads, predecessor, descriptionHash, chainId);
         _schedule(id, delay);
         for (uint256 i = 0; i < targets.length; ++i) {
-            emit CallScheduled(id, i, targets[i], values[i], payloads[i], predecessor, _delay);
+            emit CallScheduled(id, i, targets[i], values[i], payloads[i], predecessor, delay);
         }
     }
 
     /**
-     * @dev Schedule an operation that is to becomes valid after a given delay.
+     * @dev Schedule an operation that is to becomes valid after a given executionDelay.
      */
     function _schedule(bytes32 id, uint256 delay) private {
         require(!isOperation(id), "TimelockExecutor: operation already scheduled");
-        require(delay >= getDelay(), "TimelockController: insufficient delay");
+        require(delay >= executionDelay, "TimelockController: insufficient delay");
 
-        _timestamps[id] = block.timestamp + _delay;
+        _timestamps[id] = block.timestamp + delay;
     }
 
     /**
@@ -325,8 +316,8 @@ contract TimelockExecutor is IERC721Receiver, IERC1155Receiver {
      */
     function updateDelay(uint256 newDelay) external virtual {
         require(msg.sender == address(this), "TimelockExecutor: caller must be timelock");
-        emit DelayChange(_delay, newDelay);
-        _delay = newDelay;
+        emit DelayChange(executionDelay, newDelay);
+        executionDelay = newDelay;
     }
 
     /**
