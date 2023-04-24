@@ -161,6 +161,59 @@ contract VotingEscrowTest is BaseTest {
         hevm.stopPrank();
     }
 
+    // Test tracking of checkpoints and calculating votes at points in time
+    function testPastVotesIndex() public {
+        uint256 voteTimestamp0 = block.timestamp;
+
+        hevm.startPrank(admin);
+
+        uint256 period = minter.activePeriod();
+        hevm.warp(period + nextEpoch);
+
+        // Create three tokens within the same block
+        // Creates a new checkpoint at index 0
+        createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+        createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+        createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+
+        // get original voting power of admin
+        uint256 originalVotingPower = veALCX.getVotes(admin);
+
+        // Only one checkpoint should be created since tokens are created in the same block
+        uint256 numCheckpoints = veALCX.numCheckpoints(admin);
+        assertEq(numCheckpoints, 1, "numCheckpoints should be 1");
+
+        uint256 voteTimestamp1 = block.timestamp;
+
+        hevm.warp(block.timestamp + nextEpoch * 2);
+        minter.updatePeriod();
+
+        // Creates a new checkpoint at index 1
+        createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+
+        uint256 voteTimestamp2 = block.timestamp;
+
+        hevm.warp(block.timestamp + nextEpoch * 5);
+        minter.updatePeriod();
+
+        // Creates a new checkpoint at index 2
+        createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+
+        uint256 voteTimestamp3 = block.timestamp;
+
+        uint256 pastVotes0 = veALCX.getPastVotes(admin, voteTimestamp0 - nextEpoch);
+        assertEq(pastVotes0, 0, "no voting power when timestamp was before first checkpoint");
+
+        uint256 pastVotes1 = veALCX.getPastVotes(admin, voteTimestamp1);
+        assertEq(pastVotes1, originalVotingPower, "voting power should be original amount");
+
+        uint256 pastVotesIndex2 = veALCX.getPastVotesIndex(admin, voteTimestamp2);
+        assertEq(pastVotesIndex2, 1, "index should be closest to timestamp");
+
+        uint256 pastVotesIndex3 = veALCX.getPastVotesIndex(admin, voteTimestamp3 + nextEpoch * 2);
+        assertEq(pastVotesIndex3, 2, "index should be closest to timestamp");
+    }
+
     // Withdraw enabled after lock expires
     function testWithdraw() public {
         hevm.startPrank(admin);

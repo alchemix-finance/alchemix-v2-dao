@@ -366,7 +366,7 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
      * @dev Internal execution mechanism. Can be overridden to implement different execution mechanism
      */
     function _execute(
-        uint256, /* proposalId */
+        uint256 /* proposalId */,
         address[] memory targets,
         uint256[] memory values,
         bytes[] memory calldatas,
@@ -380,11 +380,11 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
      * @dev Hook before execution is triggered.
      */
     function _beforeExecute(
-        uint256, /* proposalId */
+        uint256 /* proposalId */,
         address[] memory targets,
-        uint256[] memory, /* values */
+        uint256[] memory /* values */,
         bytes[] memory calldatas,
-        bytes32, /*descriptionHash*/
+        bytes32 /*descriptionHash*/,
         uint256 /* chainId */
     ) internal virtual {
         if (_executor() != address(this)) {
@@ -400,11 +400,11 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
      * @dev Hook after execution is triggered.
      */
     function _afterExecute(
-        uint256, /* proposalId */
-        address[] memory, /* targets */
-        uint256[] memory, /* values */
-        bytes[] memory, /* calldatas */
-        bytes32, /*descriptionHash*/
+        uint256 /* proposalId */,
+        address[] memory /* targets */,
+        uint256[] memory /* values */,
+        bytes[] memory /* calldatas */,
+        bytes32 /*descriptionHash*/,
         uint256 /* chainId */
     ) internal virtual {
         if (_executor() != address(this)) {
@@ -593,11 +593,7 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
      * in a governance proposal to recover tokens or Ether that was sent to the governor contract by mistake.
      * Note that if the executor is simply the governor itself, use of `relay` is redundant.
      */
-    function relay(
-        address target,
-        uint256 value,
-        bytes calldata data
-    ) external virtual onlyGovernance {
+    function relay(address target, uint256 value, bytes calldata data) external virtual onlyGovernance {
         Address.functionCallWithValue(target, data, value);
     }
 
@@ -626,12 +622,7 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
     /**
      * @dev See {IERC721Receiver-onERC721Received}.
      */
-    function onERC721Received(
-        address,
-        address,
-        uint256,
-        bytes memory
-    ) public virtual override returns (bytes4) {
+    function onERC721Received(address, address, uint256, bytes memory) public virtual override returns (bytes4) {
         return this.onERC721Received.selector;
     }
 
