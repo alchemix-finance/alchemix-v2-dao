@@ -58,4 +58,16 @@ contract AlchemixGovernor is L2Governor, L2GovernorVotes, L2GovernorVotesQuorumF
         require(numerator <= MAX_PROPOSAL_NUMERATOR, "numerator too high");
         proposalNumerator = numerator;
     }
+
+    function setVotingDelay(uint256 newDelay) external {
+        require(msg.sender == admin, "not admin");
+        votingDelay = newDelay;
+        emit VotingDelaySet(votingDelay);
+    }
+
+    function setVotingPeriod(uint256 newPeriod) external {
+        require(msg.sender == admin, "not admin");
+        votingPeriod = newPeriod;
+        emit VotingPeriodSet(votingPeriod);
+    }
 }

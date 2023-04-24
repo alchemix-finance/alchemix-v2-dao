@@ -42,6 +42,7 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
 
     uint256 public votingDelay = 2 days;
     uint256 public votingPeriod = 3 days;
+
     struct ProposalCore {
         Timers.Timestamp voteStart;
         Timers.Timestamp voteEnd;
@@ -64,6 +65,16 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
      * @dev Emitted when the timelock used for proposal execution is modified.
      */
     event TimelockChange(address oldTimelock, address newTimelock);
+
+    /**
+     * @dev Emitted when the voting delay is modified.
+     */
+    event VotingDelaySet(uint256 votingDelay);
+
+    /**
+     * @dev Emitted when the voting period is modified.
+     */
+    event VotingPeriodSet(uint256 votingPeriod);
 
     /**
      * @dev Restricts a function so it can only be executed through governance proposals. For example, governance

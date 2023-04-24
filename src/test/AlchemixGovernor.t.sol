@@ -210,4 +210,64 @@ contract AlchemixGovernorTest is BaseTest {
 
         hevm.stopPrank();
     }
+
+    function testSetVotingDelay() public {
+        uint256 initialDelay = governor.votingDelay();
+
+        hevm.prank(admin);
+
+        governor.setVotingDelay(initialDelay + 1 days);
+
+        (address[] memory t, uint256[] memory v, bytes[] memory c, string memory d) = craftTestProposal();
+
+        hevm.startPrank(admin);
+
+        uint256 pid = governor.propose(t, v, c, d, MAINNET);
+
+        hevm.warp(block.timestamp + initialDelay + 1);
+        hevm.roll(block.number + 1);
+
+        hevm.expectRevert(abi.encodePacked("Governor: vote not currently active"));
+        governor.castVote(pid, 1);
+
+        hevm.warp(block.timestamp + 1 days);
+        hevm.roll(block.number + 1);
+
+        governor.castVote(pid, 1);
+
+        hevm.stopPrank();
+    }
+
+    function testSetVotingPeriod() public {
+        uint256 initialPeriod = governor.votingPeriod();
+
+        hevm.prank(admin);
+
+        governor.setVotingPeriod(initialPeriod + 1 days);
+
+        (address[] memory t, uint256[] memory v, bytes[] memory c, string memory d) = craftTestProposal();
+
+        hevm.startPrank(admin);
+
+        uint256 pid = governor.propose(t, v, c, d, MAINNET);
+
+        hevm.warp(block.timestamp + governor.votingDelay() + 1);
+        hevm.roll(block.number + 1);
+
+        governor.castVote(pid, 1);
+
+        hevm.warp(block.timestamp + initialPeriod + 1);
+        hevm.roll(block.number + 1);
+
+        uint256 state = uint256(governor.state(pid));
+        assertEq(state, uint256(IGovernor.ProposalState.Active));
+
+        hevm.warp(block.timestamp + 1 days);
+        hevm.roll(block.number + 1);
+
+        state = uint256(governor.state(pid));
+        assertEq(state, uint256(IGovernor.ProposalState.Succeeded));
+
+        hevm.stopPrank();
+    }
 }
