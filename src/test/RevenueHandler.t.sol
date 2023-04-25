@@ -28,7 +28,9 @@ contract RevenueHandlerTest is BaseTest {
         alusd3crvTokenIds[3] = usdt; // usdt
 
         cpa = new CurveMetaPoolAdapter(alusd3crv, alusd3crvTokenIds);
-        revenueHandler = new RevenueHandler(address(veALCX), 0x8392F6669292fA56123F71949B52d883aE57e225, 0);
+
+        hevm.prank(admin);
+        revenueHandler.transferOwnership(address(this));
 
         revenueHandler.addDebtToken(alusd);
 
@@ -225,6 +227,7 @@ contract RevenueHandlerTest is BaseTest {
         uint256 tokenId = _setupClaimableRevenue(revAmt);
 
         uint256 claimable = revenueHandler.claimable(tokenId, alusd);
+
         assertApproxEq(revAmt, claimable, revAmt / 65);
 
         uint256 debtAmt = 5000e18;

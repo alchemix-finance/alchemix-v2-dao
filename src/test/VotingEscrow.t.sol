@@ -214,6 +214,40 @@ contract VotingEscrowTest is BaseTest {
         assertEq(pastVotesIndex3, 2, "index should be closest to timestamp");
     }
 
+    // Calculating voting power at points in time should be correct
+    function testBalanceOfTokenCalcs() public {
+        hevm.startPrank(admin);
+
+        uint256 tokenId = veALCX.createLock(TOKEN_1, THREE_WEEKS, false);
+
+        uint256 originalTimestamp = block.timestamp;
+
+        uint256 originalVotingPower = veALCX.balanceOfToken(tokenId);
+
+        hevm.warp(block.timestamp + nextEpoch);
+        minter.updatePeriod();
+
+        uint256 decayedTimestamp = block.timestamp;
+
+        uint256 decayedVotingPower = veALCX.balanceOfToken(tokenId);
+        assertGt(originalVotingPower, decayedVotingPower, "voting power should be less than original");
+
+        // Getting the voting power at a point in time should return the expected result
+        uint256 getOriginalVotingPower = veALCX.balanceOfTokenAt(tokenId, originalTimestamp);
+        assertEq(getOriginalVotingPower, originalVotingPower, "voting power should be equal");
+
+        hevm.warp(block.timestamp + nextEpoch);
+        minter.updatePeriod();
+
+        // Getting the voting power at a point in time should return the expected result
+        uint256 getDecayedVotingPower = veALCX.balanceOfTokenAt(tokenId, decayedTimestamp);
+        assertEq(getDecayedVotingPower, decayedVotingPower, "voting powers should be equal");
+
+        // Voting power before token was created should be 0
+        uint256 getPastVotingPower = veALCX.balanceOfTokenAt(tokenId, originalTimestamp - nextEpoch);
+        assertEq(getPastVotingPower, 0, "voting power should be 0");
+    }
+
     // Withdraw enabled after lock expires
     function testWithdraw() public {
         hevm.startPrank(admin);
