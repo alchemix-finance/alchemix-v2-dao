@@ -50,12 +50,7 @@ contract RewardsDistributor is IRewardsDistributor {
     AggregatorV3Interface public priceFeed;
     IAsset[] public poolAssets = new IAsset[](2);
 
-    constructor(
-        address _votingEscrow,
-        address _weth,
-        address _balancerVault,
-        address _priceFeed
-    ) {
+    constructor(address _votingEscrow, address _weth, address _balancerVault, address _priceFeed) {
         uint256 _t = (block.timestamp / WEEK) * WEEK;
         startTime = _t;
         lastTokenTime = _t;
@@ -212,14 +207,14 @@ contract RewardsDistributor is IRewardsDistributor {
         for (uint256 i = 0; i < 20; i++) {
             nextWeek = thisWeek + WEEK;
             if (block.timestamp < nextWeek) {
-                if (sinceLast == 0 && block.timestamp == t) {
+                if (sinceLast == 0) {
                     tokensPerWeek[thisWeek] += toDistribute;
                 } else {
                     tokensPerWeek[thisWeek] += (toDistribute * (block.timestamp - t)) / sinceLast;
                 }
                 break;
             } else {
-                if (sinceLast == 0 && nextWeek == t) {
+                if (sinceLast == 0) {
                     tokensPerWeek[thisWeek] += toDistribute;
                 } else {
                     tokensPerWeek[thisWeek] += (toDistribute * (nextWeek - t)) / sinceLast;
@@ -301,11 +296,7 @@ contract RewardsDistributor is IRewardsDistributor {
      * @param _lastTokenTime Point in time of veALCX rewards accrual
      * @return uint256 Amount of ALCX rewards claimable
      */
-    function _claim(
-        uint256 _tokenId,
-        address _ve,
-        uint256 _lastTokenTime
-    ) internal returns (uint256) {
+    function _claim(uint256 _tokenId, address _ve, uint256 _lastTokenTime) internal returns (uint256) {
         uint256 userEpoch = 0;
         uint256 toDistribute = 0;
 
@@ -362,11 +353,7 @@ contract RewardsDistributor is IRewardsDistributor {
         return toDistribute;
     }
 
-    function _claimable(
-        uint256 _tokenId,
-        address _ve,
-        uint256 _lastTokenTime
-    ) internal view returns (uint256) {
+    function _claimable(uint256 _tokenId, address _ve, uint256 _lastTokenTime) internal view returns (uint256) {
         uint256 userEpoch = 0;
         uint256 toDistribute = 0;
 
