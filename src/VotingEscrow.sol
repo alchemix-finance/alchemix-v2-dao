@@ -342,18 +342,21 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         if (nCheckpoints == 0) {
             return 0;
         }
-        // First check most recent balance
+
+        // If the most recent checkpoint is before the requested timestamp, return it's index
         if (checkpoints[account][nCheckpoints - 1].timestamp <= timestamp) {
             return (nCheckpoints - 1);
         }
 
-        // Next check implicit zero balance
+        // If the oldest checkpoint is after the requested timestamp, return 0
         if (checkpoints[account][0].timestamp > timestamp) {
             return 0;
         }
 
         uint32 lower = 0;
         uint32 upper = nCheckpoints - 1;
+
+        // Binary search to find the index of the checkpoint that is the closest to the requested timestamp
         while (upper > lower) {
             uint32 center = upper - (upper - lower) / 2; // ceil, avoiding overflow
             Checkpoint storage cp = checkpoints[account][center];
@@ -365,14 +368,25 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
                 upper = center - 1;
             }
         }
+
+        // Closest index to the requested timestamp
         return lower;
     }
 
+    /**
+     * @dev Returns the amount of votes that `account` had at the end of a past `timestamp`.
+     */
     function getPastVotes(address account, uint256 timestamp) public view returns (uint256) {
         uint32 _checkIndex = getPastVotesIndex(account, timestamp);
+        uint256 votes = 0;
+
+        // If the requested timestamp is before the first checkpoint, voting power was 0 at that time
+        if (timestamp < checkpoints[account][_checkIndex].timestamp) {
+            return votes;
+        }
+
         // Sum votes
         uint256[] storage _tokenIds = checkpoints[account][_checkIndex].tokenIds;
-        uint256 votes = 0;
         for (uint256 i = 0; i < _tokenIds.length; i++) {
             uint256 tId = _tokenIds[i];
             // Use the provided input timestamp here to get the right decay
@@ -1075,6 +1089,8 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         _clearApproval(_from, _tokenId);
         // Remove token. Throws if `_tokenId` is not a valid token
         _removeTokenFrom(_from, _tokenId);
+        // checkpoint for gov
+        _moveTokenDelegates(delegates(_from), delegates(_to), _tokenId);
         // Add token
         _addTokenTo(_to, _tokenId);
         // Set the block of ownership transfer (for Flash token protection)
@@ -1115,50 +1131,13 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         return true;
     }
 
-    function _moveTokenDelegates(address srcRep, address dstRep, uint256 _tokenId) internal {
-        if (srcRep != dstRep && _tokenId > 0) {
-            if (srcRep != address(0)) {
-                uint32 srcRepNum = numCheckpoints[srcRep];
-                uint256[] storage srcRepOld = srcRepNum > 0
-                    ? checkpoints[srcRep][srcRepNum - 1].tokenIds
-                    : checkpoints[srcRep][0].tokenIds;
-                uint32 nextSrcRepNum = _findWhatCheckpointToWrite(srcRep);
-                uint256[] storage srcRepNew = checkpoints[srcRep][nextSrcRepNum].tokenIds;
-                // All the same except _tokenId
-                for (uint256 i = 0; i < srcRepOld.length; i++) {
-                    uint256 tId = srcRepOld[i];
-                    if (tId != _tokenId) {
-                        srcRepNew.push(tId);
-                    }
-                }
-
-                numCheckpoints[srcRep] = srcRepNum + 1;
-            }
-
-            if (dstRep != address(0)) {
-                uint32 dstRepNum = numCheckpoints[dstRep];
-                uint256[] storage dstRepOld = dstRepNum > 0
-                    ? checkpoints[dstRep][dstRepNum - 1].tokenIds
-                    : checkpoints[dstRep][0].tokenIds;
-                uint32 nextDstRepNum = _findWhatCheckpointToWrite(dstRep);
-                uint256[] storage dstRepNew = checkpoints[dstRep][nextDstRepNum].tokenIds;
-                // All the same plus _tokenId
-                require(dstRepOld.length + 1 <= MAX_DELEGATES, "dstRep would have too many tokenIds");
-                for (uint256 i = 0; i < dstRepOld.length; i++) {
-                    uint256 tId = dstRepOld[i];
-                    dstRepNew.push(tId);
-                }
-                dstRepNew.push(_tokenId);
-
-                numCheckpoints[dstRep] = dstRepNum + 1;
-            }
-        }
-    }
-
     function _findWhatCheckpointToWrite(address account) internal view returns (uint32) {
         uint256 _timestamp = block.timestamp;
         uint32 _nCheckPoints = numCheckpoints[account];
 
+        // Overwrite the most recent checkpoint if it's the same as the current block timestamp.
+        // Otherwise, if there are no checkpoints, or the most recent one is older than the current block timestamp,
+        // return a new checkpoint index.
         if (_nCheckPoints > 0 && checkpoints[account][_nCheckPoints - 1].timestamp == _timestamp) {
             return _nCheckPoints - 1;
         } else {
@@ -1166,48 +1145,145 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         }
     }
 
-    function _moveAllDelegates(address owner, address srcRep, address dstRep) internal {
-        // You can only redelegate what you own
-        if (srcRep != dstRep) {
-            if (srcRep != address(0)) {
-                uint32 srcRepNum = numCheckpoints[srcRep];
-                uint256[] storage srcRepOld = srcRepNum > 0
-                    ? checkpoints[srcRep][srcRepNum - 1].tokenIds
-                    : checkpoints[srcRep][0].tokenIds;
-                uint32 nextSrcRepNum = _findWhatCheckpointToWrite(srcRep);
-                uint256[] storage srcRepNew = checkpoints[srcRep][nextSrcRepNum].tokenIds;
-                // All the same except what owner owns
-                for (uint256 i = 0; i < srcRepOld.length; i++) {
-                    uint256 tId = srcRepOld[i];
-                    if (idToOwner[tId] != owner) {
-                        srcRepNew.push(tId);
+    function _moveTokenDelegates(address src, address dst, uint256 _tokenId) internal {
+        if (src != dst && _tokenId > 0) {
+            // If the source is not the zero address, we decrement the number of tokenIds
+            if (src != address(0)) {
+                uint32 srcCheckpoints = numCheckpoints[src];
+                // If there are no checkpoints there is nothing to copy
+                if (srcCheckpoints > 0) {
+                    // Get the old array of tokenIds
+                    uint256[] memory srcTokensOld = checkpoints[src][srcCheckpoints - 1].tokenIds;
+                    // Create a new array of tokenIds, leaving out the tokenId being transferred
+                    uint256[] memory srcTokensNew = new uint256[](srcTokensOld.length - 1);
+                    // If we are removing the only token, we can skip copying the array since it will be empty
+                    if (srcTokensNew.length > 0) {
+                        // Copy array of tokenIds, except _tokenId
+                        // Track two indexes, one for the old array, one for the new array
+                        uint256 newIndex = 0;
+                        for (uint256 i = 0; i < srcTokensOld.length; i++) {
+                            uint256 tId = srcTokensOld[i];
+                            if (tId != _tokenId) {
+                                srcTokensNew[newIndex] = tId;
+                                newIndex++;
+                            }
+                        }
+                    }
+
+                    // Find the index of the checkpoint to create or update
+                    uint32 srcIndex = _findWhatCheckpointToWrite(src);
+
+                    // src has a new or updated checkpoint with the tokenId removed
+                    checkpoints[src][srcIndex] = Checkpoint({ timestamp: block.timestamp, tokenIds: srcTokensNew });
+
+                    // Add to numCheckpoints if the last checkpoint is different from the current block timestamp
+                    if (srcCheckpoints == 0 || checkpoints[src][srcCheckpoints - 1].timestamp != block.timestamp) {
+                        numCheckpoints[src] = srcCheckpoints + 1;
                     }
                 }
-
-                numCheckpoints[srcRep] = srcRepNum + 1;
             }
 
-            if (dstRep != address(0)) {
-                uint32 dstRepNum = numCheckpoints[dstRep];
-                uint256[] storage dstRepOld = dstRepNum > 0
-                    ? checkpoints[dstRep][dstRepNum - 1].tokenIds
-                    : checkpoints[dstRep][0].tokenIds;
-                uint32 nextDstRepNum = _findWhatCheckpointToWrite(dstRep);
-                uint256[] storage dstRepNew = checkpoints[dstRep][nextDstRepNum].tokenIds;
-                uint256 ownerTokenCount = ownerToTokenCount[owner];
-                require(dstRepOld.length + ownerTokenCount <= MAX_DELEGATES, "dstRep would have too many tokenIds");
-                // All the same
-                for (uint256 i = 0; i < dstRepOld.length; i++) {
-                    uint256 tId = dstRepOld[i];
-                    dstRepNew.push(tId);
+            // If the destination is not the zero address, we increment the number of tokenIds
+            if (dst != address(0)) {
+                uint32 dstCheckpoints = numCheckpoints[dst];
+                uint256[] memory dstTokensOld = dstCheckpoints > 0
+                    ? checkpoints[dst][dstCheckpoints - 1].tokenIds
+                    : checkpoints[dst][0].tokenIds;
+                uint256[] memory dstTokensNew = new uint256[](dstTokensOld.length + 1);
+
+                require(dstTokensOld.length + 1 <= MAX_DELEGATES, "dst would have too many tokenIds");
+
+                // Copy array plus _tokenId
+                for (uint256 i = 0; i < dstTokensOld.length; i++) {
+                    dstTokensNew[i] = dstTokensOld[i];
                 }
+                dstTokensNew[dstTokensNew.length - 1] = _tokenId;
+
+                // Find the index of the checkpoint to create or update
+                uint32 dstIndex = _findWhatCheckpointToWrite(dst);
+
+                // dst has a new or updated checkpoint with the _tokenId added
+                checkpoints[dst][dstIndex] = Checkpoint({ timestamp: block.timestamp, tokenIds: dstTokensNew });
+
+                // Add to numCheckpoints if the last checkpoint is different from the current block timestamp
+                if (dstCheckpoints == 0 || checkpoints[dst][dstCheckpoints - 1].timestamp != block.timestamp) {
+                    numCheckpoints[dst] = dstCheckpoints + 1;
+                }
+            }
+        }
+    }
+
+    function _moveAllDelegates(address owner, address src, address dst) internal {
+        // You can only redelegate what you own
+        if (src != dst) {
+            if (src != address(0)) {
+                uint32 srcCheckpoints = numCheckpoints[src];
+                // If there are no checkpoints there is nothing to move
+                if (srcCheckpoints > 0) {
+                    // Get the old array of tokenIds
+                    uint256[] memory srcTokensOld = checkpoints[src][srcCheckpoints - 1].tokenIds;
+                    // Create a new array of tokenIds, leaving out the tokenIds owned by owner
+                    uint256[] memory srcTokensNew = new uint256[](srcTokensOld.length - 1);
+                    // If we are removing the only token, we can skip copying the array since it will be empty
+                    if (srcTokensNew.length > 0) {
+                        // Copy array of tokenIds except what owner owns
+                        // Track two indexes, one for the old array, one for the new array
+                        uint256 newIndex = 0;
+                        for (uint256 i = 0; i < srcTokensOld.length; i++) {
+                            uint256 tId = srcTokensOld[i];
+                            if (idToOwner[tId] != owner) {
+                                srcTokensNew[newIndex] = tId;
+                                newIndex++;
+                            }
+                        }
+                    }
+
+                    // Find the index of the checkpoint to create or update
+                    uint32 srcIndex = _findWhatCheckpointToWrite(src);
+
+                    // src has a new or updated checkpoint with the tokenId removed
+                    checkpoints[src][srcIndex] = Checkpoint({ timestamp: block.timestamp, tokenIds: srcTokensNew });
+
+                    // Add to numCheckpoints if the last checkpoint is different from the current block timestamp
+                    if (srcCheckpoints == 0 || checkpoints[src][srcCheckpoints - 1].timestamp != block.timestamp) {
+                        numCheckpoints[src] = srcCheckpoints + 1;
+                    }
+                }
+            }
+
+            if (dst != address(0)) {
+                uint32 dstCheckpoints = numCheckpoints[dst];
+                uint256[] memory dstTokensOld = dstCheckpoints > 0
+                    ? checkpoints[dst][dstCheckpoints - 1].tokenIds
+                    : checkpoints[dst][0].tokenIds;
+
+                uint256 ownerTokenCount = ownerToTokenCount[owner];
+                require(dstTokensOld.length + ownerTokenCount <= MAX_DELEGATES, "dst would have too many tokenIds");
+
+                // Create a new array of tokenIds, with the owner's tokens added
+                uint256[] memory dstTokensNew = new uint256[](dstTokensOld.length + ownerTokenCount);
+
+                // Copy array
+                for (uint256 i = 0; i < dstTokensOld.length; i++) {
+                    dstTokensNew[i] = dstTokensOld[i];
+                }
+
                 // Plus all that's owned
                 for (uint256 i = 0; i < ownerTokenCount; i++) {
                     uint256 tId = ownerToTokenIdList[owner][i];
-                    dstRepNew.push(tId);
+                    dstTokensNew[i] = tId;
                 }
 
-                numCheckpoints[dstRep] = dstRepNum + 1;
+                // Find the index of the checkpoint to create or update
+                uint32 dstIndex = _findWhatCheckpointToWrite(dst);
+
+                // dst has a new or updated checkpoint with the _tokenId added
+                checkpoints[dst][dstIndex] = Checkpoint({ timestamp: block.timestamp, tokenIds: dstTokensNew });
+
+                // Add to numCheckpoints if the last checkpoint is different from the current block timestamp
+                if (dstCheckpoints == 0 || checkpoints[dst][dstCheckpoints - 1].timestamp != block.timestamp) {
+                    numCheckpoints[dst] = dstCheckpoints + 1;
+                }
             }
         }
     }
@@ -1294,7 +1370,9 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
                 } else {
                     dSlope = slopeChanges[_time];
                 }
-                lastPoint.bias -= (lastPoint.slope * (int256(_time - lastCheckpoint)));
+                int256 biasCalculation = lastPoint.slope * (int256(_time - lastCheckpoint));
+                // Make sure we still subtract from bias if value is negative
+                biasCalculation >= 0 ? lastPoint.bias -= biasCalculation : lastPoint.bias += biasCalculation;
                 lastPoint.slope += dSlope;
                 if (lastPoint.bias < 0) {
                     // This can happen
@@ -1510,19 +1588,24 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     function _balanceOfToken(uint256 _tokenId, uint256 _time) internal view returns (uint256) {
         uint256 _epoch = userPointEpoch[_tokenId];
 
-        if (_epoch == 0) {
+        // If time is before before the first epoch or a tokens first timestamp, return 0
+        if (_epoch == 0 || _time < pointHistory[userFirstEpoch[_tokenId]].ts) {
             return 0;
         } else {
             Point memory lastPoint = userPointHistory[_tokenId][_epoch];
 
             // If max lock is enabled bias is unchanged
-            lastPoint.bias -= locked[_tokenId].maxLockEnabled
+            int256 biasCalculation = locked[_tokenId].maxLockEnabled
                 ? int256(0)
                 : lastPoint.slope * (int256(_time) - int256(lastPoint.ts));
+
+            // Make sure we still subtract from bias if value is negative
+            biasCalculation >= 0 ? lastPoint.bias -= biasCalculation : lastPoint.bias += biasCalculation;
 
             if (lastPoint.bias < 0) {
                 lastPoint.bias = 0;
             }
+
             return uint256(lastPoint.bias);
         }
     }
@@ -1600,7 +1683,12 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
             } else {
                 dSlope = slopeChanges[_time];
             }
-            lastPoint.bias -= (lastPoint.slope * (int256(_time) - int256(lastPoint.ts)));
+
+            int256 biasCalculation = lastPoint.slope * (int256(_time) - int256(lastPoint.ts));
+
+            // Make sure we still subtract from bias if value is negative
+            biasCalculation >= 0 ? lastPoint.bias -= biasCalculation : lastPoint.bias += biasCalculation;
+
             if (_time == t) {
                 break;
             }
