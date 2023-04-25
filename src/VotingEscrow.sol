@@ -1370,7 +1370,9 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
                 } else {
                     dSlope = slopeChanges[_time];
                 }
-                lastPoint.bias -= (lastPoint.slope * (int256(_time - lastCheckpoint)));
+                int256 biasCalculation = lastPoint.slope * (int256(_time - lastCheckpoint));
+                // Make sure we still subtract from bias if value is negative
+                biasCalculation >= 0 ? lastPoint.bias -= biasCalculation : lastPoint.bias += biasCalculation;
                 lastPoint.slope += dSlope;
                 if (lastPoint.bias < 0) {
                     // This can happen
@@ -1586,19 +1588,24 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     function _balanceOfToken(uint256 _tokenId, uint256 _time) internal view returns (uint256) {
         uint256 _epoch = userPointEpoch[_tokenId];
 
-        if (_epoch == 0) {
+        // If time is before before the first epoch or a tokens first timestamp, return 0
+        if (_epoch == 0 || _time < pointHistory[userFirstEpoch[_tokenId]].ts) {
             return 0;
         } else {
             Point memory lastPoint = userPointHistory[_tokenId][_epoch];
 
             // If max lock is enabled bias is unchanged
-            lastPoint.bias -= locked[_tokenId].maxLockEnabled
+            int256 biasCalculation = locked[_tokenId].maxLockEnabled
                 ? int256(0)
                 : lastPoint.slope * (int256(_time) - int256(lastPoint.ts));
+
+            // Make sure we still subtract from bias if value is negative
+            biasCalculation >= 0 ? lastPoint.bias -= biasCalculation : lastPoint.bias += biasCalculation;
 
             if (lastPoint.bias < 0) {
                 lastPoint.bias = 0;
             }
+
             return uint256(lastPoint.bias);
         }
     }
@@ -1676,7 +1683,12 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
             } else {
                 dSlope = slopeChanges[_time];
             }
-            lastPoint.bias -= (lastPoint.slope * (int256(_time) - int256(lastPoint.ts)));
+
+            int256 biasCalculation = lastPoint.slope * (int256(_time) - int256(lastPoint.ts));
+
+            // Make sure we still subtract from bias if value is negative
+            biasCalculation >= 0 ? lastPoint.bias -= biasCalculation : lastPoint.bias += biasCalculation;
+
             if (_time == t) {
                 break;
             }
