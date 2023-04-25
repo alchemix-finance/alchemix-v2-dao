@@ -34,11 +34,14 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
     using SafeCast for uint256;
     using Timers for Timers.Timestamp;
 
-    TimelockExecutor private _timelock;
-
     bytes32 public constant BALLOT_TYPEHASH = keccak256("Ballot(uint256 proposalId,uint8 support)");
     bytes32 public constant EXTENDED_BALLOT_TYPEHASH =
         keccak256("ExtendedBallot(uint256 proposalId,uint8 support,string reason,bytes params)");
+
+    TimelockExecutor private _timelock;
+
+    uint256 public votingDelay = 2 days;
+    uint256 public votingPeriod = 3 days;
 
     struct ProposalCore {
         Timers.Timestamp voteStart;
@@ -62,6 +65,16 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
      * @dev Emitted when the timelock used for proposal execution is modified.
      */
     event TimelockChange(address oldTimelock, address newTimelock);
+
+    /**
+     * @dev Emitted when the voting delay is modified.
+     */
+    event VotingDelaySet(uint256 votingDelay);
+
+    /**
+     * @dev Emitted when the voting period is modified.
+     */
+    event VotingPeriodSet(uint256 votingPeriod);
 
     /**
      * @dev Restricts a function so it can only be executed through governance proposals. For example, governance
@@ -270,14 +283,6 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
         return "";
     }
 
-    function votingDelay() public pure override returns (uint256) {
-        return 15 minutes;
-    }
-
-    function votingPeriod() public pure override returns (uint256) {
-        return 1 weeks;
-    }
-
     /**
      * @dev See {IGovernor-propose}.
      */
@@ -302,9 +307,9 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
         ProposalCore storage proposal = _proposals[proposalId];
         require(proposal.voteStart.isUnset(), "Governor: proposal already exists");
 
-        uint64 start = block.timestamp.toUint64() + votingDelay().toUint64();
-        uint64 deadline = start + votingPeriod().toUint64();
-        uint256 delay = _timelock.getDelay();
+        uint64 start = block.timestamp.toUint64() + votingDelay.toUint64();
+        uint64 deadline = start + votingPeriod.toUint64();
+        uint256 executionDelay = votingDelay + votingPeriod + _timelock.executionDelay();
 
         proposal.voteStart.setDeadline(start);
         proposal.voteEnd.setDeadline(deadline);
@@ -317,7 +322,15 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
             keccak256(bytes(description)),
             chainId
         );
-        _timelock.scheduleBatch(targets, values, calldatas, 0, keccak256(bytes(description)), chainId, delay);
+        _timelock.scheduleBatch(
+            targets,
+            values,
+            calldatas,
+            0,
+            keccak256(bytes(description)),
+            chainId,
+            executionDelay
+        );
 
         emit ProposalCreated(
             proposalId,

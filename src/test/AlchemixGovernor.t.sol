@@ -17,7 +17,24 @@ contract AlchemixGovernorTest is BaseTest {
         // Create veALCX for 0xbeef
         tokenId2 = createVeAlcx(beef, TOKEN_1, MAXTIME, false);
 
+        // Can't propose and vote in the same block as a veALCX is created
+        hevm.warp(block.timestamp + 1);
+
         assertEq(governor.timelock(), address(timelockExecutor));
+    }
+
+    function craftTestProposal()
+        internal
+        view
+        returns (address[] memory targets, uint256[] memory values, bytes[] memory calldatas, string memory description)
+    {
+        targets = new address[](1);
+        targets[0] = address(voter);
+        values = new uint256[](1);
+        values[0] = 0;
+        calldatas = new bytes[](1);
+        calldatas[0] = abi.encodeWithSelector(voter.whitelist.selector, usdc);
+        description = "Whitelist USDC";
     }
 
     function testExecutorCanCreateGaugesForAnyAddress(address a) public {
@@ -61,16 +78,19 @@ contract AlchemixGovernorTest is BaseTest {
     function testFailCannotProposeWithoutSufficientBalance() public {
         // propose
         hevm.startPrank(dead);
-        address[] memory targets = new address[](1);
-        targets[0] = address(voter);
-        uint256[] memory values = new uint256[](1);
-        values[0] = 0;
-        bytes[] memory calldatas = new bytes[](1);
-        calldatas[0] = abi.encodeWithSelector(voter.whitelist.selector, usdc);
-        string memory description = "Whitelist USDC";
+        (address[] memory t, uint256[] memory v, bytes[] memory c, string memory d) = craftTestProposal();
 
-        governor.propose(targets, values, calldatas, description, MAINNET);
+        governor.propose(t, v, c, d, MAINNET);
         hevm.stopPrank();
+    }
+
+    function testProposalExecutionTimestamp() public {
+        (address[] memory t, uint256[] memory v, bytes[] memory c, string memory d) = craftTestProposal();
+        hevm.startPrank(admin);
+        governor.propose(t, v, c, d, MAINNET);
+        uint256 delay = governor.votingDelay() + governor.votingPeriod() + timelockExecutor.executionDelay();
+        bytes32 opId = timelockExecutor.hashOperationBatch(t, v, c, 0, keccak256(bytes(d)), MAINNET);
+        assertEq(timelockExecutor.getTimestamp(opId), block.timestamp + delay);
     }
 
     function testProposalsNeedsQuorumToPass() public {
@@ -78,18 +98,12 @@ contract AlchemixGovernorTest is BaseTest {
 
         assertFalse(voter.isWhitelisted(usdc));
 
-        address[] memory targets = new address[](1);
-        targets[0] = address(voter);
-        uint256[] memory values = new uint256[](1);
-        values[0] = 0;
-        bytes[] memory calldatas = new bytes[](1);
-        calldatas[0] = abi.encodeWithSelector(voter.whitelist.selector, usdc);
-        string memory description = "Whitelist USDC";
+        (address[] memory t, uint256[] memory v, bytes[] memory c, string memory d) = craftTestProposal();
 
         // proposal should fail to meet threshold when veALCX amount is too low
         hevm.startPrank(dead);
         hevm.expectRevert(abi.encodePacked("Governor: proposer votes below proposal threshold"));
-        governor.propose(targets, values, calldatas, description, MAINNET);
+        governor.propose(t, v, c, d, MAINNET);
 
         uint256 proposalThreshold = governor.proposalThreshold();
         uint256 votes = governor.getVotes(dead, block.timestamp);
@@ -100,24 +114,21 @@ contract AlchemixGovernorTest is BaseTest {
 
         // propose
         hevm.startPrank(admin);
-
-        hevm.warp(block.timestamp + 2 days); // delay
-
-        uint256 pid = governor.propose(targets, values, calldatas, description, MAINNET);
-        hevm.warp(block.timestamp + 2 days); // delay
+        uint256 pid = governor.propose(t, v, c, d, MAINNET);
+        hevm.warp(block.timestamp + governor.votingDelay() + 1); // delay
         hevm.stopPrank();
 
         // vote
         hevm.startPrank(beef);
         governor.castVote(pid, 1);
-        hevm.warp(block.timestamp + 1 weeks); // voting period
+        hevm.warp(block.timestamp + governor.votingPeriod() + 1); // voting period
         hevm.stopPrank();
 
         // execute
         hevm.startPrank(admin);
         // Proposal unsuccessful due to _quorumReached returning false
         hevm.expectRevert(abi.encodePacked("Governor: proposal not successful"));
-        governor.execute(targets, values, calldatas, keccak256(bytes(description)), MAINNET);
+        governor.execute(t, v, c, keccak256(bytes(d)), MAINNET);
 
         hevm.stopPrank();
     }
@@ -125,31 +136,27 @@ contract AlchemixGovernorTest is BaseTest {
     function testProposalHasQuorum() public {
         assertFalse(voter.isWhitelisted(usdc));
 
-        address[] memory targets = new address[](1);
-        targets[0] = address(voter);
-        uint256[] memory values = new uint256[](1);
-        values[0] = 0;
-        bytes[] memory calldatas = new bytes[](1);
-        calldatas[0] = abi.encodeWithSelector(voter.whitelist.selector, usdc);
-        string memory description = "Whitelist USDC";
+        (address[] memory t, uint256[] memory v, bytes[] memory c, string memory d) = craftTestProposal();
 
         hevm.warp(block.timestamp + 2 days); // delay
 
         // propose
         hevm.startPrank(admin);
-        uint256 pid = governor.propose(targets, values, calldatas, description, MAINNET);
-        hevm.warp(block.timestamp + 2 days); // delay
+        uint256 pid = governor.propose(t, v, c, d, MAINNET);
+        hevm.warp(block.timestamp + governor.votingDelay() + 1); // voting delay
+        hevm.roll(block.number + 1);
         hevm.stopPrank();
 
         // vote
         hevm.startPrank(admin);
         governor.castVote(pid, 1);
-        hevm.warp(block.timestamp + 1 weeks); // voting period
+        hevm.warp(block.timestamp + governor.votingPeriod() + 1); // voting period
         hevm.stopPrank();
 
         // execute
         hevm.startPrank(admin);
-        governor.execute(targets, values, calldatas, keccak256(bytes(description)), MAINNET);
+        hevm.warp(block.timestamp + timelockExecutor.executionDelay() + 1); // execution delay
+        governor.execute(t, v, c, keccak256(bytes(d)), MAINNET);
         hevm.stopPrank();
 
         assertTrue(voter.isWhitelisted(usdc));
@@ -184,26 +191,80 @@ contract AlchemixGovernorTest is BaseTest {
 
         assertFalse(voter.isWhitelisted(usdc));
 
-        address[] memory targets = new address[](1);
-        targets[0] = address(voter);
-        uint256[] memory values = new uint256[](1);
-        values[0] = 0;
-        bytes[] memory calldatas = new bytes[](1);
-        calldatas[0] = abi.encodeWithSelector(voter.whitelist.selector, usdc);
-        string memory description = "Whitelist USDC";
+        (address[] memory t, uint256[] memory v, bytes[] memory c, string memory d) = craftTestProposal();
 
         // proposal should fail to meet threshold when veALCX amount is too low
         hevm.startPrank(dead);
 
         hevm.expectRevert(abi.encodePacked("Governor: proposer votes below proposal threshold"));
-        governor.propose(targets, values, calldatas, description, MAINNET);
+        governor.propose(t, v, c, d, MAINNET);
 
         hevm.warp(block.timestamp + 12);
-        governor.propose(targets, values, calldatas, description, MAINNET);
+        governor.propose(t, v, c, d, MAINNET);
 
         uint256 votes = governor.getVotes(dead, block.timestamp);
 
         assertLt(proposalThreshold, votes);
+
+        hevm.stopPrank();
+    }
+
+    function testSetVotingDelay() public {
+        uint256 initialDelay = governor.votingDelay();
+
+        hevm.prank(admin);
+
+        governor.setVotingDelay(initialDelay + 1 days);
+
+        (address[] memory t, uint256[] memory v, bytes[] memory c, string memory d) = craftTestProposal();
+
+        hevm.startPrank(admin);
+
+        uint256 pid = governor.propose(t, v, c, d, MAINNET);
+
+        hevm.warp(block.timestamp + initialDelay + 1);
+        hevm.roll(block.number + 1);
+
+        hevm.expectRevert(abi.encodePacked("Governor: vote not currently active"));
+        governor.castVote(pid, 1);
+
+        hevm.warp(block.timestamp + 1 days);
+        hevm.roll(block.number + 1);
+
+        governor.castVote(pid, 1);
+
+        hevm.stopPrank();
+    }
+
+    function testSetVotingPeriod() public {
+        uint256 initialPeriod = governor.votingPeriod();
+
+        hevm.prank(admin);
+
+        governor.setVotingPeriod(initialPeriod + 1 days);
+
+        (address[] memory t, uint256[] memory v, bytes[] memory c, string memory d) = craftTestProposal();
+
+        hevm.startPrank(admin);
+
+        uint256 pid = governor.propose(t, v, c, d, MAINNET);
+
+        hevm.warp(block.timestamp + governor.votingDelay() + 1);
+        hevm.roll(block.number + 1);
+
+        governor.castVote(pid, 1);
+
+        hevm.warp(block.timestamp + initialPeriod + 1);
+        hevm.roll(block.number + 1);
+
+        uint256 state = uint256(governor.state(pid));
+        assertEq(state, uint256(IGovernor.ProposalState.Active));
+
+        hevm.warp(block.timestamp + 1 days);
+        hevm.roll(block.number + 1);
+
+        state = uint256(governor.state(pid));
+        assertEq(state, uint256(IGovernor.ProposalState.Succeeded));
 
         hevm.stopPrank();
     }
