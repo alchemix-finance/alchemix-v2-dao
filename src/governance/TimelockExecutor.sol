@@ -6,6 +6,7 @@ pragma solidity ^0.8.0;
 import "openzeppelin-contracts/contracts/token/ERC721/IERC721Receiver.sol";
 import "openzeppelin-contracts/contracts/token/ERC1155/IERC1155Receiver.sol";
 import "openzeppelin-contracts/contracts/utils/Address.sol";
+import "openzeppelin-contracts/contracts/access/AccessControl.sol";
 
 /**
  * @dev Contract module which acts as a timelocked controller. When set as the
@@ -22,10 +23,11 @@ import "openzeppelin-contracts/contracts/utils/Address.sol";
  *
  * _Available since v3.3._
  */
-contract TimelockExecutor is IERC721Receiver, IERC1155Receiver {
-    // Admin will be the governor
-    address public admin;
-    address public pendingAdmin;
+contract TimelockExecutor is AccessControl, IERC721Receiver, IERC1155Receiver {
+    bytes32 public constant TIMELOCK_ADMIN_ROLE = keccak256("TIMELOCK_ADMIN_ROLE");
+    bytes32 public constant SCHEDULER_ROLE = keccak256("SCHEDULER_ROLE");
+    bytes32 public constant EXECUTOR_ROLE = keccak256("EXECUTOR_ROLE");
+    bytes32 public constant CANCELLER_ROLE = keccak256("CANCELLER_ROLE");
 
     uint256 internal constant _DONE_TIMESTAMP = uint256(1);
 
@@ -61,13 +63,56 @@ contract TimelockExecutor is IERC721Receiver, IERC1155Receiver {
     event DelayChange(uint256 oldDuration, uint256 newDuration);
 
     /**
+     * @dev Emitted when the executionDelay for future operations is modified.
+     */
+    event NewCancellooor(address cancellooor);
+
+    /**
      * @dev Initializes the contract with a given `executionDelay`, and an admin.
      */
-    constructor(uint256 _executionDelay) {
-        admin = msg.sender;
+    constructor(
+        uint256 _executionDelay,
+        address[] memory schedulers,
+        address[] memory cancellers,
+        address[] memory executors
+    ) {
+        _setRoleAdmin(TIMELOCK_ADMIN_ROLE, TIMELOCK_ADMIN_ROLE);
+        _setRoleAdmin(SCHEDULER_ROLE, TIMELOCK_ADMIN_ROLE);
+        _setRoleAdmin(EXECUTOR_ROLE, TIMELOCK_ADMIN_ROLE);
+        _setRoleAdmin(CANCELLER_ROLE, TIMELOCK_ADMIN_ROLE);
+
+        // deployer + self administration
+        _setupRole(TIMELOCK_ADMIN_ROLE, _msgSender());
+        _setupRole(TIMELOCK_ADMIN_ROLE, address(this));
+
+        for (uint256 i = 0; i < schedulers.length; ++i) {
+            _setupRole(SCHEDULER_ROLE, schedulers[i]);
+        }
+
+        for (uint256 i = 0; i < cancellers.length; ++i) {
+            _setupRole(CANCELLER_ROLE, cancellers[i]);
+        }
+
+        // register executors
+        for (uint256 i = 0; i < executors.length; ++i) {
+            _setupRole(EXECUTOR_ROLE, executors[i]);
+        }
 
         executionDelay = _executionDelay;
         emit DelayChange(0, executionDelay);
+    }
+
+    /**
+     * @dev Modifier to make a function callable only by a certain role. In
+     * addition to checking the sender's role, `address(0)` 's role is also
+     * considered. Granting a role to `address(0)` is equivalent to enabling
+     * this role for everyone.
+     */
+    modifier onlyRoleOrOpenRole(bytes32 role) {
+        if (!hasRole(role, address(0))) {
+            _checkRole(role, _msgSender());
+        }
+        _;
     }
 
     /**
@@ -75,20 +120,10 @@ contract TimelockExecutor is IERC721Receiver, IERC1155Receiver {
      */
     receive() external payable {}
 
-    function setAdmin(address _admin) external {
-        require(msg.sender == admin, "not admin");
-        pendingAdmin = _admin;
-    }
-
-    function acceptAdmin() external {
-        require(msg.sender == pendingAdmin, "not pending admin");
-        admin = pendingAdmin;
-    }
-
     /**
      * @dev See {IERC165-supportsInterface}.
      */
-    function supportsInterface(bytes4 interfaceId) public view virtual override(IERC165) returns (bool) {
+    function supportsInterface(bytes4 interfaceId) public view virtual override(AccessControl, IERC165) returns (bool) {
         return interfaceId == type(IERC1155Receiver).interfaceId;
     }
 
@@ -177,9 +212,7 @@ contract TimelockExecutor is IERC721Receiver, IERC1155Receiver {
         bytes32 descriptionHash,
         uint256 chainId,
         uint256 delay
-    ) public virtual {
-        require(msg.sender == admin, "not admin");
-
+    ) public virtual onlyRole(SCHEDULER_ROLE) {
         bytes32 id = hashOperation(target, value, data, predecessor, descriptionHash, chainId);
         _schedule(id, delay);
         emit CallScheduled(id, 0, target, value, data, predecessor, delay);
@@ -202,9 +235,7 @@ contract TimelockExecutor is IERC721Receiver, IERC1155Receiver {
         bytes32 descriptionHash,
         uint256 chainId,
         uint256 delay
-    ) public virtual {
-        require(msg.sender == admin, "not admin");
-
+    ) public virtual onlyRole(SCHEDULER_ROLE) {
         require(targets.length == values.length, "TimelockExecutor: length mismatch");
         require(targets.length == payloads.length, "TimelockExecutor: length mismatch");
 
@@ -226,6 +257,20 @@ contract TimelockExecutor is IERC721Receiver, IERC1155Receiver {
     }
 
     /**
+     * @dev Cancel an operation.
+     *
+     * Requirements:
+     *
+     * - the caller must have the 'canceller' role.
+     */
+    function cancel(bytes32 id) public virtual onlyRole(CANCELLER_ROLE) {
+        require(isOperationPending(id), "TimelockController: operation cannot be cancelled");
+        delete _timestamps[id];
+
+        emit Cancelled(id);
+    }
+
+    /**
      * @dev Execute an (ready) operation containing a single transaction.
      *
      * Emits a {CallExecuted} event.
@@ -240,9 +285,7 @@ contract TimelockExecutor is IERC721Receiver, IERC1155Receiver {
         bytes32 predecessor,
         bytes32 descriptionHash,
         uint256 chainId
-    ) public payable virtual {
-        require(msg.sender == admin, "not admin");
-
+    ) public payable virtual onlyRoleOrOpenRole(EXECUTOR_ROLE) {
         bytes32 id = hashOperation(target, value, data, predecessor, descriptionHash, chainId);
         _beforeCall(id, predecessor);
         _execute(id, 0, target, value, data);
@@ -261,9 +304,7 @@ contract TimelockExecutor is IERC721Receiver, IERC1155Receiver {
         bytes32 predecessor,
         bytes32 descriptionHash,
         uint256 chainId
-    ) public payable virtual {
-        require(msg.sender == admin, "not admin");
-
+    ) public payable virtual onlyRoleOrOpenRole(EXECUTOR_ROLE) {
         require(targets.length == values.length, "TimelockExecutor: length mismatch");
         require(targets.length == payloads.length, "TimelockExecutor: length mismatch");
 
