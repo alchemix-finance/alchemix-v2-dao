@@ -268,4 +268,54 @@ contract AlchemixGovernorTest is BaseTest {
 
         hevm.stopPrank();
     }
+
+    function testFailTimelockSchedulerRoleSchedule() public {
+        (address[] memory t, uint256[] memory v, bytes[] memory c, string memory d) = craftTestProposal();
+        hevm.prank(beef);
+        timelockExecutor.schedule(t[0], v[0], c[0], 0, keccak256(bytes(d)), MAINNET, timelockExecutor.executionDelay());
+    }
+
+    function testFailTimelockSchedulerRoleScheduleBatch() public {
+        (address[] memory t, uint256[] memory v, bytes[] memory c, string memory d) = craftTestProposal();
+        hevm.prank(beef);
+        timelockExecutor.scheduleBatch(t, v, c, 0, keccak256(bytes(d)), MAINNET, timelockExecutor.executionDelay());
+    }
+
+    function testCancellerRole() public {
+        assertFalse(voter.isWhitelisted(usdc));
+
+        (address[] memory t, uint256[] memory v, bytes[] memory c, string memory d) = craftTestProposal();
+
+        hevm.warp(block.timestamp + 2 days); // delay
+
+        // propose
+        hevm.startPrank(admin);
+        uint256 pid = governor.propose(t, v, c, d, MAINNET);
+        hevm.warp(block.timestamp + governor.votingDelay() + 1); // voting delay
+        hevm.roll(block.number + 1);
+        hevm.stopPrank();
+
+        // vote
+        hevm.startPrank(admin);
+        governor.castVote(pid, 1);
+        hevm.warp(block.timestamp + governor.votingPeriod() + 1); // voting period
+        hevm.stopPrank();
+
+        // is scheduled
+        assertEq(uint256(governor.state(pid)), uint256(IGovernor.ProposalState.Succeeded));
+
+        // cancel
+        bytes32 id = timelockExecutor.hashOperationBatch(t, v, c, 0, keccak256(bytes(d)), MAINNET);
+        hevm.prank(admin);
+        timelockExecutor.cancel(id);
+
+        // execute
+        hevm.startPrank(admin);
+        hevm.warp(block.timestamp + timelockExecutor.executionDelay() + 1); // execution delay
+        hevm.expectRevert(abi.encodePacked("TimelockExecutor: operation is not ready"));
+        governor.execute(t, v, c, keccak256(bytes(d)), MAINNET);
+        hevm.stopPrank();
+
+        assertFalse(voter.isWhitelisted(usdc));
+    }
 }

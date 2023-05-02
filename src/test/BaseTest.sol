@@ -145,10 +145,15 @@ contract BaseTest is DSTestPlus {
         bribeFactory = new BribeFactory();
         voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory), address(flux));
         distributor = new RewardsDistributor(address(veALCX), address(weth), address(balancerVault), priceFeed);
-        timelockExecutor = new TimelockExecutor(1 days);
+        address[] memory schedulerCancellerArray = new address[](1);
+        schedulerCancellerArray[0] = admin;
+        address[] memory executorArray = new address[](1);
+        executorArray[0] = address(0);
+        timelockExecutor = new TimelockExecutor(1 days, schedulerCancellerArray, schedulerCancellerArray, executorArray);
         governor = new AlchemixGovernor(veALCX, TimelockExecutor(timelockExecutor));
 
-        timelockExecutor.setAdmin(address(governor));
+        timelockExecutor.grantRole(timelockExecutor.SCHEDULER_ROLE(), address(governor));
+        timelockExecutor.grantRole(timelockExecutor.TIMELOCK_ADMIN_ROLE(), address(governor));
         voter.setAdmin(address(timelockExecutor));
 
         veALCX.setVoter(address(voter));
@@ -199,9 +204,6 @@ contract BaseTest is DSTestPlus {
 
         hevm.stopPrank();
         timeGauge.setRewardsDistribution(address(minter));
-
-        hevm.prank(address(governor));
-        timelockExecutor.acceptAdmin();
 
         hevm.prank(address(timelockExecutor));
         voter.acceptAdmin();
