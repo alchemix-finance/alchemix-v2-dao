@@ -10,19 +10,45 @@ contract VotingTest is BaseTest {
 
     // Check ALCX balances increase in distributor and voter over an epoch
     function testEpochRewards() public {
-        uint256 distributorBal = alcx.balanceOf(address(distributor));
-        uint256 voterBal = alcx.balanceOf(address(voter));
+        uint256 distributorBal1 = alcx.balanceOf(address(distributor));
+        uint256 voterBal1 = alcx.balanceOf(address(voter));
 
-        assertEq(distributorBal, 0);
-        assertEq(voterBal, 0);
+        assertEq(distributorBal1, 0);
+        assertEq(voterBal1, 0);
 
         hevm.warp(block.timestamp + nextEpoch);
         hevm.roll(block.number + 1);
 
         minter.updatePeriod();
 
-        assertGt(alcx.balanceOf(address(distributor)), distributorBal);
-        assertGt(alcx.balanceOf(address(voter)), voterBal);
+        uint256 distributorBal2 = alcx.balanceOf(address(distributor));
+        uint256 voterBal2 = alcx.balanceOf(address(voter));
+
+        assertGt(distributorBal2, distributorBal1);
+        // Voter has no balance since there have been no votes
+        assertEq(voterBal2, voterBal1);
+
+        // Create a veALCX token and vote to trigger voter rewards
+        uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+        address[] memory pools = new address[](1);
+        pools[0] = sushiPoolAddress;
+        uint256[] memory weights = new uint256[](1);
+        weights[0] = 5000;
+        address[] memory gauges = new address[](1);
+        gauges[0] = address(sushiGauge);
+
+        hevm.warp(block.timestamp + nextEpoch);
+
+        hevm.prank(admin);
+        voter.vote(tokenId, pools, weights, 0);
+
+        minter.updatePeriod();
+
+        uint256 distributorBal3 = alcx.balanceOf(address(distributor));
+        uint256 voterBal3 = alcx.balanceOf(address(voter));
+
+        assertGt(distributorBal3, distributorBal2);
+        assertGt(voterBal3, voterBal2);
     }
 
     function testSameEpochVoteOrReset() public {
@@ -296,21 +322,24 @@ contract VotingTest is BaseTest {
     function testBribes() public {
         uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
         address bribeAddress = voter.bribes(address(sushiGauge));
-        uint256 rewardsLength = sushiGauge.rewardsListLength();
+        uint256 rewardsLength = IBribe(bribeAddress).rewardsListLength();
 
         // Add BAL bribes to sushiGauge
         createThirdPartyBribe(bribeAddress, bal, TOKEN_100K);
 
+        // Tokens should have to be added to the whitelist before being able to bribe
+        hevm.expectRevert(abi.encodePacked("bribe tokens must be whitelisted"));
+        IBribe(bribeAddress).notifyRewardAmount(usdc, TOKEN_100K);
+
         uint256 bribeBalance = IERC20(bal).balanceOf(bribeAddress);
+        // Bribe contract should increase in bribe token balance
+        assertEq(TOKEN_100K, bribeBalance);
 
         // Epoch start should equal the current block.timestamp rounded to a week
         assertEq(block.timestamp - (block.timestamp % (7 days)), IBribe(bribeAddress).getEpochStart(block.timestamp));
 
         // Rewards list should increase after adding bribe
-        assertEq(sushiGauge.rewardsListLength(), rewardsLength + 1);
-
-        // Bribe contract should increase in bribe token balance
-        assertEq(TOKEN_100K, bribeBalance);
+        assertEq(IBribe(bribeAddress).rewardsListLength(), rewardsLength + 1);
 
         address[] memory pools = new address[](1);
         pools[0] = sushiPoolAddress;
@@ -404,7 +433,7 @@ contract VotingTest is BaseTest {
         hevm.stopPrank();
     }
 
-    // veALCX voting power should decay to veALCX amount
+    // veALCX voting power should decay to 0
     function testVotingPowerDecay() public {
         uint256 tokenId = createVeAlcx(admin, TOKEN_1, 3 weeks, false);
 
@@ -414,7 +443,7 @@ contract VotingTest is BaseTest {
 
         uint256 balance = veALCX.balanceOfToken(tokenId);
 
-        // Voting power remains at 1 when lock is expired
+        // Voting power decays to 0
         hevm.expectRevert(abi.encodePacked("Cannot add to expired lock. Withdraw"));
         veALCX.increaseAmount(tokenId, TOKEN_1);
         assertEq(balance, 0);

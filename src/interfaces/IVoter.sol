@@ -27,6 +27,8 @@ interface IVoter {
 
     function emergencyCouncil() external view returns (address);
 
+    function totalWeight() external view returns (uint256);
+
     function isWhitelisted(address token) external view returns (bool);
 
     function getPoolVote(uint256 tokenId) external view returns (address[] memory);

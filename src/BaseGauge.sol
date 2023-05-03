@@ -26,10 +26,6 @@ abstract contract BaseGauge is IBaseGauge {
     address public receiver;
     address public rewardToken;
 
-    address[] public rewards;
-
-    mapping(address => bool) public isReward;
-
     // Re-entrancy check
     uint256 internal _unlocked = 1;
     modifier lock() {
@@ -72,24 +68,10 @@ abstract contract BaseGauge is IBaseGauge {
         receiver = _receiver;
     }
 
-    function rewardsListLength() external view returns (uint256) {
-        return rewards.length;
-    }
-
-    /// @inheritdoc IBaseGauge
-    function addBribeRewardToken(address token) external {
-        require(msg.sender == bribe);
-        if (!isReward[token]) {
-            require(rewards.length < MAX_REWARD_TOKENS, "too many rewards tokens");
-            isReward[token] = true;
-            rewards.push(token);
-        }
-    }
-
     /// @inheritdoc IBaseGauge
     function notifyRewardAmount(address _token, uint256 _amount) external lock {
         require(msg.sender == voter, "not voter");
-        require(_amount > 0);
+        require(_amount > 0, "zero amount");
         _safeTransferFrom(_token, msg.sender, address(this), _amount);
 
         emit NotifyReward(msg.sender, _token, _amount);

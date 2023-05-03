@@ -261,13 +261,17 @@ contract Voter is IVoter {
 
     /// @inheritdoc IVoter
     function notifyRewardAmount(uint256 amount) external {
-        _safeTransferFrom(base, msg.sender, address(this), amount); // transfer the distro in
+        require(msg.sender == minter, "only minter can send rewards");
+        require(totalWeight > 0, "no votes");
 
-        // Handle case if totalWeight is 0
-        uint256 _ratio = totalWeight > 0 ? (amount * 1e18) / totalWeight : (amount * 1e18); // 1e18 adjustment is removed during claim
+        _safeTransferFrom(base, msg.sender, address(this), amount); // transfer rewards in
+
+        uint256 _ratio = (amount * 1e18) / totalWeight; // 1e18 adjustment is removed during claim
+
         if (_ratio > 0) {
             index += _ratio;
         }
+
         emit NotifyReward(msg.sender, base, amount);
     }
 
@@ -306,10 +310,6 @@ contract Voter is IVoter {
         IBaseGauge(_gauge).notifyRewardAmount(base, _claimable);
 
         emit DistributeReward(msg.sender, _gauge, _claimable);
-    }
-
-    function distro() external {
-        distribute(0, pools.length);
     }
 
     function distribute() external {

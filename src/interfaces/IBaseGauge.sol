@@ -54,18 +54,10 @@ interface IBaseGauge {
 
     function acceptAdmin() external;
 
-    function rewardsListLength() external view returns (uint256);
-
     /**
      * @notice Distribute the appropriate rewards to a gauge
      * @param token     The address of the reward token
      * @param amount    The amount of rewards being sent
      */
     function notifyRewardAmount(address token, uint256 amount) external;
-
-    /**
-     * @notice Add a bribe token to a gauge
-     * @param token The address of the bribe token
-     */
-    function addBribeRewardToken(address token) external;
 }
