@@ -43,8 +43,6 @@ contract CurveGauge is BaseGauge {
         IBribe(bribe).setGauge(address(this));
         rewardToken = IVotingEscrow(ve).ALCX();
         IBribe(bribe).addRewardToken(rewardToken);
-        isReward[rewardToken] = true;
-        rewards.push(rewardToken);
     }
 
     /*
