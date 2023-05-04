@@ -699,6 +699,10 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         // If max lock is enabled retain the max lock
         _locked1.maxLockEnabled = _locked0.maxLockEnabled ? _locked0.maxLockEnabled : _locked1.maxLockEnabled;
 
+        // Consolidate unclaimed flux
+        unclaimedFlux[_to] += unclaimedFlux[_from];
+        unclaimedFlux[_from] = 0;
+
         // If max lock is enabled end is the max lock time, otherwise it is the greater of the two end times
         uint256 end = _locked1.maxLockEnabled
             ? ((block.timestamp + MAXTIME) / WEEK) * WEEK
