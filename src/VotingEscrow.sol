@@ -798,7 +798,8 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
             ? ((block.timestamp + MAXTIME) / WEEK) * WEEK
             : ((block.timestamp + _lockDuration) / WEEK) * WEEK;
 
-        require(_locked.end > block.timestamp, "Lock expired");
+        // If max lock is not enabled, require that the lock is not expired
+        if (!_locked.maxLockEnabled) require(_locked.end > block.timestamp, "Lock expired");
         require(_locked.amount > 0, "Nothing is locked");
         require(unlockTime >= _locked.end, "Can only increase lock duration");
         require(unlockTime <= block.timestamp + MAXTIME, "Voting lock can be 1 year max");
