@@ -5,7 +5,6 @@ interface IVotingEscrow {
     enum DepositType {
         DEPOSIT_FOR_TYPE,
         CREATE_LOCK_TYPE,
-        INCREASE_LOCK_AMOUNT,
         INCREASE_UNLOCK_TIME,
         MERGE_TYPE
     }

@@ -445,7 +445,7 @@ contract VotingTest is BaseTest {
 
         // Voting power decays to 0
         hevm.expectRevert(abi.encodePacked("Cannot add to expired lock. Withdraw"));
-        veALCX.increaseAmount(tokenId, TOKEN_1);
+        veALCX.depositFor(tokenId, TOKEN_1);
         assertEq(balance, 0);
 
         hevm.stopPrank();

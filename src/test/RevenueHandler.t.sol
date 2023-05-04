@@ -361,7 +361,7 @@ contract RevenueHandlerTest is BaseTest {
 
         deal(address(bpt), address(this), lockAmt);
         IERC20(bpt).approve(address(veALCX), lockAmt);
-        veALCX.increaseAmount(tokenId, lockAmt);
+        veALCX.depositFor(tokenId, lockAmt);
 
         _accrueRevenueAndJumpOneEpoch(revAmt); // this revenue SHOULD be claimable
 
