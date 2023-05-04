@@ -6,7 +6,7 @@ import "./BaseTest.sol";
 contract VotingEscrowTest is BaseTest {
     uint256 internal constant ONE_WEEK = 1 weeks;
     uint256 internal constant THREE_WEEKS = 3 weeks;
-    uint256 internal constant FOUR_WEEKS = 4 weeks;
+    uint256 internal constant FIVE_WEEKS = 5 weeks;
     uint256 maxDuration = ((block.timestamp + MAXTIME) / ONE_WEEK) * ONE_WEEK;
 
     function setUp() public {
@@ -402,20 +402,50 @@ contract VotingEscrowTest is BaseTest {
     // Check merging of two veALCX
     function testMergeTokens() public {
         uint256 tokenId1 = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
-        uint256 tokenId2 = createVeAlcx(admin, TOKEN_100K, THREE_WEEKS, false);
+        uint256 tokenId2 = createVeAlcx(admin, TOKEN_100K, FIVE_WEEKS, false);
 
         hevm.startPrank(admin);
 
-        assertEq(veALCX.lockEnd(tokenId1), ((block.timestamp + MAXTIME) / 1 weeks) * 1 weeks);
+        uint256 lockEnd1 = veALCX.lockEnd(tokenId1);
+
+        assertEq(lockEnd1, ((block.timestamp + MAXTIME) / 1 weeks) * 1 weeks);
         assertEq(veALCX.lockedAmount(tokenId1), TOKEN_1);
+
+        // Vote to trigger flux accrual
+        hevm.warp(block.timestamp + nextEpoch);
+
+        address[] memory pools = new address[](1);
+        pools[0] = alETHPool;
+        uint256[] memory weights = new uint256[](1);
+        weights[0] = 5000;
+        voter.vote(tokenId1, pools, weights, 0);
+        voter.vote(tokenId2, pools, weights, 0);
+
+        minter.updatePeriod();
+
+        hevm.warp(block.timestamp + nextEpoch);
+
+        // Reset to allow merging of tokens
+        voter.reset(tokenId1);
+        voter.reset(tokenId2);
+
+        uint256 unclaimedFluxBefore1 = veALCX.unclaimedFlux(tokenId1);
+        uint256 unclaimedFluxBefore2 = veALCX.unclaimedFlux(tokenId2);
 
         hevm.expectRevert(abi.encodePacked("must be different tokens"));
         veALCX.merge(tokenId1, tokenId1);
 
         veALCX.merge(tokenId1, tokenId2);
 
+        uint256 unclaimedFluxAfter1 = veALCX.unclaimedFlux(tokenId1);
+        uint256 unclaimedFluxAfter2 = veALCX.unclaimedFlux(tokenId2);
+
+        // After merge unclaimed flux should consolidate into one token
+        assertEq(unclaimedFluxAfter2, unclaimedFluxBefore1 + unclaimedFluxBefore2, "unclaimed flux not consolidated");
+        assertEq(unclaimedFluxAfter1, 0, "incorrect unclaimed flux");
+
         // Merged token should take longer of the two lock end dates
-        assertEq(veALCX.lockEnd(tokenId2), ((block.timestamp + MAXTIME) / 1 weeks) * 1 weeks);
+        assertEq(veALCX.lockEnd(tokenId2), lockEnd1);
 
         // Merged token should have sum of both token locked amounts
         assertEq(veALCX.lockedAmount(tokenId2), TOKEN_1 + TOKEN_100K);
@@ -430,7 +460,7 @@ contract VotingEscrowTest is BaseTest {
     function testManipulateEarlyUnlock() public {
         uint256 tokenId1 = createVeAlcx(admin, TOKEN_100K, MAXTIME, false);
         uint256 tokenId2 = createVeAlcx(admin, TOKEN_1, THREE_WEEKS, false);
-        uint256 tokenId3 = createVeAlcx(admin, TOKEN_1, FOUR_WEEKS, false);
+        uint256 tokenId3 = createVeAlcx(admin, TOKEN_1, FIVE_WEEKS, false);
         uint256 tokenId4 = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
 
         // Mint the necessary amount of flux to ragequit
