@@ -138,10 +138,8 @@ contract VotingEscrowTest is BaseTest {
 
     // Votes should increase as veALCX is created
     function testVotes() public {
-        hevm.startPrank(admin);
-
-        uint256 tokenId1 = veALCX.createLock(TOKEN_1 / 2, THREE_WEEKS, false);
-        uint256 tokenId2 = veALCX.createLock(TOKEN_1 / 2, THREE_WEEKS * 2, false);
+        uint256 tokenId1 = createVeAlcx(admin, TOKEN_1 / 2, THREE_WEEKS, false);
+        uint256 tokenId2 = createVeAlcx(admin, TOKEN_1 / 2, THREE_WEEKS * 2, false);
 
         uint256 maxVotingPower = getMaxVotingPower(TOKEN_1 / 2, veALCX.lockEnd(tokenId1)) +
             getMaxVotingPower(TOKEN_1 / 2, veALCX.lockEnd(tokenId2));
@@ -157,15 +155,11 @@ contract VotingEscrowTest is BaseTest {
         assertEq(votingPower, totalVotes, "votes doesn't match total");
 
         assertEq(votingPower, maxVotingPower, "votes doesn't match total");
-
-        hevm.stopPrank();
     }
 
     // Test tracking of checkpoints and calculating votes at points in time
     function testPastVotesIndex() public {
         uint256 voteTimestamp0 = block.timestamp;
-
-        hevm.startPrank(admin);
 
         uint256 period = minter.activePeriod();
         hevm.warp(period + nextEpoch);
@@ -216,9 +210,7 @@ contract VotingEscrowTest is BaseTest {
 
     // Calculating voting power at points in time should be correct
     function testBalanceOfTokenCalcs() public {
-        hevm.startPrank(admin);
-
-        uint256 tokenId = veALCX.createLock(TOKEN_1, THREE_WEEKS, false);
+        uint256 tokenId = createVeAlcx(admin, TOKEN_1, THREE_WEEKS, false);
 
         uint256 originalTimestamp = block.timestamp;
 
@@ -246,6 +238,34 @@ contract VotingEscrowTest is BaseTest {
         // Voting power before token was created should be 0
         uint256 getPastVotingPower = veALCX.balanceOfTokenAt(tokenId, originalTimestamp - nextEpoch);
         assertEq(getPastVotingPower, 0, "voting power should be 0");
+    }
+
+    // A token should be able to disable max lock
+    function testDisableMaxLock() public {
+        hevm.startPrank(admin);
+
+        uint256 tokenId = veALCX.createLock(TOKEN_1, 0, true);
+
+        hevm.warp(block.timestamp + MAXTIME + nextEpoch);
+
+        uint256 lockEnd1 = veALCX.lockEnd(tokenId);
+        // Lock end has technically passed but the token is max locked
+        assertGt(block.timestamp, lockEnd1, "lock should have ended");
+
+        // Should be able to disable max lock after lock end has passed
+        veALCX.updateUnlockTime(tokenId, 0, false);
+
+        uint256 lockEnd2 = veALCX.lockEnd(tokenId);
+        assertGt(lockEnd2, block.timestamp, "lock end should be updated");
+
+        hevm.warp(block.timestamp + lockEnd2);
+
+        // Should be able to cooldown and withdraw after new lock end has passed
+        veALCX.startCooldown(tokenId);
+        hevm.warp(block.timestamp + nextEpoch);
+        veALCX.withdraw(tokenId);
+
+        hevm.stopPrank();
     }
 
     // Withdraw enabled after lock expires
