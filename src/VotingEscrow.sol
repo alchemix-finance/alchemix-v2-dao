@@ -732,6 +732,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         require(_value > 0); // dev: need non-zero value
         require(_locked.amount > 0, "No existing lock found");
         require(_locked.end > block.timestamp, "Cannot add to expired lock. Withdraw");
+
         _depositFor(_tokenId, _value, 0, _locked.maxLockEnabled, _locked, DepositType.DEPOSIT_FOR_TYPE);
     }
 
@@ -763,22 +764,6 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         bool _maxLockEnabled
     ) external nonreentrant returns (uint256) {
         return _createLock(_value, _lockDuration, _maxLockEnabled, msg.sender);
-    }
-
-    /**
-     * @notice Deposit `_value` additional tokens for `_tokenId` without modifying the unlock time
-     * @param _value Amount of tokens to deposit and add to the lock
-     */
-    function increaseAmount(uint256 _tokenId, uint256 _value) external nonreentrant {
-        require(_isApprovedOrOwner(msg.sender, _tokenId));
-
-        LockedBalance memory _locked = locked[_tokenId];
-
-        require(_value > 0); // dev: need non-zero value
-        require(_locked.amount > 0, "No existing lock found");
-        require(_locked.end > block.timestamp, "Cannot add to expired lock. Withdraw");
-
-        _depositFor(_tokenId, _value, 0, _locked.maxLockEnabled, _locked, DepositType.INCREASE_LOCK_AMOUNT);
     }
 
     /**
