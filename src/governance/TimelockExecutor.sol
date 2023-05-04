@@ -202,7 +202,7 @@ contract TimelockExecutor is AccessControl, IERC721Receiver, IERC1155Receiver {
      *
      * Requirements:
      *
-     * - the caller must be the 'admin'.
+     * - the caller must be the 'scheduler'.
      */
     function schedule(
         address target,
@@ -225,7 +225,7 @@ contract TimelockExecutor is AccessControl, IERC721Receiver, IERC1155Receiver {
      *
      * Requirements:
      *
-     * - the caller must be the 'admin'.
+     * - the caller must be the 'scheduler'.
      */
     function scheduleBatch(
         address[] calldata targets,
