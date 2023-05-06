@@ -184,6 +184,7 @@ contract Voter is IVoter {
     ) external onlyNewEpoch(_tokenId) {
         require(IVotingEscrow(veALCX).isApprovedOrOwner(msg.sender, _tokenId));
         require(_poolVote.length == _weights.length);
+        require(_poolVote.length <= pools.length, "invalid pools");
         require(
             IVotingEscrow(veALCX).claimableFlux(_tokenId) + IVotingEscrow(veALCX).unclaimedFlux(_tokenId) >= _boost,
             "insufficient claimable FLUX balance"
@@ -373,24 +374,26 @@ contract Voter is IVoter {
             address _pool = _poolVote[i];
             address _gauge = gauges[_pool];
 
-            if (isGauge[_gauge]) {
-                IVotingEscrow(veALCX).accrueFlux(_tokenId, IVotingEscrow(veALCX).claimableFlux(_tokenId));
-                uint256 _poolWeight = (_weights[i] * (IVotingEscrow(veALCX).balanceOfToken(_tokenId) + _boost)) /
-                    _totalVoteWeight;
-                require(votes[_tokenId][_pool] == 0);
-                require(_poolWeight != 0);
-                _updateFor(_gauge);
+            require(isGauge[_gauge], "invalid gauge");
+            require(isAlive[_gauge], "cannot vote for dead gauge");
 
-                poolVote[_tokenId].push(_pool);
+            IVotingEscrow(veALCX).accrueFlux(_tokenId, IVotingEscrow(veALCX).claimableFlux(_tokenId));
+            uint256 _poolWeight = (_weights[i] * (IVotingEscrow(veALCX).balanceOfToken(_tokenId) + _boost)) /
+                _totalVoteWeight;
+            require(votes[_tokenId][_pool] == 0);
+            require(_poolWeight != 0);
+            _updateFor(_gauge);
 
-                weights[_pool] += _poolWeight;
-                votes[_tokenId][_pool] += _poolWeight;
-                IBribe(bribes[_gauge]).deposit(uint256(_poolWeight), _tokenId);
-                _usedWeight += _poolWeight;
-                _totalWeight += _poolWeight;
-                emit Voted(msg.sender, _tokenId, _poolWeight);
-            }
+            poolVote[_tokenId].push(_pool);
+
+            weights[_pool] += _poolWeight;
+            votes[_tokenId][_pool] += _poolWeight;
+            IBribe(bribes[_gauge]).deposit(uint256(_poolWeight), _tokenId);
+            _usedWeight += _poolWeight;
+            _totalWeight += _poolWeight;
+            emit Voted(msg.sender, _tokenId, _poolWeight);
         }
+
         if (_usedWeight > 0) IVotingEscrow(veALCX).voting(_tokenId);
         totalWeight += uint256(_totalWeight);
         usedWeights[_tokenId] = uint256(_usedWeight);
@@ -409,6 +412,8 @@ contract Voter is IVoter {
     }
 
     function _updateFor(address _gauge) internal {
+        require(isGauge[_gauge], "invalid gauge");
+
         address _pool = poolForGauge[_gauge];
         uint256 _supplied = weights[_pool];
         if (_supplied > 0) {

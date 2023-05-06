@@ -82,6 +82,33 @@ contract VotingTest is BaseTest {
         hevm.stopPrank();
     }
 
+    function testInvalidGauge() public {
+        uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+
+        hevm.startPrank(admin);
+
+        uint256 period = minter.activePeriod();
+
+        // Move forward a week relative to period
+        hevm.warp(period + nextEpoch);
+
+        address[] memory pools = new address[](1);
+        pools[0] = dai;
+        uint256[] memory weights = new uint256[](1);
+        weights[0] = 5000;
+
+        hevm.expectRevert(abi.encodePacked("invalid gauge"));
+        voter.vote(tokenId, pools, weights, 0);
+
+        pools[0] = alUsdPoolAddress;
+        voter.killGauge(voter.gauges(alUsdPoolAddress));
+
+        hevm.expectRevert(abi.encodePacked("cannot vote for dead gauge"));
+        voter.vote(tokenId, pools, weights, 0);
+
+        hevm.stopPrank();
+    }
+
     function testNextEpochVoteOrReset() public {
         uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
 
