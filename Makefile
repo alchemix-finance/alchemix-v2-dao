@@ -9,7 +9,7 @@ FILE=
 TEST=
 
 # block to test from 
-BLOCK=16750165
+BLOCK=17133822
 
 # foundry test profile to run
 PROFILE=$(TEST_PROFILE)
@@ -35,7 +35,7 @@ docs_build :; forge doc --build --out ./documentation
 # runs all tests: "make test_all"
 test_all :; FOUNDRY_PROFILE=$(PROFILE) forge test $(FORK_URL)
 
-# runs all tests from a given block (setting block is optional): "make test_block BLOCK=16750165" (16750165 is a block where revenue handler deltas are passing)
+# runs all tests from a given block (setting block is optional): "make test_block BLOCK=17133822" (17133822 is a block where revenue handler deltas are passing)
 test_block :; FOUNDRY_PROFILE=$(PROFILE) forge test $(FORK_URL) $(FORK_BLOCK)
 
 # runs test coverage: "make test_coverage" add "--report lcov" to use with lcov reporter

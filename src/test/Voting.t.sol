@@ -232,8 +232,6 @@ contract VotingTest is BaseTest {
         // Add BAL bribes to sushi pool
         createThirdPartyBribe(bribeAddress, bal, TOKEN_100K);
 
-        hevm.startPrank(admin);
-
         address[] memory pools = new address[](1);
         pools[0] = sushiPoolAddress;
         uint256[] memory weights = new uint256[](1);
@@ -245,14 +243,14 @@ contract VotingTest is BaseTest {
         tokens[0] = new address[](1);
         tokens[0][0] = bal;
 
-        uint256 claimableFlux = veALCX.claimableFlux(tokenId);
         uint256 votingWeight = veALCX.balanceOfToken(tokenId);
-        uint256 maxBoostAmount = voter.maxVotingPower(tokenId);
         uint256 maxFluxAmount = voter.maxFluxBoost(tokenId);
-        uint256 fluxAccessable = claimableFlux + veALCX.unclaimedFlux(tokenId);
+        uint256 fluxAccessable = veALCX.claimableFlux(tokenId) + veALCX.unclaimedFlux(tokenId);
 
         // Max boost amount should be the voting weight plus the boost multiplier
-        assertEq(maxBoostAmount, votingWeight + maxFluxAmount);
+        assertEq(voter.maxVotingPower(tokenId), votingWeight + maxFluxAmount);
+
+        hevm.startPrank(admin);
 
         // Voter should revert if attempting to boost more amount of flux they have accrued and can claim
         hevm.expectRevert(abi.encodePacked("insufficient claimable FLUX balance"));
@@ -272,10 +270,14 @@ contract VotingTest is BaseTest {
         voter.vote(tokenId1, pools, weights, 0);
 
         // Used weight should be greater when boosting with unused flux
-        assertGt(voter.usedWeights(tokenId), votingWeight);
+        assertGt(voter.usedWeights(tokenId), votingWeight, "should be greater when boosting");
 
         // Token boosting with FLUX should have a higher used weight
-        assertGt(voter.usedWeights(tokenId), voter.usedWeights(tokenId1));
+        assertGt(
+            voter.usedWeights(tokenId),
+            voter.usedWeights(tokenId1),
+            "token boosting should have higher used weight"
+        );
 
         // Reach the end of the epoch
         hevm.warp(block.timestamp + nextEpoch);
@@ -287,7 +289,7 @@ contract VotingTest is BaseTest {
         voter.claimBribes(bribes, tokens, tokenId1);
 
         // Accout with boosted vote should capture more bribes
-        assertGt(IERC20(bal).balanceOf(admin), IERC20(bal).balanceOf(beef));
+        assertGt(IERC20(bal).balanceOf(admin), IERC20(bal).balanceOf(beef), "should capture more bribes");
     }
 
     // veALCX holders should be able to maintain their vote without re-voting each epoch
