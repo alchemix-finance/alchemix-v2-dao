@@ -54,6 +54,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     string public constant symbol = "veALCX";
     string public constant version = "1.0.0";
     uint8 public constant decimals = 18;
+    uint256 public constant BPS = 10000;
 
     /// @notice The EIP-712 typehash for the contract's domain
     bytes32 public constant DOMAIN_TYPEHASH =
@@ -1760,8 +1761,6 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     }
 
     function _burn(uint256 _tokenId) internal {
-        require(_isApprovedOrOwner(msg.sender, _tokenId), "caller is not owner nor approved");
-
         address owner = ownerOf(_tokenId);
 
         // Clear approval

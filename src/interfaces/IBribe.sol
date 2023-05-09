@@ -23,6 +23,25 @@ interface IBribe {
      */
     event NotifyReward(address indexed from, address indexed reward, uint256 epoch, uint256 amount);
 
+    /**
+     * @notice Emitted when a new gauge is set.
+     * @param gauge     The address of the new gauge.
+     */
+    event GaugeUpdated(address gauge);
+
+    /**
+     * @notice Emitted when a new reward token is added.
+     * @param token     The address of the new reward token.
+     */
+    event RewardTokenAdded(address token);
+
+    /**
+     * @notice Emitted when a reward token is swapped for another token.
+     * @param oldToken      The address of the old reward token.
+     * @param newToken      The address of the new reward token.
+     */
+    event RewardTokenSwapped(address oldToken, address newToken);
+
     event Deposit(address indexed from, uint256 tokenId, uint256 amount);
     event Withdraw(address indexed from, uint256 tokenId, uint256 amount);
     event ClaimRewards(address indexed from, address indexed reward, uint256 amount);

@@ -81,6 +81,7 @@ contract Bribe is IBribe {
     function setGauge(address _gauge) external {
         require(gauge == address(0), "gauge already set");
         gauge = _gauge;
+        emit GaugeUpdated(_gauge);
     }
 
     /// @inheritdoc IBribe
@@ -116,6 +117,7 @@ contract Bribe is IBribe {
             isReward[token] = true;
             rewards.push(token);
         }
+        emit RewardTokenAdded(token);
     }
 
     function addRewardTokens(address[] memory tokens) external {
@@ -127,6 +129,7 @@ contract Bribe is IBribe {
 
                 isReward[tokens[i]] = true;
                 rewards.push(tokens[i]);
+                emit RewardTokenAdded(tokens[i]);
             }
         }
     }
@@ -140,6 +143,8 @@ contract Bribe is IBribe {
         isReward[oldToken] = false;
         isReward[newToken] = true;
         rewards[i] = newToken;
+
+        emit RewardTokenSwapped(oldToken, newToken);
     }
 
     /// @inheritdoc IBribe
@@ -218,10 +223,10 @@ contract Bribe is IBribe {
         // you only earn once per epoch (after it's over)
         Checkpoint memory prevRewards; // reuse struct to avoid stack too deep
         prevRewards.timestamp = _bribeStart(_startTimestamp);
-        uint256 _prevSupply = 1;
+        uint256 _prevSupply = 1;               
 
         if (_endIndex > 0) {
-            for (uint256 i = _startIndex; i <= _endIndex - 1; i++) {
+            for (uint256 i = _startIndex; i <= _endIndex; i++) {
                 Checkpoint memory cp0 = checkpoints[tokenId][i];
                 uint256 _nextEpochStart = _bribeStart(cp0.timestamp);
                 // check that you've earned it
@@ -230,15 +235,24 @@ contract Bribe is IBribe {
                     reward += prevRewards.balanceOf;
                 }
 
+                if (_startIndex == _endIndex) break;
+
+                uint256 totalRewards;
+
+                // If a user hasn't had any checkpoints for multiple weeks loop through the missed weeks
+                while (_nextEpochStart - prevRewards.timestamp >= 7 days) {
+                    _prevSupply = supplyCheckpoints[getPriorSupplyIndex(_nextEpochStart + 7 days - (((_nextEpochStart - prevRewards.timestamp / 7 days) - 1) * 7 days))].supply;
+                    prevRewards.balanceOf += (cp0.balanceOf * tokenRewardsPerEpoch[token][_nextEpochStart]) / _prevSupply;
+                    prevRewards.timestamp += 7 days;
+                }
+                prevRewards.balanceOf = totalRewards;
                 prevRewards.timestamp = _nextEpochStart;
-                _prevSupply = supplyCheckpoints[getPriorSupplyIndex(_nextEpochStart + DURATION)].supply;
-                prevRewards.balanceOf = (cp0.balanceOf * tokenRewardsPerEpoch[token][_nextEpochStart]) / _prevSupply;
             }
         }
 
         Checkpoint memory cp = checkpoints[tokenId][_endIndex];
         uint256 _lastEpochStart = _bribeStart(cp.timestamp);
-        uint256 _lastEpochEnd = _lastEpochStart + DURATION;
+        uint256 _lastEpochEnd = _lastEpochStart + 7 days;
 
         if (block.timestamp > _lastEpochEnd) {
             reward +=

@@ -2,6 +2,49 @@
 pragma solidity ^0.8.15;
 
 interface IRevenueHandler {
+
+    /**
+     * @notice Emitted when the address of the treasury is updated.
+     *
+     * @param treasury     The new treasury address.
+     */
+    event TreasuryUpdated(address treasury);
+
+    /**
+     * @notice Emitted when the treasury PCT is updated.
+     *
+     * @param treasuryPct     The new treasury PCT value.
+     */
+    event TreasuryPctUpdated(uint256 treasuryPct);
+
+    /**
+     * @notice Emitted when a debt token is added.
+     *
+     * @param debtToken     The debt token to add.
+     */
+    event DebtTokenAdded(address debtToken);
+
+    /**
+     * @notice Emitted when a debt token is removed.
+     *
+     * @param debtToken     The debt token to remove.
+     */
+    event DebtTokenRemoved(address debtToken);
+
+    /**
+     * @notice Emitted when a revenue token is added.
+     *
+     * @param revenueToken     The revenue token to add.
+     */
+    event RevenueTokenTokenAdded(address revenueToken);
+
+    /**
+     * @notice Emitted when a revenue token is removed.
+     *
+     * @param revenueToken     The revenue token to remove.
+     */
+    event RevenueTokenTokenRemoved(address revenueToken);
+
     /**
      * @notice Emitted when poolAdapter parameters are set for a revenue token.
      *

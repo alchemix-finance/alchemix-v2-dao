@@ -9,7 +9,7 @@ FILE=
 TEST=
 
 # block to test from 
-BLOCK=16750165
+BLOCK=17046691
 
 # foundry test profile to run
 PROFILE=$(TEST_PROFILE)

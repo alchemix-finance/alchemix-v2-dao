@@ -183,6 +183,7 @@ contract RewardsDistributor is IRewardsDistributor {
     function setDepositor(address _depositor) external {
         require(msg.sender == depositor);
         depositor = _depositor;
+        emit DepositorUpdated(_depositor);
     }
 
     /*

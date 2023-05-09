@@ -3,6 +3,12 @@ pragma solidity ^0.8.15;
 
 interface IRewardsDistributor {
     /**
+     * @notice Emitted when the depositor is set
+     * @param depositor Time contracts depositor
+     */
+    event DepositorUpdated(address depositor);
+
+    /**
      * @notice Emitted when a checkpoint is recorded
      * @param time Time of checkpoint
      * @param tokens Rewards to distribute

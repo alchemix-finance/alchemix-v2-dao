@@ -51,12 +51,14 @@ contract AlchemixGovernor is L2Governor, L2GovernorVotes, L2GovernorVotesQuorumF
     function acceptAdmin() external {
         require(msg.sender == pendingAdmin, "not pending admin");
         admin = pendingAdmin;
+        emit AdminUpdated(pendingAdmin);
     }
 
     function setProposalNumerator(uint256 numerator) external {
         require(msg.sender == admin, "not admin");
         require(numerator <= MAX_PROPOSAL_NUMERATOR, "numerator too high");
         proposalNumerator = numerator;
+        emit ProposalNumberSet(numerator);
     }
 
     function setVotingDelay(uint256 newDelay) external {

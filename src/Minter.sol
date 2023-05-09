@@ -99,12 +99,14 @@ contract Minter is IMinter {
     function acceptAdmin() external {
         require(msg.sender == pendingAdmin, "not pending admin");
         admin = pendingAdmin;
+        emit AdminUpdated(pendingAdmin);
     }
 
     /// @inheritdoc IMinter
     function setVeAlcxEmissionsRate(uint256 _veAlcxEmissionsRate) external {
         require(msg.sender == admin, "not admin");
         veAlcxEmissionsRate = _veAlcxEmissionsRate;
+        emit SetVeAlcxEmissionsRate(_veAlcxEmissionsRate);
     }
 
     /// @inheritdoc IMinter

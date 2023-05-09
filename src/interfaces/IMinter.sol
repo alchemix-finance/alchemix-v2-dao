@@ -18,12 +18,24 @@ interface IMinter {
     }
 
     /**
+     * @notice  Emitted when admin is updated
+     * @param newAdmin             New admin of the contract
+     */
+    event AdminUpdated(address newAdmin);
+
+    /**
      * @notice Emitted when emissions are minted
      * @param sender               Address that triggered the mint for a given period
      * @param epochEmissions       Amount of emissions minted
      * @param circulatingEmissions Supply of circulating emissions
      */
     event Mint(address indexed sender, uint256 epochEmissions, uint256 circulatingEmissions);
+
+    /**
+     * @notice  Emitted when emissions rate is updated
+     * @param veAlcxEmissionsRate   The new emissions rate.
+     */
+    event SetVeAlcxEmissionsRate(uint256 veAlcxEmissionsRate);
 
     /**
      * @notice Sets the emissions rate of rewards sent to veALCX stakers

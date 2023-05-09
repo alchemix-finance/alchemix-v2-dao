@@ -62,6 +62,16 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
     DoubleEndedQueue.Bytes32Deque private _governanceCall;
 
     /**
+     * @dev Emitted when a new admin is set.
+     */
+    event AdminUpdated(address admin);
+
+    /**
+     * @dev Emitted when a new proposal number is set.
+     */
+    event ProposalNumberSet(uint256 numerator);
+
+    /**
      * @dev Emitted when the timelock used for proposal execution is modified.
      */
     event TimelockChange(address oldTimelock, address newTimelock);
