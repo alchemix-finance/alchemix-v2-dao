@@ -86,18 +86,11 @@ contract RewardsDistributor is IRewardsDistributor {
         return (block.timestamp / WEEK) * WEEK;
     }
 
-    function veForAt(uint256 _tokenId, uint256 _timestamp) external view returns (uint256) {
-        address ve = votingEscrow;
-        uint256 maxUserEpoch = IVotingEscrow(ve).userPointEpoch(_tokenId);
-        uint256 epoch = _findTimestampUserEpoch(ve, _tokenId, _timestamp, maxUserEpoch);
-        IVotingEscrow.Point memory pt = IVotingEscrow(ve).userPointHistory(_tokenId, epoch);
-        return Math.max(uint256(pt.bias - pt.slope * (int256(_timestamp - pt.ts))), 0);
-    }
-
     /// @inheritdoc IRewardsDistributor
     function claimable(uint256 _tokenId) external view returns (uint256) {
         uint256 _lastTokenTime = (lastTokenTime / WEEK) * WEEK;
-        return _claimable(_tokenId, votingEscrow, _lastTokenTime);
+        (uint256 _toDistribute,,,) =_claimable(_tokenId, votingEscrow, _lastTokenTime);
+        return _toDistribute;
     }
 
     /// @inheritdoc IRewardsDistributor
@@ -298,52 +291,12 @@ contract RewardsDistributor is IRewardsDistributor {
      * @return uint256 Amount of ALCX rewards claimable
      */
     function _claim(uint256 _tokenId, address _ve, uint256 _lastTokenTime) internal returns (uint256) {
-        uint256 userEpoch = 0;
-        uint256 toDistribute = 0;
-
-        uint256 maxUserEpoch = IVotingEscrow(_ve).userPointEpoch(_tokenId);
-        uint256 _startTime = startTime;
-
-        if (maxUserEpoch == 0) return 0;
-
-        uint256 weekCursor = timeCursorOf[_tokenId];
-        if (weekCursor == 0) {
-            userEpoch = _findTimestampUserEpoch(_ve, _tokenId, _startTime, maxUserEpoch);
-        } else {
-            userEpoch = userEpochOf[_tokenId];
-        }
-
-        if (userEpoch == 0) userEpoch = 1;
-
-        IVotingEscrow.Point memory userPoint = IVotingEscrow(_ve).userPointHistory(_tokenId, userEpoch);
-
-        if (weekCursor == 0) weekCursor = ((userPoint.ts + WEEK - 1) / WEEK) * WEEK;
-        if (weekCursor >= lastTokenTime) return 0;
-        if (weekCursor < _startTime) weekCursor = _startTime;
-
-        IVotingEscrow.Point memory oldUserPoint;
-
-        for (uint256 i = 0; i < 50; i++) {
-            if (weekCursor >= _lastTokenTime) break;
-
-            if (weekCursor >= userPoint.ts && userEpoch <= maxUserEpoch) {
-                userEpoch += 1;
-                oldUserPoint = userPoint;
-                if (userEpoch > maxUserEpoch) {
-                    userPoint = IVotingEscrow.Point(0, 0, 0, 0);
-                } else {
-                    userPoint = IVotingEscrow(_ve).userPointHistory(_tokenId, userEpoch);
-                }
-            } else {
-                int256 dt = int256(weekCursor - oldUserPoint.ts);
-                uint256 balanceOf = Math.max(uint256(oldUserPoint.bias - dt * oldUserPoint.slope), 0);
-                if (balanceOf == 0 && userEpoch > maxUserEpoch) break;
-                if (balanceOf != 0) {
-                    toDistribute += (balanceOf * tokensPerWeek[weekCursor]) / veSupply[weekCursor];
-                }
-                weekCursor += WEEK;
-            }
-        }
+        (
+            uint256 toDistribute,
+            uint256 userEpoch,
+            uint256 maxUserEpoch,
+            uint256 weekCursor 
+        ) = _claimable(_tokenId, _ve, _lastTokenTime);
 
         userEpoch = Math.min(maxUserEpoch, userEpoch - 1);
         userEpochOf[_tokenId] = userEpoch;
@@ -354,18 +307,17 @@ contract RewardsDistributor is IRewardsDistributor {
         return toDistribute;
     }
 
-    function _claimable(uint256 _tokenId, address _ve, uint256 _lastTokenTime) internal view returns (uint256) {
+    function _claimable(uint256 _tokenId, address _ve, uint256 _lastTokenTime) internal view returns (uint256, uint256, uint256, uint256) {
         uint256 userEpoch = 0;
         uint256 toDistribute = 0;
 
         uint256 maxUserEpoch = IVotingEscrow(_ve).userPointEpoch(_tokenId);
-        uint256 _startTime = startTime;
 
-        if (maxUserEpoch == 0) return 0;
+        if (maxUserEpoch == 0) return (0, userEpoch, maxUserEpoch, 0);
 
         uint256 weekCursor = timeCursorOf[_tokenId];
         if (weekCursor == 0) {
-            userEpoch = _findTimestampUserEpoch(_ve, _tokenId, _startTime, maxUserEpoch);
+            userEpoch = _findTimestampUserEpoch(_ve, _tokenId, startTime, maxUserEpoch);
         } else {
             userEpoch = userEpochOf[_tokenId];
         }
@@ -375,8 +327,8 @@ contract RewardsDistributor is IRewardsDistributor {
         IVotingEscrow.Point memory userPoint = IVotingEscrow(_ve).userPointHistory(_tokenId, userEpoch);
 
         if (weekCursor == 0) weekCursor = ((userPoint.ts + WEEK - 1) / WEEK) * WEEK;
-        if (weekCursor >= lastTokenTime) return 0;
-        if (weekCursor < _startTime) weekCursor = _startTime;
+        if (weekCursor >= lastTokenTime) return (0, userEpoch, maxUserEpoch, weekCursor);
+        if (weekCursor < startTime) weekCursor = startTime;
 
         IVotingEscrow.Point memory oldUserPoint;
 
@@ -402,7 +354,7 @@ contract RewardsDistributor is IRewardsDistributor {
             }
         }
 
-        return toDistribute;
+        return (toDistribute, userEpoch, maxUserEpoch, weekCursor);
     }
 
     /**

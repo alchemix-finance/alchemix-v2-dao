@@ -19,8 +19,8 @@ abstract contract BaseGauge is IBaseGauge {
     uint256 internal constant MAX_REWARD_TOKENS = 16;
 
     address public ve; // Ve token used for gauges
-    address public bribe;
-    address public voter;
+    address public bribe; // Address of bribe contract
+    address public voter; // Address of voter contract
     address public admin;
     address public pendingAdmin;
     address public receiver;

@@ -138,7 +138,6 @@ contract Minter is IMinter {
             }
 
             // Logic to distrubte minted tokens
-            alcx.approve(address(rewardsDistributor), veAlcxEmissions);
             IERC20(address(alcx)).safeTransfer(address(rewardsDistributor), veAlcxEmissions);
             rewardsDistributor.checkpointToken(); // Checkpoint token balance that was just minted in rewards distributor
             rewardsDistributor.checkpointTotalSupply(); // Checkpoint supply
@@ -146,7 +145,6 @@ contract Minter is IMinter {
             alcx.approve(address(voter), gaugeEmissions);
             voter.notifyRewardAmount(gaugeEmissions);
 
-            alcx.approve(address(timeGauge), timeEmissions);
             IERC20(address(alcx)).safeTransfer(address(timeGauge), timeEmissions);
             timeGauge.notifyRewardAmount(timeEmissions);
 

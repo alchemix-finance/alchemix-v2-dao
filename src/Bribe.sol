@@ -120,20 +120,6 @@ contract Bribe is IBribe {
         emit RewardTokenAdded(token);
     }
 
-    function addRewardTokens(address[] memory tokens) external {
-        require(msg.sender == gauge);
-        for (uint256 i; i < tokens.length; i++) {
-            if (!isReward[tokens[i]] && tokens[i] != address(0)) {
-                require(rewards.length < MAX_REWARD_TOKENS, "too many rewards tokens");
-                require(IVoter(voter).isWhitelisted(tokens[i]), "bribe tokens must be whitelisted");
-
-                isReward[tokens[i]] = true;
-                rewards.push(tokens[i]);
-                emit RewardTokenAdded(tokens[i]);
-            }
-        }
-    }
-
     /// @inheritdoc IBribe
     function swapOutRewardToken(uint256 i, address oldToken, address newToken) external {
         require(IVoter(voter).isWhitelisted(newToken), "bribe tokens must be whitelisted");

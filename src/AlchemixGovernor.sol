@@ -16,8 +16,8 @@ import "openzeppelin-contracts/contracts/governance/utils/IVotes.sol";
 contract AlchemixGovernor is L2Governor, L2GovernorVotes, L2GovernorVotesQuorumFraction, L2GovernorCountingSimple {
     address public admin;
     address public pendingAdmin;
-    uint256 public constant MAX_PROPOSAL_NUMERATOR = 50; // 5%
-    uint256 public constant PROPOSAL_DENOMINATOR = 1000;
+    uint256 public constant MAX_PROPOSAL_NUMERATOR = 500; // 5%
+    uint256 public constant PROPOSAL_DENOMINATOR = 10000; // BPS denominator
     uint256 public proposalNumerator = 2; // 0.02%
 
     constructor(

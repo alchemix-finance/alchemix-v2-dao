@@ -175,11 +175,11 @@ contract AlchemixGovernorTest is BaseTest {
         governor.acceptAdmin();
 
         hevm.expectRevert(abi.encodePacked("numerator too high"));
-        governor.setProposalNumerator(60);
+        governor.setProposalNumerator(600);
 
-        governor.setProposalNumerator(50);
+        governor.setProposalNumerator(500);
 
-        assertEq(governor.proposalNumerator(), 50);
+        assertEq(governor.proposalNumerator(), 500);
 
         hevm.stopPrank();
     }

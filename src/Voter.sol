@@ -135,6 +135,11 @@ contract Voter is IVoter {
         emit AdminUpdated(pendingAdmin);
     }
 
+    function setVoter(address voter) external {
+        require(msg.sender == admin, "not admin");
+        IVotingEscrow(veALCX).setVoter(voter);
+    }
+
     function setEmergencyCouncil(address _council) public {
         require(msg.sender == emergencyCouncil);
         emergencyCouncil = _council;
