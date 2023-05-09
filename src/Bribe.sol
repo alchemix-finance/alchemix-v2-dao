@@ -111,11 +111,7 @@ contract Bribe is IBribe {
         require(msg.sender == gauge);
         for (uint256 i; i < tokens.length; i++) {
             if (!isReward[tokens[i]] && tokens[i] != address(0)) {
-                require(rewards.length < MAX_REWARD_TOKENS, "too many rewards tokens");
-                require(IVoter(voter).isWhitelisted(tokens[i]), "bribe tokens must be whitelisted");
-
-                isReward[tokens[i]] = true;
-                rewards.push(tokens[i]);
+                _addRewardToken(tokens[i]);
             }
         }
     }

@@ -32,21 +32,21 @@ contract VotingEscrowTest is BaseTest {
     }
 
     // Test depositing, withdrawing from a rewardPool (Aura pool)
-    // TODO update to ALCX Aura pool once deployment is done
     function testRewardPool() public {
-        deal(bpt, address(veALCX), TOKEN_1);
-        deal(bal, address(rewardPool), TOKEN_100K);
+        // Reward pool should be set
+        assertEq(rewardPool, veALCX.rewardPool());
 
-        hevm.prank(address(veALCX));
-        MockCurveGauge(rewardPool).set_rewards_receiver(address(veALCX));
+        deal(bpt, address(veALCX), TOKEN_1);
+
+        // Initial amount of bal and aura rewards earned
+        uint256 rewardBalanceBefore1 = IERC20(bal).balanceOf(admin);
+        uint256 rewardBalanceBefore2 = IERC20(aura).balanceOf(admin);
+        assertEq(rewardBalanceBefore1, 0, "rewardBalanceBefore1 should be 0");
+        assertEq(rewardBalanceBefore2, 0, "rewardBalanceBefore2 should be 0");
 
         // Initial BPT balance of veALCX
         uint256 amount = IERC20(bpt).balanceOf(address(veALCX));
         assertEq(amount, TOKEN_1);
-
-        // Inital amount of bal rewards veALCX contract has earned
-        uint256 rewardBalanceBefore = IERC20(bal).balanceOf(address(veALCX));
-        assertEq(rewardBalanceBefore, 0, "reward balance should be 0");
 
         // Deposit BPT balance into rewardPool
         veALCX.depositIntoRewardPool(amount);
@@ -54,23 +54,25 @@ contract VotingEscrowTest is BaseTest {
         uint256 amountAfterDeposit = IERC20(bpt).balanceOf(address(veALCX));
         assertEq(amountAfterDeposit, 0, "full balance should be deposited");
 
+        uint256 rewardPoolBalance = IRewardPool4626(rewardPool).balanceOf(address(veALCX));
+        assertEq(rewardPoolBalance, amount, "rewardPool balance should equal amount deposited");
+
         // Fast forward to accumulate rewards
         hevm.warp(block.timestamp + 2 weeks);
 
         veALCX.claimRewardPoolRewards();
-        uint256 rewardBalanceAfter = IERC20(bal).balanceOf(address(veALCX));
+        uint256 rewardBalanceAfter1 = IERC20(bal).balanceOf(address(admin));
+        uint256 rewardBalanceAfter2 = IERC20(aura).balanceOf(address(admin));
 
-        // After claiming rewards veALCX bal balance should increase
-        assertGt(rewardBalanceAfter, rewardBalanceBefore, "should accumulate rewards");
+        // After claiming rewards admin bal balance should increase
+        assertGt(rewardBalanceAfter1, rewardBalanceBefore1, "should accumulate bal rewards");
+        assertGt(rewardBalanceAfter2, rewardBalanceBefore2, "should accumulate aura rewards");
 
         veALCX.withdrawFromRewardPool(amount);
 
         // veALCX BPT balance should equal original amount after withdrawing from rewardPool
         uint256 amountAfterWithdraw = IERC20(bpt).balanceOf(address(veALCX));
         assertEq(amountAfterWithdraw, amount, "should equal original amount");
-
-        // Reward pool should be set
-        assertEq(rewardPool, veALCX.rewardPool());
 
         // Only veALCX admin can update rewardPool
         hevm.prank(admin);
