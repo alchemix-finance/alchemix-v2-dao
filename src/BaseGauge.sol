@@ -69,12 +69,12 @@ abstract contract BaseGauge is IBaseGauge {
     }
 
     /// @inheritdoc IBaseGauge
-    function notifyRewardAmount(address _token, uint256 _amount) external lock {
+    function notifyRewardAmount(uint256 _amount) external lock {
         require(msg.sender == voter, "not voter");
         require(_amount > 0, "zero amount");
-        _safeTransferFrom(_token, msg.sender, address(this), _amount);
+        _safeTransferFrom(rewardToken, msg.sender, address(this), _amount);
 
-        emit NotifyReward(msg.sender, _token, _amount);
+        emit NotifyReward(msg.sender, rewardToken, _amount);
 
         _passthroughRewards(_amount);
     }

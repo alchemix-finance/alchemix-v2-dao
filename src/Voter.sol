@@ -308,7 +308,7 @@ contract Voter is IVoter {
         IMinter(minter).updatePeriod();
         _updateFor(_gauge);
         uint256 _claimable = claimable[_gauge];
-        IBaseGauge(_gauge).notifyRewardAmount(base, _claimable);
+        IBaseGauge(_gauge).notifyRewardAmount(_claimable);
 
         emit DistributeReward(msg.sender, _gauge, _claimable);
     }
