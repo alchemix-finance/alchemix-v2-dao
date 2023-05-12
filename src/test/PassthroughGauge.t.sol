@@ -24,6 +24,7 @@ contract PassthroughGaugeTest is BaseTest {
 
         hevm.warp(period);
 
+        assertEq(sushiGauge.rewardToken(), address(alcx), "incorrect reward token");
         uint256 sushiBalanceBefore = alcx.balanceOf(sushiPoolAddress);
 
         address[] memory pools = new address[](1);
