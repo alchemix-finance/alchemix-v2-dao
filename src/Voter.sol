@@ -20,7 +20,7 @@ contract Voter is IVoter {
     address internal immutable base; // Base token, ALCX
 
     address public immutable veALCX; // veALCX that governs these contracts
-    address public immutable FLUX; // veALCX that governs these contracts
+    address public immutable FLUX; // FLUX token that is distributed to veALCX holders
     address public immutable gaugefactory;
     address public immutable bribefactory;
 
@@ -426,7 +426,7 @@ contract Voter is IVoter {
                 claimable[_gauge] += _share;
             }
         } else {
-            supplyIndex[_gauge] = index; // new users are set to the default global state
+            supplyIndex[_gauge] = index;
         }
     }
 

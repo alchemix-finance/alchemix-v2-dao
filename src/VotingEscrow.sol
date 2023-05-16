@@ -231,7 +231,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     /**
      * @notice Get the timestamp for checkpoint `_idx` for `_tokenId`
      * @param _tokenId ID of the token
-     * @param _idx User epoch number
+     * @param _idx Global epoch number
      * @return Epoch time of the checkpoint
      */
     function userPointHistoryTimestamp(uint256 _tokenId, uint256 _idx) external view returns (uint256) {
@@ -240,7 +240,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
     /**
      * @notice Get the timestamp for checkpoint `_idx`
-     * @param _idx User epoch number
+     * @param _idx Global epoch number
      * @return Epoch time of the checkpoint
      */
     function pointHistoryTimestamp(uint256 _idx) external view returns (uint256) {
@@ -1010,6 +1010,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
      * @dev Throws if `_owner` is the zero address. tokens assigned to the zero address are considered invalid.
      */
     function _balance(address _owner) internal view returns (uint256) {
+        require(_owner != address(0), "tokens assigned to the zero address are considered invalid");
         return ownerToTokenCount[_owner];
     }
 
@@ -1130,12 +1131,12 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
      *      address for this token. (NOTE: `msg.sender` not allowed in internal function so pass `_sender`.)
      *      Throws if `_to` is the zero address.
      *      Throws if `_from` is not the current owner.
-     *      Throws if `_tokenId` is not a valid token.
      */
     function _transferFrom(address _from, address _to, uint256 _tokenId, address _sender) internal {
+        require(_to != address(0), "to address is zero address");
         require(attachments[_tokenId] == 0 && !voted[_tokenId], "attached");
-        // Check requirements
         require(_isApprovedOrOwner(_sender, _tokenId));
+        require(idToOwner[_tokenId] == _from, "from address is not owner");
 
         // Clear approval. Throws if `_from` is not the current owner
         _clearApproval(_from, _tokenId);

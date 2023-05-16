@@ -97,6 +97,7 @@ contract Bribe is IBribe {
 
         _safeTransferFrom(token, msg.sender, address(this), amount);
         tokenRewardsPerEpoch[token][adjustedTstamp] = epochRewards + amount;
+        periodFinish[token] = adjustedTstamp + DURATION;
 
         emit NotifyReward(msg.sender, token, adjustedTstamp, amount);
     }
