@@ -23,7 +23,7 @@ interface IGovernor {
         uint256[] values,
         string[] signatures,
         bytes[] calldatas,
-        uint256 startBlock,
+        uint256 startTime,
         uint256 endBlock,
         uint256 chainId
     );

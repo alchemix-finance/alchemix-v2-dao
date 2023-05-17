@@ -360,6 +360,10 @@ contract VotingTest is BaseTest {
         hevm.expectRevert(abi.encodePacked("bribe tokens must be whitelisted"));
         IBribe(bribeAddress).notifyRewardAmount(usdc, TOKEN_100K);
 
+        uint256 rewardApplicable = IBribe(bribeAddress).lastTimeRewardApplicable(bal);
+
+        assertEq(rewardApplicable, block.timestamp, "reward applicable should be current timestamp");
+
         uint256 bribeBalance = IERC20(bal).balanceOf(bribeAddress);
         // Bribe contract should increase in bribe token balance
         assertEq(TOKEN_100K, bribeBalance);
@@ -386,6 +390,9 @@ contract VotingTest is BaseTest {
 
         // Reach the end of the epoch
         hevm.warp(block.timestamp + nextEpoch);
+
+        rewardApplicable = IBribe(bribeAddress).lastTimeRewardApplicable(bal);
+        assertGt(block.timestamp, rewardApplicable, "reward applicable should be in the past");
 
         uint256 earnedBribes = IBribe(bribeAddress).earned(bal, tokenId);
 
