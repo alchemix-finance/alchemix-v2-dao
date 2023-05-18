@@ -108,15 +108,6 @@ contract Bribe is IBribe {
         _addRewardToken(token);
     }
 
-    function addRewardTokens(address[] memory tokens) external {
-        require(msg.sender == gauge);
-        for (uint256 i; i < tokens.length; i++) {
-            if (!isReward[tokens[i]] && tokens[i] != address(0)) {
-                _addRewardToken(tokens[i]);
-            }
-        }
-    }
-
     /// @inheritdoc IBribe
     function swapOutRewardToken(uint256 i, address oldToken, address newToken) external {
         require(IVoter(voter).isWhitelisted(newToken), "bribe tokens must be whitelisted");
@@ -233,11 +224,6 @@ contract Bribe is IBribe {
         }
 
         return reward;
-    }
-
-    function left(address token) external view returns (uint256) {
-        uint256 adjustedTstamp = getEpochStart(block.timestamp);
-        return tokenRewardsPerEpoch[token][adjustedTstamp];
     }
 
     /// @inheritdoc IBribe

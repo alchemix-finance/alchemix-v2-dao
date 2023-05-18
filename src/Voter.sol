@@ -140,6 +140,7 @@ contract Voter is IVoter {
     /// @inheritdoc IVoter
     function setBoostMultiplier(uint256 _boostMultiplier) external {
         require(msg.sender == admin, "not admin");
+        require(_boostMultiplier <= BPS, "cannot exceed 100%");
         boostMultiplier = _boostMultiplier;
     }
 
@@ -158,7 +159,7 @@ contract Voter is IVoter {
         require(IVotingEscrow(veALCX).isApprovedOrOwner(msg.sender, _tokenId), "not approved or owner");
         require(
             IVotingEscrow(veALCX).claimableFlux(_tokenId) + IVotingEscrow(veALCX).unclaimedFlux(_tokenId) >= _boost,
-            "insufficient claimable FLUX balance"
+            "insufficient FLUX to boost"
         );
         require(
             (IVotingEscrow(veALCX).balanceOfToken(_tokenId) + _boost) <= maxVotingPower(_tokenId),
@@ -188,7 +189,7 @@ contract Voter is IVoter {
         require(_poolVote.length <= pools.length, "invalid pools");
         require(
             IVotingEscrow(veALCX).claimableFlux(_tokenId) + IVotingEscrow(veALCX).unclaimedFlux(_tokenId) >= _boost,
-            "insufficient claimable FLUX balance"
+            "insufficient FLUX to boost"
         );
         require(
             (IVotingEscrow(veALCX).balanceOfToken(_tokenId) + _boost) <= maxVotingPower(_tokenId),
