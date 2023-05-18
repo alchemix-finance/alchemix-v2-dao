@@ -16,6 +16,7 @@ contract FluxToken is ERC20("Flux", "FLUX"), IFluxToken {
     address public minter;
 
     constructor(address _minter) {
+        require(_minter != address(0), "FluxToken: minter cannot be zero address");
         minter = _minter;
     }
 
@@ -27,6 +28,7 @@ contract FluxToken is ERC20("Flux", "FLUX"), IFluxToken {
 
     /// @inheritdoc IFluxToken
     function setMinter(address _minter) external onlyMinter {
+        require(_minter != address(0), "FluxToken: minter cannot be zero address");
         minter = _minter;
     }
 

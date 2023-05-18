@@ -28,6 +28,9 @@ contract AlchemixGovernor is L2Governor, L2GovernorVotes, L2GovernorVotesQuorumF
         L2GovernorVotes(_ve)
         L2GovernorVotesQuorumFraction(4) // 4%
     {
+        require(address(_ve) != address(0), "ve address cannot be zero address");
+        require(address(timelockAddress) != address(0), "timelock address cannot be zero address");
+
         admin = msg.sender;
     }
 

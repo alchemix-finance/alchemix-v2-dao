@@ -5,15 +5,11 @@ import "src/gauges/PassthroughGauge.sol";
 import "src/gauges/CurveGauge.sol";
 
 contract GaugeFactory {
-    address public lastGauge;
-
     function createCurveGauge(address _bribe, address _ve) external returns (address) {
-        lastGauge = address(new CurveGauge(_bribe, _ve, msg.sender));
-        return lastGauge;
+        return address(new CurveGauge(_bribe, _ve, msg.sender));
     }
 
     function createPassthroughGauge(address _receiver, address _bribe, address _ve) external returns (address) {
-        lastGauge = address(new PassthroughGauge(_receiver, _bribe, _ve, msg.sender));
-        return lastGauge;
+        return address(new PassthroughGauge(_receiver, _bribe, _ve, msg.sender));
     }
 }
