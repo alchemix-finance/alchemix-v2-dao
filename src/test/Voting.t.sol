@@ -253,18 +253,14 @@ contract VotingTest is BaseTest {
         hevm.startPrank(admin);
 
         // Voter should revert if attempting to boost more amount of flux they have accrued and can claim
-        hevm.expectRevert(abi.encodePacked("insufficient claimable FLUX balance"));
+        hevm.expectRevert(abi.encodePacked("insufficient FLUX to boost"));
         voter.vote(tokenId, pools, weights, fluxAccessable + 1);
-
-        // Vote should revert if attempting to boost more than the allowed amount
-        hevm.expectRevert(abi.encodePacked("cannot exceed max boost"));
-        voter.vote(tokenId, pools, weights, fluxAccessable);
 
         hevm.stopPrank();
 
         // Vote with the max boost amount
         hevm.prank(admin);
-        voter.vote(tokenId, pools, weights, maxFluxAmount);
+        voter.vote(tokenId, pools, weights, fluxAccessable);
 
         hevm.prank(beef);
         voter.vote(tokenId1, pools, weights, 0);
@@ -335,16 +331,6 @@ contract VotingTest is BaseTest {
         // Pool vote should remain the same after poke
         poolVote = voter.getPoolVote(tokenId);
         assertEq(poolVote[0], alETHPool);
-
-        // Next epoch
-        hevm.warp(block.timestamp + nextEpoch);
-
-        uint256 claimableFlux = veALCX.claimableFlux(tokenId);
-
-        // Poke should revert if attempting to boost more than the allowed amount
-        hevm.prank(admin);
-        hevm.expectRevert(abi.encodePacked("cannot exceed max boost"));
-        voter.poke(tokenId, claimableFlux);
     }
 
     // Test voting on gauges to earn third party bribes
@@ -413,7 +399,7 @@ contract VotingTest is BaseTest {
         assertEq(bribeBalance - earnedBribes, IERC20(bal).balanceOf(bribeAddress));
     }
 
-    // Votes cannot be boosted with insufficient claimable flux balance
+    // Votes cannot be boosted with insufficient FLUX to boost
     function testCannotBoostVote() public {
         uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
 
@@ -428,8 +414,8 @@ contract VotingTest is BaseTest {
 
         uint256 claimableFlux = veALCX.claimableFlux(tokenId);
 
-        // Vote with insufficient claimable flux balance
-        hevm.expectRevert(abi.encodePacked("insufficient claimable FLUX balance"));
+        // Vote with insufficient FLUX to boost
+        hevm.expectRevert(abi.encodePacked("insufficient FLUX to boost"));
         voter.vote(tokenId, pools, weights, claimableFlux + 1);
 
         hevm.stopPrank();

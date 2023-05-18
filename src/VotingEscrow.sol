@@ -81,6 +81,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     uint256 internal constant MAXTIME = 365 days;
     uint256 internal constant MULTIPLIER = 26 ether;
     uint256 internal constant MAX_REWARD_POOL_TOKENS = 10;
+    uint256 internal constant BPS = 10000;
 
     int256 internal constant iMAXTIME = 365 days;
     int256 internal constant iMULTIPLIER = 26 ether;
@@ -100,8 +101,8 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
     uint256 public supply;
     uint256 public claimFeeBps = 5000; // Fee for claiming early in bps
-    uint256 public fluxMultiplier;
-    uint256 public fluxPerVeALCX;
+    uint256 public fluxMultiplier; // Multiplier for flux reward accrual
+    uint256 public fluxPerVeALCX; // Percent of veALCX power needed in flux in order to unlock early
     uint256 public epoch;
 
     address[] public rewardPoolTokens;
@@ -194,8 +195,8 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         voter = msg.sender;
         admin = msg.sender;
         distributor = msg.sender;
-        fluxMultiplier = 10; // 10 bps = 0.1%
-        fluxPerVeALCX = 1e18; // determine initial value
+        fluxPerVeALCX = 5000; // 5000 bps = 50%
+        fluxMultiplier = 4; // 4x
 
         pointHistory[0].blk = block.number;
         pointHistory[0].ts = block.timestamp;
@@ -252,7 +253,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
      * @param _tokenId ID of the token
      * @return Epoch time of the lock end
      */
-    function lockEnd(uint256 _tokenId) external view returns (uint256) {
+    function lockEnd(uint256 _tokenId) public view returns (uint256) {
         return locked[_tokenId].end;
     }
 
@@ -413,9 +414,11 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     /**
      * @notice Amount of FLUX required to ragequit for a given token
      * @param _tokenId ID of token to ragequit
+     * @return uint256 Amount of FLUX required to ragequit
+     * @dev Amount to ragequit should be a function of the voting power
      */
     function amountToRagequit(uint256 _tokenId) public view returns (uint256) {
-        return _balanceOfToken(_tokenId, block.timestamp) * fluxPerVeALCX;
+        return (_balanceOfToken(_tokenId, block.timestamp) * (fluxPerVeALCX + BPS)) / BPS;
     }
 
     /**
@@ -447,10 +450,10 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
      * @notice Amount of flux claimable at current epoch
      * @param _tokenId ID of the token
      * @return uint256 Amount of claimable flux for the current epoch
+     * @dev flux should accrue at a rate that is four times the lock period earned per epoch
      */
     function claimableFlux(uint256 _tokenId) public view returns (uint256) {
-        uint256 votingPower = _balanceOfToken(_tokenId, block.timestamp);
-        return votingPower * fluxMultiplier;
+        return (amountToRagequit(_tokenId)) / (((locked[_tokenId].end - block.timestamp) * fluxMultiplier) / epoch);
     }
 
     function balanceOfAtToken(uint256 _tokenId, uint256 _block) external view returns (uint256) {
@@ -680,6 +683,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
     function setfluxMultiplier(uint256 _fluxMultiplier) external {
         require(msg.sender == admin, "not admin");
+        require(_fluxMultiplier > 0, "fluxMultiplier must be greater than 0");
         fluxMultiplier = _fluxMultiplier;
     }
 
@@ -962,7 +966,6 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         for (uint256 i = 0; i < rewardPoolTokens.length; i++) {
             rewardPoolAmounts[i] = IERC20(rewardPoolTokens[i]).balanceOf(address(this));
             if (rewardPoolAmounts[i] > 0) {
-                IERC20(rewardPoolTokens[i]).approve(treasury, rewardPoolAmounts[i]);
                 IERC20(rewardPoolTokens[i]).safeTransfer(treasury, rewardPoolAmounts[i]);
                 emit ClaimRewardPoolRewards(msg.sender, rewardPoolTokens[i], rewardPoolAmounts[i]);
             }
