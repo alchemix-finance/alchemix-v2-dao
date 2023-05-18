@@ -132,7 +132,8 @@ contract Voter is IVoter {
     }
 
     function setEmergencyCouncil(address _council) public {
-        require(msg.sender == emergencyCouncil);
+        require(msg.sender == emergencyCouncil, "not emergency council");
+        require(_council != address(0), "cannot be zero address");
         emergencyCouncil = _council;
     }
 

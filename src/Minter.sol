@@ -80,7 +80,7 @@ contract Minter is IMinter {
     }
 
     function initialize() external {
-        require(msg.sender != address(0));
+        require(msg.sender != address(0), "cannot be zero address");
         require(initialized == false, "already initialized");
         require(initializer == msg.sender, "not initializer");
         initializer = address(0);

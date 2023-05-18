@@ -65,6 +65,8 @@ abstract contract BaseGauge is IBaseGauge {
 
     function updateReceiver(address _receiver) external {
         require(msg.sender == admin, "not admin");
+        require(_receiver != address(0), "cannot be zero address");
+        require(_receiver != receiver, "same receiver");
         receiver = _receiver;
     }
 
