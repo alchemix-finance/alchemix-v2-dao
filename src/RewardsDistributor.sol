@@ -78,6 +78,12 @@ contract RewardsDistributor is IRewardsDistributor {
         }
     }
 
+    // // @dev allows contract to return excess ETH more than needed is sent
+    // function returnExcessETH(address payable _to) public payable {
+    //     (bool sent, bytes memory data) = _to.call{value: msg.value}("");
+    //     require(sent, "Failed to send Ether");
+    // }
+
     /*
         View functions
     */
@@ -123,6 +129,10 @@ contract RewardsDistributor is IRewardsDistributor {
 
     /// @inheritdoc IRewardsDistributor
     function claim(uint256 _tokenId, bool _compound) external payable returns (uint256) {
+        if (!_compound) {
+            require(msg.value == 0, "Value must be 0 if not compounding");
+        }
+
         bool approvedOrOwner = IVotingEscrow(votingEscrow).isApprovedOrOwner(msg.sender, _tokenId);
         bool isVotingEscrow = msg.sender == votingEscrow;
 
@@ -150,7 +160,14 @@ contract RewardsDistributor is IRewardsDistributor {
             );
 
             // Wrap eth if necessary
-            if (msg.value > 0) WETH.deposit{ value: msg.value }();
+            if (msg.value > 0) {
+                WETH.deposit{ value:wethAmount }();
+                // Return excess ETH if necessary
+                if (msg.value > wethAmount) {
+                    (bool sent,) = payable(msg.sender).call{value: msg.value - wethAmount}("");
+                    require(sent, "Failed to send Ether");
+                }
+            }
             else IERC20(address(WETH)).safeTransferFrom(msg.sender, address(this), wethAmount);
 
             _depositIntoBalancerPool(wethAmount, alcxAmount, normalizedWeights);

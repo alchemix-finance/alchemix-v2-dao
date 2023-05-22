@@ -253,6 +253,35 @@ contract MinterTest is BaseTest {
         distributor.claim(tokenId, true);
     }
 
+    // Compound claiming should revert if user doesn't provide enough weth
+    function testCompoundRewardsFailureETH() public {
+        deal(admin, 100 ether);
+
+        initializeVotingEscrow();
+
+        hevm.startPrank(admin);
+
+        minter.updatePeriod();
+
+        assertEq(distributor.claimable(tokenId), 0, "amount claimable should be 0");
+        assertEq(distributor.claim(tokenId, true), 0, "amount claimed should be 0");
+
+        // Fast forward one epoch
+        hevm.warp(block.timestamp + nextEpoch);
+        hevm.roll(block.number + 1);
+
+        minter.updatePeriod();
+
+        // Set weth balance to 0
+        weth.transfer(dead, weth.balanceOf(admin));
+
+        hevm.expectRevert(abi.encodePacked("insufficient balance to compound"));
+        distributor.claim(tokenId, true);
+
+        distributor.claim{ value: 100 ether }(tokenId, true);
+        assertGt(admin.balance, 0);
+        assertGt(100 ether, admin.balance);
+    }
     // Test admin controlled functions
     function testAdminFunctions() public {
         assertEq(minter.initializer(), address(0), "minter not initialized");

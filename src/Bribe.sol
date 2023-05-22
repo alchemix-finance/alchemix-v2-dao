@@ -122,6 +122,7 @@ contract Bribe is IBribe {
 
     /// @inheritdoc IBribe
     function swapOutRewardToken(uint256 i, address oldToken, address newToken) external {
+        require(msg.sender == voter);
         require(IVoter(voter).isWhitelisted(newToken), "bribe tokens must be whitelisted");
         require(rewards[i] == oldToken);
         require(newToken != address(0));
@@ -209,7 +210,7 @@ contract Bribe is IBribe {
         // you only earn once per epoch (after it's over)
         Checkpoint memory prevRewards; // reuse struct to avoid stack too deep
         prevRewards.timestamp = _bribeStart(_startTimestamp);
-        uint256 _prevSupply = 1;               
+        uint256 _prevSupply = 1;
 
         if (_endIndex > 0) {
             for (uint256 i = _startIndex; i <= _endIndex; i++) {
@@ -220,25 +221,18 @@ contract Bribe is IBribe {
                 if (_nextEpochStart > prevRewards.timestamp) {
                     reward += prevRewards.balanceOf;
                 }
-
+                
                 if (_startIndex == _endIndex) break;
 
-                uint256 totalRewards;
-
-                // If a user hasn't had any checkpoints for multiple weeks loop through the missed weeks
-                while (_nextEpochStart - prevRewards.timestamp >= 7 days) {
-                    _prevSupply = supplyCheckpoints[getPriorSupplyIndex(_nextEpochStart + 7 days - (((_nextEpochStart - prevRewards.timestamp / 7 days) - 1) * 7 days))].supply;
-                    prevRewards.balanceOf += (cp0.balanceOf * tokenRewardsPerEpoch[token][_nextEpochStart]) / _prevSupply;
-                    prevRewards.timestamp += 7 days;
-                }
-                prevRewards.balanceOf = totalRewards;
                 prevRewards.timestamp = _nextEpochStart;
+                _prevSupply = supplyCheckpoints[getPriorSupplyIndex(_nextEpochStart + DURATION)].supply;
+                prevRewards.balanceOf = (cp0.balanceOf * tokenRewardsPerEpoch[token][_nextEpochStart]) / _prevSupply;
             }
         }
 
         Checkpoint memory cp = checkpoints[tokenId][_endIndex];
         uint256 _lastEpochStart = _bribeStart(cp.timestamp);
-        uint256 _lastEpochEnd = _lastEpochStart + 7 days;
+        uint256 _lastEpochEnd = _lastEpochStart + DURATION;
 
         if (block.timestamp > _lastEpochEnd) {
             reward +=

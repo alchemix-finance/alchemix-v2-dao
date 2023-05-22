@@ -135,15 +135,15 @@ contract Voter is IVoter {
         emit AdminUpdated(pendingAdmin);
     }
 
-    function setVoter(address voter) external {
-        require(msg.sender == admin, "not admin");
-        IVotingEscrow(veALCX).setVoter(voter);
-    }
-
     function setEmergencyCouncil(address _council) public {
         require(msg.sender == emergencyCouncil);
         emergencyCouncil = _council;
         emit EmergencyCouncilUpdated(_council);
+    }
+
+    function swapReward(address bribeAddress, uint256 tokenIndex, address oldToken, address newToken) external {
+        require(msg.sender == admin);
+        IBribe(bribes[bribeAddress]).swapOutRewardToken(tokenIndex, oldToken, newToken);
     }
 
     /// @inheritdoc IVoter
