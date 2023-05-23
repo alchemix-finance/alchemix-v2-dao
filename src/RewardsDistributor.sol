@@ -23,7 +23,7 @@ contract RewardsDistributor is IRewardsDistributor {
     using SafeERC20 for IERC20;
 
     uint256 public constant WEEK = 7 * 86400;
-    address public constant BURN_ADDRESS = 0x000000000000000000000000000000000000dEaD;
+    address public constant BURN_ADDRESS = address(0);
     uint256 public constant BPS = 10000;
 
     bytes32 public balancerPoolId;
@@ -78,12 +78,6 @@ contract RewardsDistributor is IRewardsDistributor {
         }
     }
 
-    // // @dev allows contract to return excess ETH more than needed is sent
-    // function returnExcessETH(address payable _to) public payable {
-    //     (bool sent, bytes memory data) = _to.call{value: msg.value}("");
-    //     require(sent, "Failed to send Ether");
-    // }
-
     /*
         View functions
     */
@@ -95,7 +89,7 @@ contract RewardsDistributor is IRewardsDistributor {
     /// @inheritdoc IRewardsDistributor
     function claimable(uint256 _tokenId) external view returns (uint256) {
         uint256 _lastTokenTime = (lastTokenTime / WEEK) * WEEK;
-        (uint256 _toDistribute,,,) =_claimable(_tokenId, votingEscrow, _lastTokenTime);
+        (uint256 _toDistribute, , , ) = _claimable(_tokenId, votingEscrow, _lastTokenTime);
         return _toDistribute;
     }
 
@@ -161,14 +155,13 @@ contract RewardsDistributor is IRewardsDistributor {
 
             // Wrap eth if necessary
             if (msg.value > 0) {
-                WETH.deposit{ value:wethAmount }();
+                WETH.deposit{ value: wethAmount }();
                 // Return excess ETH if necessary
                 if (msg.value > wethAmount) {
-                    (bool sent,) = payable(msg.sender).call{value: msg.value - wethAmount}("");
+                    (bool sent, ) = payable(msg.sender).call{ value: msg.value - wethAmount }("");
                     require(sent, "Failed to send Ether");
                 }
-            }
-            else IERC20(address(WETH)).safeTransferFrom(msg.sender, address(this), wethAmount);
+            } else IERC20(address(WETH)).safeTransferFrom(msg.sender, address(this), wethAmount);
 
             _depositIntoBalancerPool(wethAmount, alcxAmount, normalizedWeights);
 
@@ -308,12 +301,11 @@ contract RewardsDistributor is IRewardsDistributor {
      * @return uint256 Amount of ALCX rewards claimable
      */
     function _claim(uint256 _tokenId, address _ve, uint256 _lastTokenTime) internal returns (uint256) {
-        (
-            uint256 toDistribute,
-            uint256 userEpoch,
-            uint256 maxUserEpoch,
-            uint256 weekCursor 
-        ) = _claimable(_tokenId, _ve, _lastTokenTime);
+        (uint256 toDistribute, uint256 userEpoch, uint256 maxUserEpoch, uint256 weekCursor) = _claimable(
+            _tokenId,
+            _ve,
+            _lastTokenTime
+        );
 
         userEpoch = Math.min(maxUserEpoch, userEpoch - 1);
         userEpochOf[_tokenId] = userEpoch;
@@ -324,7 +316,11 @@ contract RewardsDistributor is IRewardsDistributor {
         return toDistribute;
     }
 
-    function _claimable(uint256 _tokenId, address _ve, uint256 _lastTokenTime) internal view returns (uint256, uint256, uint256, uint256) {
+    function _claimable(
+        uint256 _tokenId,
+        address _ve,
+        uint256 _lastTokenTime
+    ) internal view returns (uint256, uint256, uint256, uint256) {
         uint256 userEpoch = 0;
         uint256 toDistribute = 0;
 

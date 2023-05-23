@@ -33,7 +33,7 @@ interface IMinter {
 
     /**
      * @notice  Emitted when emissions rate is updated
-     * @param veAlcxEmissionsRate   The new emissions rate.
+     * @param veAlcxEmissionsRate The new emissions rate.
      */
     event SetVeAlcxEmissionsRate(uint256 veAlcxEmissionsRate);
 

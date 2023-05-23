@@ -2,54 +2,53 @@
 pragma solidity ^0.8.15;
 
 interface IRevenueHandler {
-
     /**
      * @notice Emitted when the address of the treasury is updated.
      *
-     * @param treasury     The new treasury address.
+     * @param treasury The new treasury address.
      */
     event TreasuryUpdated(address treasury);
 
     /**
      * @notice Emitted when the treasury PCT is updated.
      *
-     * @param treasuryPct     The new treasury PCT value.
+     * @param treasuryPct The new treasury PCT value.
      */
     event TreasuryPctUpdated(uint256 treasuryPct);
 
     /**
      * @notice Emitted when a debt token is added.
      *
-     * @param debtToken     The debt token to add.
+     * @param debtToken The debt token to add.
      */
     event DebtTokenAdded(address debtToken);
 
     /**
      * @notice Emitted when a debt token is removed.
      *
-     * @param debtToken     The debt token to remove.
+     * @param debtToken The debt token to remove.
      */
     event DebtTokenRemoved(address debtToken);
 
     /**
      * @notice Emitted when a revenue token is added.
      *
-     * @param revenueToken     The revenue token to add.
+     * @param revenueToken The revenue token to add.
      */
     event RevenueTokenTokenAdded(address revenueToken);
 
     /**
      * @notice Emitted when a revenue token is removed.
      *
-     * @param revenueToken     The revenue token to remove.
+     * @param revenueToken The revenue token to remove.
      */
     event RevenueTokenTokenRemoved(address revenueToken);
 
     /**
      * @notice Emitted when poolAdapter parameters are set for a revenue token.
      *
-     * @param revenueToken     The address of the revenue token.
-     * @param poolAdapter      The address of the target pool adapter contract to call.
+     * @param revenueToken  The address of the revenue token.
+     * @param poolAdapter   The address of the target pool adapter contract to call.
      */
     event SetPoolAdapter(address revenueToken, address poolAdapter);
 
@@ -80,7 +79,13 @@ interface IRevenueHandler {
      * @param claimableAmount   The amount of `debtToken` that can be claimed.
      * @param treasuryAmount    The amount of `revenueToken` sent to the treasury.
      */
-    event RevenueRealized(uint256 epochId, address revenueToken, address debtToken, uint256 claimableAmount, uint256 treasuryAmount);
+    event RevenueRealized(
+        uint256 epochId,
+        address revenueToken,
+        address debtToken,
+        uint256 claimableAmount,
+        uint256 treasuryAmount
+    );
 
     /**
      * @notice Returns the total amount of debtToken currently claimable by tokenId.
@@ -99,7 +104,7 @@ interface IRevenueHandler {
      * @notice Add a debtToken to the list of claimable debtTokens.
      * @notice This function is only callable by the contract owner.
      *
-     * @param debtToken    The address of the debt token to add.
+     * @param debtToken The address of the debt token to add.
      */
     function addDebtToken(address debtToken) external;
 
@@ -107,7 +112,7 @@ interface IRevenueHandler {
      * @notice Remove a debtToken from the list of claimable debtTokens.
      * @notice This function is only callable by the contract owner.
      *
-     * @param debtToken    The address of the debt token to remove.
+     * @param debtToken The address of the debt token to remove.
      */
     function removeDebtToken(address debtToken) external;
 
@@ -115,7 +120,7 @@ interface IRevenueHandler {
      * @notice Add a revenueToken to the list of claimable revenueTokens.
      * @notice This function is only callable by the contract owner.
      *
-     * @param revenueToken    The address of the revenue token to add.
+     * @param revenueToken The address of the revenue token to add.
      */
     function addRevenueToken(address revenueToken) external;
 
@@ -123,7 +128,7 @@ interface IRevenueHandler {
      * @notice Remove a revenueToken from the list of claimable revenueTokens.
      * @notice This function is only callable by the contract owner.
      *
-     * @param revenueToken    The address of the revenue token to remove.
+     * @param revenueToken The address of the revenue token to remove.
      */
     function removeRevenueToken(address revenueToken) external;
 
@@ -138,36 +143,36 @@ interface IRevenueHandler {
     /**
      * @dev Add call data for interactin with a pool adapter.
      *
-     * @param revenueToken     The address of the revenue token.
-     * @param poolAdapter      The address of the target pool adapter contract to call.
+     * @param revenueToken  The address of the revenue token.
+     * @param poolAdapter   The address of the target pool adapter contract to call.
      */
     function setPoolAdapter(address revenueToken, address poolAdapter) external;
 
     /**
      * @dev Disable a revenue token.
      *
-     * @param revenueToken     The address of the revenue token.
+     * @param revenueToken The address of the revenue token.
      */
     function disableRevenueToken(address revenueToken) external;
 
     /**
      * @dev Enable a revenue token.
      *
-     * @param revenueToken     The address of the revenue token.
+     * @param revenueToken The address of the revenue token.
      */
     function enableRevenueToken(address revenueToken) external;
 
     /**
      * @dev Enable a revenue token.
      *
-     * @param _treasury     The new address of the treasury.
+     * @param _treasury The new address of the treasury.
      */
     function setTreasury(address _treasury) external;
 
     /**
      * @dev Enable a revenue token.
      *
-     * @param _treasuryPct  The percentage of revenue to send to the treasury.
+     * @param _treasuryPct The percentage of revenue to send to the treasury.
      */
     function setTreasuryPct(uint256 _treasuryPct) external;
 
@@ -183,12 +188,7 @@ interface IRevenueHandler {
      * @param amount       The amount to claim.
      * @param recipient    The recipient of the resulting credit.
      */
-    function claim(
-        uint256 tokenId,
-        address alchemist,
-        uint256 amount,
-        address recipient
-    ) external;
+    function claim(uint256 tokenId, address alchemist, uint256 amount, address recipient) external;
 
     /**
      * @notice Checkpoint the current epoch.
