@@ -49,6 +49,7 @@ contract VotingEscrowTest is BaseTest {
         assertEq(rewardBalanceBefore, 0, "reward balance should be 0");
 
         // Deposit BPT balance into rewardPool
+        hevm.prank(admin);
         veALCX.depositIntoRewardPool(amount);
 
         uint256 amountAfterDeposit = IERC20(bpt).balanceOf(address(veALCX));
@@ -57,12 +58,14 @@ contract VotingEscrowTest is BaseTest {
         // Fast forward to accumulate rewards
         hevm.warp(block.timestamp + 2 weeks);
 
+        hevm.prank(admin);
         veALCX.claimRewardPoolRewards();
         uint256 rewardBalanceAfter = IERC20(bal).balanceOf(address(veALCX));
 
         // After claiming rewards veALCX bal balance should increase
         assertGt(rewardBalanceAfter, rewardBalanceBefore, "should accumulate rewards");
 
+        hevm.prank(admin);
         veALCX.withdrawFromRewardPool(amount);
 
         // veALCX BPT balance should equal original amount after withdrawing from rewardPool
@@ -73,10 +76,10 @@ contract VotingEscrowTest is BaseTest {
         assertEq(rewardPool, veALCX.rewardPool());
 
         // Only veALCX admin can update rewardPool
-        hevm.prank(admin);
         hevm.expectRevert(abi.encodePacked("not admin"));
         veALCX.updateRewardPool(sushiPoolAddress);
 
+        hevm.prank(admin);
         veALCX.updateRewardPool(sushiPoolAddress);
 
         // Reward pool should update

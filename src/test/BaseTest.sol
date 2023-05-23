@@ -128,12 +128,12 @@ contract BaseTest is DSTestPlus {
         // Run contracts at specific point in time
         hevm.warp(_time);
 
+        hevm.startPrank(admin);
+
         veALCX = new VotingEscrow(bpt, address(alcx), address(flux), address(rewardPool));
 
         veALCX.setVoter(admin);
         veALCX.setRewardsDistributor(admin);
-
-        hevm.startPrank(admin);
 
         IERC20(bpt).approve(address(veALCX), type(uint256).max);
 
@@ -149,7 +149,12 @@ contract BaseTest is DSTestPlus {
         schedulerCancellerArray[0] = admin;
         address[] memory executorArray = new address[](1);
         executorArray[0] = address(0);
-        timelockExecutor = new TimelockExecutor(1 days, schedulerCancellerArray, schedulerCancellerArray, executorArray);
+        timelockExecutor = new TimelockExecutor(
+            1 days,
+            schedulerCancellerArray,
+            schedulerCancellerArray,
+            executorArray
+        );
         governor = new AlchemixGovernor(veALCX, TimelockExecutor(timelockExecutor));
 
         timelockExecutor.grantRole(timelockExecutor.SCHEDULER_ROLE(), address(governor));
