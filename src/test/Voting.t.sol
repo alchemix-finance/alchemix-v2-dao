@@ -399,6 +399,59 @@ contract VotingTest is BaseTest {
         assertEq(bribeBalance - earnedBribes, IERC20(bal).balanceOf(bribeAddress));
     }
 
+    function testBribeClaiming() public {
+        uint256 tokenId1 = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+        uint256 tokenId2 = createVeAlcx(beef, TOKEN_1, MAXTIME, false);
+        address bribeAddress = voter.bribes(address(sushiGauge));
+
+        // Add BAL bribes to sushiGauge
+        createThirdPartyBribe(bribeAddress, bal, TOKEN_100K);
+
+        address[] memory pools = new address[](1);
+        pools[0] = sushiPoolAddress;
+        uint256[] memory weights = new uint256[](1);
+        weights[0] = 5000;
+
+        address[] memory bribes = new address[](1);
+        bribes[0] = address(bribeAddress);
+        address[][] memory tokens = new address[][](2);
+        tokens[0] = new address[](1);
+        tokens[0][0] = bal;
+
+        hevm.prank(admin);
+        voter.vote(tokenId1, pools, weights, 0);
+
+        hevm.prank(beef);
+        voter.vote(tokenId2, pools, weights, 0);
+
+        // Reach the end of the epoch
+        hevm.warp(block.timestamp + nextEpoch);
+
+        uint256 earnedBribes1 = IBribe(bribeAddress).earned(bal, tokenId1);
+        uint256 earnedBribes2 = IBribe(bribeAddress).earned(bal, tokenId2);
+
+        hevm.prank(admin);
+        voter.claimBribes(bribes, tokens, tokenId1);
+
+        assertEq(IERC20(bal).balanceOf(admin), earnedBribes1, "admin should capture half of bribes");
+
+        // Fast forward 5 epochs
+        hevm.warp(block.timestamp + nextEpoch * 5);
+
+        // Simulate time passing and other veALCX holders voting
+        hevm.prank(admin);
+        voter.vote(tokenId1, pools, weights, 0);
+
+        minter.updatePeriod();
+
+        hevm.warp(block.timestamp + nextEpoch);
+
+        hevm.prank(beef);
+        voter.claimBribes(bribes, tokens, tokenId2);
+
+        assertEq(IERC20(bal).balanceOf(beef), earnedBribes2, "user should capture old bribes");
+    }
+
     // Votes cannot be boosted with insufficient FLUX to boost
     function testCannotBoostVote() public {
         uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);

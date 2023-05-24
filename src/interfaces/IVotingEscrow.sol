@@ -76,6 +76,8 @@ interface IVotingEscrow {
 
     function isApprovedOrOwner(address, uint256) external view returns (bool);
 
+    function setVoter(address voter) external;
+
     /**
      * @dev Throws unless `msg.sender` is the current owner, an authorized operator, or the approved address for this token.
      *      Throws if `_from` is not the current owner.

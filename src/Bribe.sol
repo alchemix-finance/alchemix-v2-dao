@@ -82,6 +82,7 @@ contract Bribe is IBribe {
     function setGauge(address _gauge) external {
         require(gauge == address(0), "gauge already set");
         gauge = _gauge;
+        emit GaugeUpdated(_gauge);
     }
 
     /// @inheritdoc IBribe
@@ -110,6 +111,7 @@ contract Bribe is IBribe {
 
     /// @inheritdoc IBribe
     function swapOutRewardToken(uint256 i, address oldToken, address newToken) external {
+        require(msg.sender == voter);
         require(IVoter(voter).isWhitelisted(newToken), "bribe tokens must be whitelisted");
         require(rewards[i] == oldToken);
         require(newToken != address(0));
@@ -117,6 +119,8 @@ contract Bribe is IBribe {
         isReward[oldToken] = false;
         isReward[newToken] = true;
         rewards[i] = newToken;
+
+        emit RewardTokenSwapped(oldToken, newToken);
     }
 
     /// @inheritdoc IBribe
@@ -198,7 +202,7 @@ contract Bribe is IBribe {
         uint256 _prevSupply = 1;
 
         if (_endIndex > 0) {
-            for (uint256 i = _startIndex; i <= _endIndex - 1; i++) {
+            for (uint256 i = _startIndex; i <= _endIndex; i++) {
                 Checkpoint memory cp0 = checkpoints[tokenId][i];
                 uint256 _nextEpochStart = _bribeStart(cp0.timestamp);
                 // check that you've earned it
@@ -206,6 +210,8 @@ contract Bribe is IBribe {
                 if (_nextEpochStart > prevRewards.timestamp) {
                     reward += prevRewards.balanceOf;
                 }
+
+                if (_startIndex == _endIndex) break;
 
                 prevRewards.timestamp = _nextEpochStart;
                 _prevSupply = supplyCheckpoints[getPriorSupplyIndex(_nextEpochStart + DURATION)].supply;

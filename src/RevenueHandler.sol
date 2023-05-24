@@ -91,6 +91,7 @@ contract RevenueHandler is IRevenueHandler, Ownable {
             }
         }
         debtTokens.push(debtToken);
+        emit DebtTokenAdded(debtToken);
     }
 
     /// @inheritdoc IRevenueHandler
@@ -99,6 +100,7 @@ contract RevenueHandler is IRevenueHandler, Ownable {
             if (debtTokens[i] == debtToken) {
                 debtTokens[i] = debtTokens[debtTokens.length - 1];
                 debtTokens.pop();
+                emit DebtTokenRemoved(debtToken);
                 return;
             }
         }
@@ -113,6 +115,8 @@ contract RevenueHandler is IRevenueHandler, Ownable {
             }
         }
         revenueTokens.push(revenueToken);
+        emit RevenueTokenTokenAdded(revenueToken);
+
     }
 
     /// @inheritdoc IRevenueHandler
@@ -121,6 +125,7 @@ contract RevenueHandler is IRevenueHandler, Ownable {
             if (revenueTokens[i] == revenueToken) {
                 revenueTokens[i] = revenueTokens[revenueTokens.length - 1];
                 revenueTokens.pop();
+                emit RevenueTokenTokenRemoved(revenueToken);
                 return;
             }
         }
@@ -155,6 +160,7 @@ contract RevenueHandler is IRevenueHandler, Ownable {
     function setTreasury(address _treasury) external override onlyOwner {
         require(_treasury != address(0), "treasury cannot be 0x0");
         treasury = _treasury;
+        emit TreasuryUpdated(_treasury);
     }
 
     /// @inheritdoc IRevenueHandler
@@ -162,6 +168,7 @@ contract RevenueHandler is IRevenueHandler, Ownable {
         require(_treasuryPct <= BPS, "treasury pct too large");
         require(_treasuryPct != treasuryPct, "treasury pct unchanged");
         treasuryPct = _treasuryPct;
+        emit TreasuryPctUpdated(_treasuryPct);
     }
 
     /*

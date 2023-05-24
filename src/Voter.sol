@@ -25,6 +25,8 @@ contract Voter is IVoter {
     address public immutable bribefactory;
 
     uint256 internal constant BPS = 10000;
+    uint256 internal constant MAX_BOOST = 5000;
+    uint256 internal constant MIN_BOOST = 0;
     uint256 internal constant DURATION = 7 days; // rewards are released over 7 days
     uint256 internal constant BRIBE_LAG = 1 days;
     uint256 internal index;
@@ -129,19 +131,28 @@ contract Voter is IVoter {
     function acceptAdmin() external {
         require(msg.sender == pendingAdmin, "not pending admin");
         admin = pendingAdmin;
+
+        emit AdminUpdated(pendingAdmin);
     }
 
     function setEmergencyCouncil(address _council) public {
         require(msg.sender == emergencyCouncil, "not emergency council");
         require(_council != address(0), "cannot be zero address");
         emergencyCouncil = _council;
+        emit EmergencyCouncilUpdated(_council);
+    }
+
+    function swapReward(address bribeAddress, uint256 tokenIndex, address oldToken, address newToken) external {
+        require(msg.sender == admin);
+        IBribe(bribes[bribeAddress]).swapOutRewardToken(tokenIndex, oldToken, newToken);
     }
 
     /// @inheritdoc IVoter
     function setBoostMultiplier(uint256 _boostMultiplier) external {
         require(msg.sender == admin, "not admin");
-        require(_boostMultiplier <= BPS, "cannot exceed 100%");
+        require(_boostMultiplier <= MAX_BOOST && _boostMultiplier > MIN_BOOST, "Boost multiplier is out of bounds");
         boostMultiplier = _boostMultiplier;
+        emit SetBoostMultiplier(_boostMultiplier);
     }
 
     /// @inheritdoc IVoter
@@ -352,7 +363,7 @@ contract Voter is IVoter {
                     IBribe(bribes[gauges[_pool]]).withdraw(uint256(_votes), _tokenId);
                     _totalWeight += _votes;
                 }
-                emit Abstained(_tokenId, _votes);
+                emit Abstained(msg.sender, _pool, _tokenId, _votes);
             }
         }
         totalWeight -= uint256(_totalWeight);
@@ -393,7 +404,7 @@ contract Voter is IVoter {
             IBribe(bribes[_gauge]).deposit(uint256(_poolWeight), _tokenId);
             _usedWeight += _poolWeight;
             _totalWeight += _poolWeight;
-            emit Voted(msg.sender, _tokenId, _poolWeight);
+            emit Voted(msg.sender, _pool, _tokenId, _poolWeight);
         }
 
         if (_usedWeight > 0) IVotingEscrow(veALCX).voting(_tokenId);

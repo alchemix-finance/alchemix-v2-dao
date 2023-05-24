@@ -127,14 +127,14 @@ contract BaseTest is DSTestPlus {
         // Setup contracts at specific point in time
         hevm.warp(_time);
 
+        hevm.startPrank(admin);
+
         veALCX = new VotingEscrow(bpt, address(alcx), address(flux), address(rewardPool), admin);
 
         veALCX.setVoter(admin);
         veALCX.setRewardsDistributor(admin);
         veALCX.addRewardPoolToken(bal);
         veALCX.addRewardPoolToken(aura);
-
-        hevm.startPrank(admin);
 
         IERC20(bpt).approve(address(veALCX), type(uint256).max);
 

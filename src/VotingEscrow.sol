@@ -161,6 +161,14 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         DepositType depositType,
         uint256 ts
     );
+
+    event AdminUpdated(address admin);
+    event ClaimFeeUpdated(uint256 claimFee);
+    event VoterUpdated(address voter);
+    event RewardsDistributorUpdated(address distributor);
+    event FluxMultiplierUpdated(uint256 fluxMultiplier);
+    event FluxPerVeALCXUpdated(uint256 fluxPerVeALCX);
+    event RewardPoolUpdated(address newRewardPool);
     event Withdraw(address indexed provider, uint256 tokenId, uint256 value, uint256 ts);
     event Supply(uint256 prevSupply, uint256 supply);
     event Ragequit(address indexed provider, uint256 tokenId, uint256 ts);
@@ -651,14 +659,15 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     }
 
     function setVoter(address _voter) external {
-        require(msg.sender == voter, "not voter");
-        // require(msg.sender == admin, "not admin");
+        require(msg.sender == admin, "not admin");
         voter = _voter;
+        emit VoterUpdated(_voter);
     }
 
     function setRewardsDistributor(address _distributor) external {
         require(msg.sender == distributor, "not distributor");
         distributor = _distributor;
+        emit RewardsDistributorUpdated(_distributor);
     }
 
     function voting(uint256 _tokenId) external {
@@ -685,6 +694,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         require(msg.sender == admin, "not admin");
         require(_fluxMultiplier > 0, "fluxMultiplier must be greater than 0");
         fluxMultiplier = _fluxMultiplier;
+        emit FluxMultiplierUpdated(_fluxMultiplier);
     }
 
     function setAdmin(address _admin) external {
@@ -695,16 +705,19 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     function acceptAdmin() external {
         require(msg.sender == pendingAdmin, "not pending admin");
         admin = pendingAdmin;
+        emit AdminUpdated(pendingAdmin);
     }
 
     function setfluxPerVeALCX(uint256 _fluxPerVeALCX) external {
         require(msg.sender == admin, "not admin");
         fluxPerVeALCX = _fluxPerVeALCX;
+        emit FluxPerVeALCXUpdated(_fluxPerVeALCX);
     }
 
     function setClaimFee(uint256 _claimFeeBps) external {
         require(msg.sender == admin, "not admin");
         claimFeeBps = _claimFeeBps;
+        emit ClaimFeeUpdated(_claimFeeBps);
     }
 
     function merge(uint256 _from, uint256 _to) external {
@@ -954,6 +967,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     function updateRewardPool(address _newRewardPool) external {
         require(msg.sender == admin, "not admin");
         rewardPool = _newRewardPool;
+        emit RewardPoolUpdated(_newRewardPool);
     }
 
     /**
@@ -1814,8 +1828,6 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     }
 
     function _burn(uint256 _tokenId) internal {
-        require(_isApprovedOrOwner(msg.sender, _tokenId), "caller is not owner nor approved");
-
         address owner = ownerOf(_tokenId);
 
         // Clear approval

@@ -8,17 +8,20 @@ interface IVoter {
         Curve
     }
 
+    event Abstained(address indexed voter, address indexed pool, uint256 tokenId, uint256 weight);
+    event AdminUpdated(address newAdmin);
+    event Attach(address indexed owner, address indexed gauge, uint256 tokenId);
+    event Deposit(address indexed account, address indexed gauge, uint256 tokenId, uint256 amount);
+    event Detach(address indexed owner, address indexed gauge, uint256 tokenId);
+    event DistributeReward(address indexed sender, address indexed gauge, uint256 amount);
+    event EmergencyCouncilUpdated(address newCouncil);
     event GaugeCreated(address indexed gauge, address creator, address indexed bribe, address indexed pool);
     event GaugeKilled(address indexed gauge);
     event GaugeRevived(address indexed gauge);
-    event Voted(address indexed voter, uint256 tokenId, uint256 weight);
-    event Abstained(uint256 tokenId, uint256 weight);
-    event Deposit(address indexed account, address indexed gauge, uint256 tokenId, uint256 amount);
-    event Withdraw(address indexed account, address indexed gauge, uint256 tokenId, uint256 amount);
     event NotifyReward(address indexed sender, address indexed reward, uint256 amount);
-    event DistributeReward(address indexed sender, address indexed gauge, uint256 amount);
-    event Attach(address indexed owner, address indexed gauge, uint256 tokenId);
-    event Detach(address indexed owner, address indexed gauge, uint256 tokenId);
+    event SetBoostMultiplier(uint256 boostMultiplier);
+    event Voted(address indexed voter, address indexed pool, uint256 tokenId, uint256 weight);
+    event Withdraw(address indexed account, address indexed gauge, uint256 tokenId, uint256 amount);
     event Whitelisted(address indexed whitelister, address indexed token);
 
     function veALCX() external view returns (address);
