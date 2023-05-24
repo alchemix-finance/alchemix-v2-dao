@@ -95,7 +95,12 @@ contract RewardsDistributor is IRewardsDistributor {
 
     /// @inheritdoc IRewardsDistributor
     function amountToCompound(uint256 _alcxAmount) public view returns (uint256, uint256[] memory) {
-        (, int256 alcxEthPrice, , , ) = priceFeed.latestRoundData();
+        (uint80 roundId, int256 alcxEthPrice, , uint256 priceTimestamp, uint80 answeredInRound) = priceFeed
+            .latestRoundData();
+
+        require(answeredInRound >= roundId, "Stale price");
+        require(priceTimestamp != 0, "Round not complete");
+        require(alcxEthPrice > 0, "Chainlink answer reporting 0");
 
         uint256[] memory normalizedWeights = IManagedPool(address(balancerPool)).getNormalizedWeights();
 

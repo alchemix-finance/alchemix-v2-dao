@@ -20,7 +20,7 @@ contract Voter is IVoter {
     address internal immutable base; // Base token, ALCX
 
     address public immutable veALCX; // veALCX that governs these contracts
-    address public immutable FLUX; // veALCX that governs these contracts
+    address public immutable FLUX; // FLUX token that is distributed to veALCX holders
     address public immutable gaugefactory;
     address public immutable bribefactory;
 
@@ -136,7 +136,8 @@ contract Voter is IVoter {
     }
 
     function setEmergencyCouncil(address _council) public {
-        require(msg.sender == emergencyCouncil);
+        require(msg.sender == emergencyCouncil, "not emergency council");
+        require(_council != address(0), "cannot be zero address");
         emergencyCouncil = _council;
         emit EmergencyCouncilUpdated(_council);
     }
@@ -169,7 +170,7 @@ contract Voter is IVoter {
         require(IVotingEscrow(veALCX).isApprovedOrOwner(msg.sender, _tokenId), "not approved or owner");
         require(
             IVotingEscrow(veALCX).claimableFlux(_tokenId) + IVotingEscrow(veALCX).unclaimedFlux(_tokenId) >= _boost,
-            "insufficient claimable FLUX balance"
+            "insufficient FLUX to boost"
         );
         require(
             (IVotingEscrow(veALCX).balanceOfToken(_tokenId) + _boost) <= maxVotingPower(_tokenId),
@@ -196,9 +197,10 @@ contract Voter is IVoter {
     ) external onlyNewEpoch(_tokenId) {
         require(IVotingEscrow(veALCX).isApprovedOrOwner(msg.sender, _tokenId));
         require(_poolVote.length == _weights.length);
+        require(_poolVote.length <= pools.length, "invalid pools");
         require(
             IVotingEscrow(veALCX).claimableFlux(_tokenId) + IVotingEscrow(veALCX).unclaimedFlux(_tokenId) >= _boost,
-            "insufficient claimable FLUX balance"
+            "insufficient FLUX to boost"
         );
         require(
             (IVotingEscrow(veALCX).balanceOfToken(_tokenId) + _boost) <= maxVotingPower(_tokenId),
@@ -273,13 +275,17 @@ contract Voter is IVoter {
 
     /// @inheritdoc IVoter
     function notifyRewardAmount(uint256 amount) external {
-        _safeTransferFrom(base, msg.sender, address(this), amount); // transfer the distro in
+        require(msg.sender == minter, "only minter can send rewards");
+        require(totalWeight > 0, "no votes");
 
-        // Handle case if totalWeight is 0
-        uint256 _ratio = totalWeight > 0 ? (amount * 1e18) / totalWeight : (amount * 1e18); // 1e18 adjustment is removed during claim
+        _safeTransferFrom(base, msg.sender, address(this), amount); // transfer rewards in
+
+        uint256 _ratio = (amount * 1e18) / totalWeight; // 1e18 adjustment is removed during claim
+
         if (_ratio > 0) {
             index += _ratio;
         }
+
         emit NotifyReward(msg.sender, base, amount);
     }
 
@@ -315,13 +321,9 @@ contract Voter is IVoter {
         IMinter(minter).updatePeriod();
         _updateFor(_gauge);
         uint256 _claimable = claimable[_gauge];
-        IBaseGauge(_gauge).notifyRewardAmount(base, _claimable);
+        IBaseGauge(_gauge).notifyRewardAmount(_claimable);
 
         emit DistributeReward(msg.sender, _gauge, _claimable);
-    }
-
-    function distro() external {
-        distribute(0, pools.length);
     }
 
     function distribute() external {
@@ -385,24 +387,26 @@ contract Voter is IVoter {
             address _pool = _poolVote[i];
             address _gauge = gauges[_pool];
 
-            if (isGauge[_gauge]) {
-                IVotingEscrow(veALCX).accrueFlux(_tokenId, IVotingEscrow(veALCX).claimableFlux(_tokenId));
-                uint256 _poolWeight = (_weights[i] * (IVotingEscrow(veALCX).balanceOfToken(_tokenId) + _boost)) /
-                    _totalVoteWeight;
-                require(votes[_tokenId][_pool] == 0);
-                require(_poolWeight != 0);
-                _updateFor(_gauge);
+            require(isGauge[_gauge], "invalid gauge");
+            require(isAlive[_gauge], "cannot vote for dead gauge");
 
-                poolVote[_tokenId].push(_pool);
+            IVotingEscrow(veALCX).accrueFlux(_tokenId, IVotingEscrow(veALCX).claimableFlux(_tokenId));
+            uint256 _poolWeight = (_weights[i] * (IVotingEscrow(veALCX).balanceOfToken(_tokenId) + _boost)) /
+                _totalVoteWeight;
+            require(votes[_tokenId][_pool] == 0);
+            require(_poolWeight != 0);
+            _updateFor(_gauge);
 
-                weights[_pool] += _poolWeight;
-                votes[_tokenId][_pool] += _poolWeight;
-                IBribe(bribes[_gauge]).deposit(uint256(_poolWeight), _tokenId);
-                _usedWeight += _poolWeight;
-                _totalWeight += _poolWeight;
-                emit Voted(msg.sender, _pool, _tokenId, _poolWeight);
-            }
+            poolVote[_tokenId].push(_pool);
+
+            weights[_pool] += _poolWeight;
+            votes[_tokenId][_pool] += _poolWeight;
+            IBribe(bribes[_gauge]).deposit(uint256(_poolWeight), _tokenId);
+            _usedWeight += _poolWeight;
+            _totalWeight += _poolWeight;
+            emit Voted(msg.sender, _pool, _tokenId, _poolWeight);
         }
+
         if (_usedWeight > 0) IVotingEscrow(veALCX).voting(_tokenId);
         totalWeight += uint256(_totalWeight);
         usedWeights[_tokenId] = uint256(_usedWeight);
@@ -421,6 +425,8 @@ contract Voter is IVoter {
     }
 
     function _updateFor(address _gauge) internal {
+        require(isGauge[_gauge], "invalid gauge");
+
         address _pool = poolForGauge[_gauge];
         uint256 _supplied = weights[_pool];
         if (_supplied > 0) {
@@ -433,7 +439,7 @@ contract Voter is IVoter {
                 claimable[_gauge] += _share;
             }
         } else {
-            supplyIndex[_gauge] = index; // new users are set to the default global state
+            supplyIndex[_gauge] = index;
         }
     }
 

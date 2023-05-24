@@ -60,6 +60,7 @@ contract Bribe is IBribe {
     function getEpochStart(uint256 timestamp) public pure returns (uint256) {
         uint256 bribeStart = _bribeStart(timestamp);
         uint256 bribeEnd = bribeStart + DURATION;
+
         return timestamp < bribeEnd ? bribeStart : bribeStart + 7 days;
     }
 
@@ -87,22 +88,17 @@ contract Bribe is IBribe {
     /// @inheritdoc IBribe
     function notifyRewardAmount(address token, uint256 amount) external lock {
         require(amount > 0);
-        if (!isReward[token]) {
-            require(rewards.length < MAX_REWARD_TOKENS, "too many rewards tokens");
-            require(IVoter(voter).isWhitelisted(token), "bribe tokens must be whitelisted");
-        }
+
+        // If the token has been whitelisted by the voter contract, add it to the rewards list
+        _addRewardToken(token);
+
         // bribes kick in at the start of next bribe period
         uint256 adjustedTstamp = getEpochStart(block.timestamp);
         uint256 epochRewards = tokenRewardsPerEpoch[token][adjustedTstamp];
 
         _safeTransferFrom(token, msg.sender, address(this), amount);
         tokenRewardsPerEpoch[token][adjustedTstamp] = epochRewards + amount;
-
-        if (!isReward[token]) {
-            isReward[token] = true;
-            rewards.push(token);
-            IBaseGauge(gauge).addBribeRewardToken(token);
-        }
+        periodFinish[token] = adjustedTstamp + DURATION;
 
         emit NotifyReward(msg.sender, token, adjustedTstamp, amount);
     }
@@ -110,14 +106,7 @@ contract Bribe is IBribe {
     /// @inheritdoc IBribe
     function addRewardToken(address token) external {
         require(msg.sender == gauge);
-        if (!isReward[token] && token != address(0)) {
-            require(rewards.length < MAX_REWARD_TOKENS, "too many rewards tokens");
-            require(IVoter(voter).isWhitelisted(token), "bribe tokens must be whitelisted");
-
-            isReward[token] = true;
-            rewards.push(token);
-        }
-        emit RewardTokenAdded(token);
+        _addRewardToken(token);
     }
 
     /// @inheritdoc IBribe
@@ -221,7 +210,7 @@ contract Bribe is IBribe {
                 if (_nextEpochStart > prevRewards.timestamp) {
                     reward += prevRewards.balanceOf;
                 }
-                
+
                 if (_startIndex == _endIndex) break;
 
                 prevRewards.timestamp = _nextEpochStart;
@@ -241,11 +230,6 @@ contract Bribe is IBribe {
         }
 
         return reward;
-    }
-
-    function left(address token) external view returns (uint256) {
-        uint256 adjustedTstamp = getEpochStart(block.timestamp);
-        return tokenRewardsPerEpoch[token][adjustedTstamp];
     }
 
     /// @inheritdoc IBribe
@@ -300,6 +284,16 @@ contract Bribe is IBribe {
     /*
         Internal functions
     */
+
+    function _addRewardToken(address token) internal {
+        if (!isReward[token] && token != address(0)) {
+            require(rewards.length < MAX_REWARD_TOKENS, "too many rewards tokens");
+            require(IVoter(voter).isWhitelisted(token), "bribe tokens must be whitelisted");
+
+            isReward[token] = true;
+            rewards.push(token);
+        }
+    }
 
     function _writeCheckpoint(uint256 tokenId, uint256 balance) internal {
         uint256 _timestamp = block.timestamp;

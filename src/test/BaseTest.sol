@@ -28,7 +28,6 @@ import "src/interfaces/balancer/IVault.sol";
 import "src/interfaces/IWETH9.sol";
 import "src/gauges/StakingRewards.sol";
 import "src/interfaces/aura/IRewardPool4626.sol";
-import "src/interfaces/aura/IRewardStaking.sol";
 
 contract BaseTest is DSTestPlus {
     address public admin = 0x8392F6669292fA56123F71949B52d883aE57e225;
@@ -42,6 +41,7 @@ contract BaseTest is DSTestPlus {
     address public ydai = 0xdA816459F1AB5631232FE5e97a05BBBb94970c95;
     address public usdt = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
     address public bal = 0xba100000625a3754423978a60c9317c58a424e3D;
+    address public aura = 0xC0c293ce456fF0ED870ADd98a0828Dd4d2903DBF;
     address public aleth = 0x0100546F2cD4C9D97f798fFC9755E47865FF7Ee6;
     address public alusd3crv = 0x43b4FdFD4Ff969587185cDB6f0BD875c5Fc83f8c;
     address public alethcrv = 0xC4C319E2D4d66CcA4464C0c2B32c9Bd23ebe784e;
@@ -50,7 +50,7 @@ contract BaseTest is DSTestPlus {
     address public beef = address(0xbeef);
     address public dead = address(0xdead);
     address public bpt = 0xf16aEe6a71aF1A9Bc8F56975A4c2705ca7A782Bc;
-    address public rewardPool;
+    address public rewardPool = 0x8B227E3D50117E80a02cd0c67Cd6F89A8b7B46d7;
 
     // Pool addresses
     address public alUsdPoolAddress = 0x43b4FdFD4Ff969587185cDB6f0BD875c5Fc83f8c;
@@ -59,6 +59,7 @@ contract BaseTest is DSTestPlus {
     address public sushiPoolAddress = 0x7519C93fC5073E15d89131fD38118D73A72370F8;
 
     // Votium pool indexes
+    // These are subject to change
     uint256 public alUsdIndex = 34;
     uint256 public alEthIndex = 46;
     uint256 public alUsdFraxBpIndex = 105;
@@ -70,8 +71,8 @@ contract BaseTest is DSTestPlus {
     address public votiumStash = 0x378Ba9B73309bE80BF4C2c027aAD799766a7ED5A;
 
     // Proposal id from snapshot url
-    // https://snapshot.org/#/cvx.eth/proposal/0xd7db40d1ca142cb5ca24bce5d0f78f3b037fde6c7ebb3c3650a317e910278b1f
-    bytes32 public proposal = 0xd7db40d1ca142cb5ca24bce5d0f78f3b037fde6c7ebb3c3650a317e910278b1f;
+    // https://snapshot.org/#/cvx.eth/proposal/0xd2f6785ba7e199e3a0169c9bfd561ae6d7c81baa54de4291eef0c355251eb94c
+    bytes32 public proposal = 0xd2f6785ba7e199e3a0169c9bfd561ae6d7c81baa54de4291eef0c355251eb94c;
 
     // Values for the current epoch (emissions to be manually minted)
     uint256 public supply = 1793678e18;
@@ -122,18 +123,18 @@ contract BaseTest is DSTestPlus {
 
         address[] memory rewardTokens = new address[](1);
         rewardTokens[0] = bal;
-        // rewardPool = rewardPoolFactory.createRewardPool(1, bpt, bal, admin, admin, bpt);
-        rewardPool = mockCurveGaugeFactory.createMockPool("MockAuraPool", "aurALCX", bpt, rewardTokens);
 
-        // Run contracts at specific point in time
+        // Setup contracts at specific point in time
         hevm.warp(_time);
 
         hevm.startPrank(admin);
 
-        veALCX = new VotingEscrow(bpt, address(alcx), address(flux), address(rewardPool));
+        veALCX = new VotingEscrow(bpt, address(alcx), address(flux), address(rewardPool), admin);
 
         veALCX.setVoter(admin);
         veALCX.setRewardsDistributor(admin);
+        veALCX.addRewardPoolToken(bal);
+        veALCX.addRewardPoolToken(aura);
 
         IERC20(bpt).approve(address(veALCX), type(uint256).max);
 

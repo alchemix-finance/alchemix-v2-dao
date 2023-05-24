@@ -52,6 +52,8 @@ interface IBribe {
      */
     function setGauge(address _gauge) external;
 
+    function periodFinish(address token) external view returns (uint256);
+
     /**
      * @notice Calculate the epoch start time
      * @param timestamp Provided timstamp
@@ -83,11 +85,10 @@ interface IBribe {
     function rewards(uint256 i) external view returns (address);
 
     /**
-     * @notice Determine the prior balance for an account as of a block number
+     * @notice Determine the prior balance for an account as of a timestamp
      * @param tokenId   Id of the token check
      * @param timestamp The timestamp to get the balance at
-     * @return uint256  The balance the account had as of the given block
-     * @dev Block number must be a finalized block, function will revert otherwise
+     * @return uint256  The balance the account had as of the given timestamp
      */
     function getPriorBalanceIndex(uint256 tokenId, uint256 timestamp) external view returns (uint256);
 

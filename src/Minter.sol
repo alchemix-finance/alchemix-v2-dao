@@ -80,7 +80,7 @@ contract Minter is IMinter {
     }
 
     function initialize() external {
-        require(msg.sender != address(0));
+        require(msg.sender != address(0), "cannot be zero address");
         require(initialized == false, "already initialized");
         require(initializer == msg.sender, "not initializer");
         initializer = address(0);
@@ -137,13 +137,19 @@ contract Minter is IMinter {
                 stepdown = 0;
             }
 
+            // If there are no votes, send emissions to veALCX holders
+            if (voter.totalWeight() > 0) {
+                alcx.approve(address(voter), gaugeEmissions);
+                voter.notifyRewardAmount(gaugeEmissions);
+            } else {
+                veAlcxEmissions += gaugeEmissions;
+            }
+
             // Logic to distrubte minted tokens
+            alcx.approve(address(rewardsDistributor), veAlcxEmissions);
             IERC20(address(alcx)).safeTransfer(address(rewardsDistributor), veAlcxEmissions);
             rewardsDistributor.checkpointToken(); // Checkpoint token balance that was just minted in rewards distributor
             rewardsDistributor.checkpointTotalSupply(); // Checkpoint supply
-
-            alcx.approve(address(voter), gaugeEmissions);
-            voter.notifyRewardAmount(gaugeEmissions);
 
             IERC20(address(alcx)).safeTransfer(address(timeGauge), timeEmissions);
             timeGauge.notifyRewardAmount(timeEmissions);
