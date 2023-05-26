@@ -478,6 +478,8 @@ contract VotingTest is BaseTest {
         hevm.prank(admin);
         voter.vote(tokenId1, pools, weights, 0);
 
+        hevm.warp(block.timestamp + 6 days);
+
         hevm.prank(beef);
         voter.vote(tokenId2, pools, weights, 0);
 
@@ -507,6 +509,46 @@ contract VotingTest is BaseTest {
         voter.claimBribes(bribes, tokens, tokenId2);
 
         assertEq(IERC20(bal).balanceOf(beef), earnedBribes2, "user should capture old bribes");
+    }
+
+    // Voting power should be dependent on epoch at which vote is cast
+    function testVotingPower() public {
+        uint256 tokenId1 = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+        uint256 tokenId2 = createVeAlcx(beef, TOKEN_1, MAXTIME, false);
+        uint256 tokenId3 = createVeAlcx(dead, TOKEN_1, MAXTIME, false);
+
+        uint256 votingPower1 = veALCX.balanceOfToken(tokenId1);
+        uint256 votingPower2 = veALCX.balanceOfToken(tokenId2);
+        assertEq(votingPower1, votingPower2, "voting power should be equal");
+
+        address[] memory pools = new address[](1);
+        pools[0] = alETHPool;
+        uint256[] memory weights = new uint256[](1);
+        weights[0] = 5000;
+
+        hevm.prank(admin);
+        voter.vote(tokenId1, pools, weights, 0);
+
+        uint256 usedWeight1 = voter.usedWeights(tokenId1);
+
+        hevm.warp(block.timestamp + 6 days);
+
+        hevm.prank(beef);
+        voter.vote(tokenId2, pools, weights, 0);
+
+        uint256 usedWeight2 = voter.usedWeights(tokenId1);
+
+        assertEq(usedWeight1, usedWeight2, "used weight should be equal");
+
+        hevm.warp(block.timestamp + 6 days);
+        minter.updatePeriod();
+
+        hevm.prank(dead);
+        voter.vote(tokenId3, pools, weights, 0);
+
+        uint256 usedWeight3 = voter.usedWeights(tokenId3);
+
+        assertGt(usedWeight2, usedWeight3, "used weight should be greater in previous epoch");
     }
 
     // Votes cannot be boosted with insufficient FLUX to boost
