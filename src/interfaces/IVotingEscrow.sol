@@ -49,6 +49,8 @@ interface IVotingEscrow {
 
     function lockEnd(uint256 tokenId) external view returns (uint256);
 
+    function cooldownEnd(uint256 tokenId) external view returns (uint256);
+
     function pointHistory(uint256 loc) external view returns (Point memory);
 
     function userPointHistory(uint256 tokenId, uint256 loc) external view returns (Point memory);

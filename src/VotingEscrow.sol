@@ -74,7 +74,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     /// @dev ERC165 interface ID of ERC721Metadata
     bytes4 internal constant ERC721_METADATA_INTERFACE_ID = 0x5b5e139f;
 
-    uint256 public constant EPOCH = 2 weeks;
+    uint256 public constant EPOCH = 1 weeks;
     uint256 public constant MAX_DELEGATES = 1024; // avoid too much gas
 
     uint256 internal constant WEEK = 1 weeks;
@@ -461,6 +461,8 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
      * @dev flux should accrue at a rate that is four times the lock period earned per epoch
      */
     function claimableFlux(uint256 _tokenId) public view returns (uint256) {
+        // If the lock is expired, no flux is claimable at the current epoch
+        if (block.timestamp > locked[_tokenId].end) return 0;
         return (amountToRagequit(_tokenId)) / (((locked[_tokenId].end - block.timestamp) * fluxMultiplier) / epoch);
     }
 

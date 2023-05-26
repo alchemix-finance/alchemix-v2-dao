@@ -15,8 +15,10 @@ contract MinterTest is BaseTest {
 
     // Test emissions for a single epoch
     function testEpochEmissions() external {
+        uint256 period = minter.activePeriod();
+
         // Set the block timestamp to be the next epoch
-        hevm.warp(block.timestamp + nextEpoch);
+        hevm.warp(period + nextEpoch);
 
         uint256 currentTotalEmissions = minter.circulatingEmissionsSupply();
         uint256 epochEmissions = minter.epochEmission();
@@ -42,8 +44,13 @@ contract MinterTest is BaseTest {
 
     // Test reaching emissions tail
     function testTailEmissions() external {
+        uint256 period = minter.activePeriod();
+
         // Mint emissions for the amount of epochs until tail emissions target
-        for (uint8 i = 0; i <= epochsUntilTail; ++i) {
+        hevm.warp(period + nextEpoch);
+        minter.updatePeriod();
+
+        for (uint8 i = 1; i <= epochsUntilTail; ++i) {
             hevm.warp(block.timestamp + nextEpoch);
             minter.updatePeriod();
         }
@@ -87,6 +94,8 @@ contract MinterTest is BaseTest {
 
     // Verify the setup paramaters and emissions schedule are working as expected
     function testWeeklyEmissionsSchedule() public {
+        uint256 period = minter.activePeriod();
+
         initializeVotingEscrow();
 
         uint256 startingRewards = minter.rewards();
@@ -100,7 +109,7 @@ contract MinterTest is BaseTest {
         assertEq(distributor.claimable(tokenId), 0);
 
         // Fast forward one epoch
-        hevm.warp(block.timestamp + nextEpoch);
+        hevm.warp(period + nextEpoch);
         hevm.roll(block.number + 1);
 
         minter.updatePeriod();
@@ -175,6 +184,8 @@ contract MinterTest is BaseTest {
 
     // Compound claiming adds ALCX rewards into their exisiting veALCX position
     function testCompoundRewards() public {
+        uint256 period = minter.activePeriod();
+
         initializeVotingEscrow();
 
         hevm.startPrank(admin);
@@ -188,7 +199,7 @@ contract MinterTest is BaseTest {
         assertEq(distributor.claimable(tokenId), 0, "amount claimable should be 0");
 
         // Fast forward one epoch
-        hevm.warp(block.timestamp + nextEpoch);
+        hevm.warp(period + nextEpoch);
         hevm.roll(block.number + 1);
 
         minter.updatePeriod();
@@ -231,6 +242,8 @@ contract MinterTest is BaseTest {
 
     // Compound claiming should revert if user doesn't provide enough weth
     function testCompoundRewardsFailure() public {
+        uint256 period = minter.activePeriod();
+
         initializeVotingEscrow();
 
         hevm.startPrank(admin);
@@ -241,7 +254,7 @@ contract MinterTest is BaseTest {
         assertEq(distributor.claim(tokenId, true), 0, "amount claimed should be 0");
 
         // Fast forward one epoch
-        hevm.warp(block.timestamp + nextEpoch);
+        hevm.warp(period + nextEpoch);
         hevm.roll(block.number + 1);
 
         minter.updatePeriod();
@@ -255,6 +268,8 @@ contract MinterTest is BaseTest {
 
     // Compound claiming should revert if user doesn't provide enough weth
     function testCompoundRewardsFailureETH() public {
+        uint256 period = minter.activePeriod();
+
         deal(admin, 100 ether);
 
         initializeVotingEscrow();
@@ -267,7 +282,7 @@ contract MinterTest is BaseTest {
         assertEq(distributor.claim(tokenId, true), 0, "amount claimed should be 0");
 
         // Fast forward one epoch
-        hevm.warp(block.timestamp + nextEpoch);
+        hevm.warp(period + nextEpoch);
         hevm.roll(block.number + 1);
 
         minter.updatePeriod();
@@ -282,6 +297,7 @@ contract MinterTest is BaseTest {
         assertGt(admin.balance, 0);
         assertGt(100 ether, admin.balance);
     }
+
     // Test admin controlled functions
     function testAdminFunctions() public {
         assertEq(minter.initializer(), address(0), "minter not initialized");

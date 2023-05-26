@@ -10,13 +10,15 @@ contract VotingTest is BaseTest {
 
     // Check ALCX balances increase in distributor and voter over an epoch
     function testEpochRewards() public {
+        uint256 period = minter.activePeriod();
+
         uint256 distributorBal1 = alcx.balanceOf(address(distributor));
         uint256 voterBal1 = alcx.balanceOf(address(voter));
 
         assertEq(distributorBal1, 0);
         assertEq(voterBal1, 0);
 
-        hevm.warp(block.timestamp + nextEpoch);
+        hevm.warp(period + nextEpoch);
         hevm.roll(block.number + 1);
 
         minter.updatePeriod();
@@ -24,9 +26,9 @@ contract VotingTest is BaseTest {
         uint256 distributorBal2 = alcx.balanceOf(address(distributor));
         uint256 voterBal2 = alcx.balanceOf(address(voter));
 
-        assertGt(distributorBal2, distributorBal1);
+        assertGt(distributorBal2, distributorBal1, "distributor balance should increase");
         // Voter has no balance since there have been no votes
-        assertEq(voterBal2, voterBal1);
+        assertEq(voterBal2, voterBal1, "voter balance should not increase without votes");
 
         // Create a veALCX token and vote to trigger voter rewards
         uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
@@ -47,8 +49,8 @@ contract VotingTest is BaseTest {
         uint256 distributorBal3 = alcx.balanceOf(address(distributor));
         uint256 voterBal3 = alcx.balanceOf(address(voter));
 
-        assertGt(distributorBal3, distributorBal2);
-        assertGt(voterBal3, voterBal2);
+        assertGt(distributorBal3, distributorBal2, "distributor balance should continue to increase");
+        assertGt(voterBal3, voterBal2, "voter balance should increase with votes");
     }
 
     function testSameEpochVoteOrReset() public {
