@@ -223,6 +223,32 @@ contract RevenueHandlerTest is BaseTest {
         revenueHandler.claim(tokenId, address(alusdAlchemist), claimable, address(this));
     }
 
+    function testClaimBeforeEpoch() external {
+        uint256 revAmt = 1000e18;
+        uint256 tokenId = _lockVeALCX(10e18);
+        uint256 period = minter.activePeriod();
+
+        _accrueRevenue(dai, revAmt);
+
+        uint256 revenueHandlerBalance1 = IERC20(dai).balanceOf(address(revenueHandler));
+        assertEq(revenueHandlerBalance1, revAmt, "should be equal to revAmt");
+
+        uint256 claimable = revenueHandler.claimable(tokenId, alusd);
+        assertEq(claimable, 0, "claimable should be 0");
+
+        hevm.expectRevert(abi.encodePacked("Amount must be greater than 0"));
+        revenueHandler.claim(tokenId, address(alusdAlchemist), claimable, address(this));
+
+        hevm.warp(period + nextEpoch);
+        minter.updatePeriod();
+
+        claimable = revenueHandler.claimable(tokenId, alusd);
+
+        revenueHandler.claim(tokenId, address(alusdAlchemist), claimable / 2, address(this));
+
+        assertEq(IERC20(alusd).balanceOf(address(this)), claimable / 2, "should be equal to amount claimed");
+    }
+
     function testClaimRevenueOneEpoch() external {
         uint256 revAmt = 1000e18;
         uint256 tokenId = _setupClaimableRevenue(revAmt);

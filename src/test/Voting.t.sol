@@ -53,6 +53,61 @@ contract VotingTest is BaseTest {
         assertGt(voterBal3, voterBal2, "voter balance should increase with votes");
     }
 
+    function testEarlyClaiming() public {
+        uint256 period = minter.activePeriod();
+
+        // Create a veALCX token and vote to trigger voter rewards
+        uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+        address bribeAddress = voter.bribes(address(sushiGauge));
+        createThirdPartyBribe(bribeAddress, bal, TOKEN_100K);
+
+        address[] memory pools = new address[](1);
+        pools[0] = sushiPoolAddress;
+        uint256[] memory weights = new uint256[](1);
+        weights[0] = 5000;
+
+        address[] memory bribes = new address[](1);
+        bribes[0] = address(bribeAddress);
+        address[][] memory tokens = new address[][](2);
+        tokens[0] = new address[](1);
+        tokens[0][0] = bal;
+
+        hevm.prank(admin);
+        voter.vote(tokenId, pools, weights, 0);
+
+        uint256 bribeBalance1 = IERC20(bal).balanceOf(admin);
+        uint256 rewardsBalance1 = IERC20(alcx).balanceOf(admin);
+
+        assertEq(bribeBalance1, 0, "bribe balance should be 0");
+
+        hevm.startPrank(admin);
+        voter.claimBribes(bribes, tokens, tokenId);
+        distributor.claim(tokenId, false);
+        hevm.stopPrank();
+
+        uint256 bribeBalance2 = IERC20(bal).balanceOf(admin);
+        uint256 rewardsBalance2 = IERC20(alcx).balanceOf(admin);
+
+        // Claiming bribes and rewards before an epoch results in no rewards
+        assertEq(bribeBalance2, 0, "bribe balance should not change");
+        assertEq(rewardsBalance2, rewardsBalance1, "rewards balance should not change");
+
+        // Move forward a week relative to period
+        hevm.warp(period + nextEpoch);
+        minter.updatePeriod();
+
+        hevm.startPrank(admin);
+        voter.claimBribes(bribes, tokens, tokenId);
+        distributor.claim(tokenId, false);
+        hevm.stopPrank();
+
+        uint256 bribeBalance3 = IERC20(bal).balanceOf(admin);
+        uint256 rewardsBalance3 = IERC20(alcx).balanceOf(admin);
+
+        assertGt(bribeBalance3, bribeBalance2, "bribe balance should increase");
+        assertGt(rewardsBalance3, rewardsBalance2, "rewards balance should increase");
+    }
+
     function testSameEpochVoteOrReset() public {
         uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
 

@@ -185,14 +185,21 @@ contract RevenueHandler is IRevenueHandler, Ownable {
         require(IVotingEscrow(veALCX).isApprovedOrOwner(msg.sender, tokenId), "Not approved or owner");
 
         address debtToken = IAlchemistV2(alchemist).debtToken();
+        (, address[] memory deposits) = IAlchemistV2(alchemist).accounts(recipient);
         uint256 amountClaimable = _claimable(tokenId, debtToken);
+
         require(amount <= amountClaimable, "Not enough claimable");
+        require(amount > 0, "Amount must be greater than 0");
+        // TODO Determine if we want to handle this scenario differently
+        require(amount <= IERC20(debtToken).balanceOf(address(this)), "Not enough revenue to claim");
 
         userCheckpoints[tokenId][debtToken].lastClaimEpoch = currentEpoch;
         userCheckpoints[tokenId][debtToken].unclaimed = amountClaimable - amount;
 
         IERC20(debtToken).approve(alchemist, amount);
-        uint256 amountBurned = IAlchemistV2(alchemist).burn(amount, recipient);
+        
+        // Only burn if there are deposits
+        uint256 amountBurned = deposits.length > 0 ? IAlchemistV2(alchemist).burn(amount, recipient) : 0;
 
         /*
             burn() will only burn up to total cdp debt
