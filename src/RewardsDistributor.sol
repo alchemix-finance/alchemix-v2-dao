@@ -22,7 +22,7 @@ import { WeightedMath } from "src/interfaces/balancer/WeightedMath.sol";
 contract RewardsDistributor is IRewardsDistributor {
     using SafeERC20 for IERC20;
 
-    uint256 public constant WEEK = 7 * 86400;
+    uint256 public constant WEEK = 1 weeks;
     address public constant BURN_ADDRESS = address(0);
     uint256 public constant BPS = 10000;
 

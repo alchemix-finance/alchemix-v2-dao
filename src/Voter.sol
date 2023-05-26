@@ -27,7 +27,7 @@ contract Voter is IVoter {
     uint256 internal constant BPS = 10000;
     uint256 internal constant MAX_BOOST = 5000;
     uint256 internal constant MIN_BOOST = 0;
-    uint256 internal constant DURATION = 7 days; // rewards are released over 7 days
+    uint256 internal constant DURATION = 1 weeks; // rewards are released over 7 days
     uint256 internal constant BRIBE_LAG = 1 days;
     uint256 internal index;
 
@@ -167,6 +167,8 @@ contract Voter is IVoter {
 
     /// @inheritdoc IVoter
     function poke(uint256 _tokenId, uint256 _boost) external {
+        require(IVotingEscrow(veALCX).cooldownEnd(_tokenId) == 0, "Cooldown active");
+        require(IVotingEscrow(veALCX).lockEnd(_tokenId) > block.timestamp, "Lock expired");
         require(IVotingEscrow(veALCX).isApprovedOrOwner(msg.sender, _tokenId), "not approved or owner");
         require(
             IVotingEscrow(veALCX).claimableFlux(_tokenId) + IVotingEscrow(veALCX).unclaimedFlux(_tokenId) >= _boost,
@@ -195,6 +197,8 @@ contract Voter is IVoter {
         uint256[] calldata _weights,
         uint256 _boost
     ) external onlyNewEpoch(_tokenId) {
+        require(IVotingEscrow(veALCX).cooldownEnd(_tokenId) == 0, "Cooldown active");
+        require(IVotingEscrow(veALCX).lockEnd(_tokenId) > block.timestamp, "Lock expired");
         require(IVotingEscrow(veALCX).isApprovedOrOwner(msg.sender, _tokenId));
         require(_poolVote.length == _weights.length);
         require(_poolVote.length <= pools.length, "invalid pools");

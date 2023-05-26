@@ -18,7 +18,7 @@ import "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 contract Minter is IMinter {
     using SafeERC20 for IERC20;
     // Allows minting once per epoch (epoch = 1 week, reset every Thursday 00:00 UTC)
-    uint256 public constant WEEK = 86400 * 7;
+    uint256 public constant WEEK = 1 weeks;
     uint256 public constant TAIL_EMISSIONS_RATE = 2194e18; // Tail emissions rate
     uint256 public constant BPS = 10000;
 

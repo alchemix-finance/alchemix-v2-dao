@@ -14,7 +14,7 @@ import "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
  * @notice Gauges are used to incentivize pools, they emit or passthrough reward tokens
  */
 abstract contract BaseGauge is IBaseGauge {
-    uint256 internal constant DURATION = 5 days; // Rewards released over voting period
+    uint256 internal constant DURATION = 1 weeks; // Rewards released over voting period
     uint256 internal constant BRIBE_LAG = 1 days;
     uint256 internal constant MAX_REWARD_TOKENS = 16;
 
@@ -40,7 +40,7 @@ abstract contract BaseGauge is IBaseGauge {
     */
 
     function getVotingStage(uint256 timestamp) public pure returns (VotingStage) {
-        uint256 modTime = timestamp % (7 days);
+        uint256 modTime = timestamp % (1 weeks);
         if (modTime < BRIBE_LAG) {
             return VotingStage.BribesPhase;
         } else if (modTime > (BRIBE_LAG + DURATION)) {
