@@ -9,7 +9,7 @@ import "lib/v2-foundry/src/base/ErrorMessages.sol";
 import "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import "openzeppelin-contracts/contracts/access/Ownable.sol";
 import "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-
+import "forge-std/console.sol";
 /// @title RevenueHandler
 /*
     This contract is meant to receive all revenue from the Alchemix protocol, and allow
@@ -270,6 +270,7 @@ contract RevenueHandler is IRevenueHandler, Ownable {
             uint256 epochRevenue = epochRevenues[epoch][debtToken];
             uint256 epochUserVeBalance = IVotingEscrow(veALCX).balanceOfTokenAt(tokenId, epoch);
             uint256 epochTotalVeSupply = IVotingEscrow(veALCX).totalSupplyAtT(epoch);
+            console.log(epoch, epochRevenue, epochUserVeBalance, epochTotalVeSupply);
             totalClaimable += (epochRevenue * epochUserVeBalance) / epochTotalVeSupply;
         }
         return totalClaimable + userCheckpoints[tokenId][debtToken].unclaimed;
