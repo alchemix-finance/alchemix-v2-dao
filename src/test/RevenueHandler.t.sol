@@ -249,7 +249,7 @@ contract RevenueHandlerTest is BaseTest {
 
         claimable = revenueHandler.claimable(tokenId1, alusd);
         uint256 claimable2 = revenueHandler.claimable(tokenId2, alusd);
-        
+
         assertGt(claimable2, claimable, "earlier veALCX should have more claimable");
 
         revenueHandler.claim(tokenId1, address(alusdAlchemist), claimable / 2, address(this));
@@ -271,6 +271,23 @@ contract RevenueHandlerTest is BaseTest {
         revenueHandler.claim(tokenId, address(alusdAlchemist), claimable, address(this));
         (int256 finalDebt, ) = alusdAlchemist.accounts(address(this));
         assertApproxEq(debtAmt - claimable, uint256(finalDebt), uint256(finalDebt) / DELTA);
+    }
+
+    function testClaimRevenueWithoutVoting() external {
+        uint256 revAmt = 1000e18;
+        uint256 tokenId1 = createVeAlcx(address(this), TOKEN_1, MAXTIME, false);
+        uint256 tokenId2 = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+
+        _accrueRevenueAndJumpOneEpoch(revAmt);
+
+        voter.reset(tokenId1);
+
+        _accrueRevenueAndJumpOneEpoch(revAmt);
+
+        uint256 claimable1 = revenueHandler.claimable(tokenId1, alusd);
+        uint256 claimable2 = revenueHandler.claimable(tokenId2, alusd);
+
+        assertEq(claimable1, claimable2, "claimable amounts should be equal");
     }
 
     function testClaimRevenueMultipleEpochs() external {

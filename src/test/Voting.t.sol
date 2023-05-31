@@ -284,8 +284,6 @@ contract VotingTest is BaseTest {
         // BAL balance starts equal
         assertEq(IERC20(bal).balanceOf(admin), IERC20(bal).balanceOf(beef));
 
-        minter.updatePeriod();
-
         // Add BAL bribes to sushi pool
         createThirdPartyBribe(bribeAddress, bal, TOKEN_100K);
 
@@ -307,13 +305,10 @@ contract VotingTest is BaseTest {
         // Max boost amount should be the voting weight plus the boost multiplier
         assertEq(voter.maxVotingPower(tokenId), votingWeight + maxFluxAmount);
 
-        hevm.startPrank(admin);
-
+        hevm.prank(admin);
         // Voter should revert if attempting to boost more amount of flux they have accrued and can claim
         hevm.expectRevert(abi.encodePacked("insufficient FLUX to boost"));
         voter.vote(tokenId, pools, weights, fluxAccessable + 1);
-
-        hevm.stopPrank();
 
         // Vote with the max boost amount
         hevm.prank(admin);
@@ -514,6 +509,7 @@ contract VotingTest is BaseTest {
         );
     }
 
+    // Test impact of voting on bribes earned
     function testBribeClaiming() public {
         uint256 tokenId1 = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
         uint256 tokenId2 = createVeAlcx(beef, TOKEN_1, MAXTIME, false);
