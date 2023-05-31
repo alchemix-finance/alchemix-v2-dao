@@ -392,7 +392,10 @@ contract VotingTest is BaseTest {
 
     // Test voting on gauges to earn third party bribes
     function testBribes() public {
-        uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+        uint256 tokenId1 = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+        uint256 tokenId2 = createVeAlcx(beef, TOKEN_1, MAXTIME, false);
+        uint256 initialTimestamp = block.timestamp;
+
         address bribeAddress = voter.bribes(address(sushiGauge));
         uint256 rewardsLength = IBribe(bribeAddress).rewardsListLength();
 
@@ -407,9 +410,8 @@ contract VotingTest is BaseTest {
 
         assertEq(rewardApplicable, block.timestamp, "reward applicable should be current timestamp");
 
-        uint256 bribeBalance = IERC20(bal).balanceOf(bribeAddress);
         // Bribe contract should increase in bribe token balance
-        assertEq(TOKEN_100K, bribeBalance);
+        assertEq(TOKEN_100K, IERC20(bal).balanceOf(bribeAddress), "bribe contract missing bribes");
 
         // Epoch start should equal the current block.timestamp rounded to a week
         assertEq(block.timestamp - (block.timestamp % (7 days)), IBribe(bribeAddress).getEpochStart(block.timestamp));
@@ -425,11 +427,30 @@ contract VotingTest is BaseTest {
         address[] memory bribes = new address[](1);
         bribes[0] = address(bribeAddress);
         address[][] memory tokens = new address[][](2);
-        tokens[0] = new address[](1);
+        tokens[0] = new address[](2);
         tokens[0][0] = bal;
+        tokens[0][1] = aura;
 
         hevm.prank(admin);
-        voter.vote(tokenId, pools, weights, 0);
+        voter.vote(tokenId1, pools, weights, 0);
+
+        hevm.prank(admin);
+        voter.claimBribes(bribes, tokens, tokenId1);
+
+        // Claiming before the end of the epoch should not capture bribes
+        assertEq(IERC20(bal).balanceOf(admin), 0, "admin bal balance not 0");
+        assertEq(IERC20(aura).balanceOf(admin), 0, "admin aura balance not 0");
+        assertEq(IERC20(bal).balanceOf(beef), 0, "beef bal balance not 0");
+        assertEq(IERC20(aura).balanceOf(beef), 0, "beef aura balance not 0");
+
+        // Adding a bribe to a gauge should increase the bribes list length
+        // Should be able to add a bribe at any point in an epoch
+        hevm.warp(block.timestamp + 6 days);
+        createThirdPartyBribe(bribeAddress, aura, TOKEN_100K);
+        assertEq(IBribe(bribeAddress).rewardsListLength(), rewardsLength + 2);
+
+        hevm.prank(beef);
+        voter.vote(tokenId2, pools, weights, 0);
 
         // Reach the end of the epoch
         hevm.warp(block.timestamp + nextEpoch);
@@ -437,28 +458,66 @@ contract VotingTest is BaseTest {
         rewardApplicable = IBribe(bribeAddress).lastTimeRewardApplicable(bal);
         assertGt(block.timestamp, rewardApplicable, "reward applicable should be in the past");
 
-        uint256 earnedBribes = IBribe(bribeAddress).earned(bal, tokenId);
-
         // Prior balance and supply should be zero since this is the first epoch for this voter
-        assertEq(IBribe(bribeAddress).getPriorBalanceIndex(tokenId, block.timestamp), 0);
-        assertEq(IBribe(bribeAddress).getPriorSupplyIndex(block.timestamp), 0);
+        assertEq(IBribe(bribeAddress).getPriorBalanceIndex(tokenId1, initialTimestamp), 0, "prior balance should be 0");
+        assertEq(IBribe(bribeAddress).getPriorSupplyIndex(initialTimestamp), 0, "prior supply should be 0");
 
-        // Earned bribes should be all bribes
-        assertEq(earnedBribes, TOKEN_100K);
+        // Earlier voter should earn more bribes
+        assertGt(
+            IBribe(bribeAddress).earned(bal, tokenId1),
+            IBribe(bribeAddress).earned(bal, tokenId2),
+            "earlier voter should earn more bal"
+        );
+        assertGt(
+            IBribe(bribeAddress).earned(aura, tokenId1),
+            IBribe(bribeAddress).earned(aura, tokenId2),
+            "earlier voter should earn more aura"
+        );
 
         hevm.prank(admin);
-        voter.claimBribes(bribes, tokens, tokenId);
+        voter.claimBribes(bribes, tokens, tokenId1);
 
-        // The voter should capture all earned bribes
-        assertEq(IERC20(bal).balanceOf(admin), earnedBribes);
+        hevm.prank(beef);
+        voter.claimBribes(bribes, tokens, tokenId2);
 
-        // Bribe address balance should be depleted by earned amount
-        assertEq(bribeBalance - earnedBribes, IERC20(bal).balanceOf(bribeAddress));
+        assertGt(
+            IERC20(bal).balanceOf(admin) + IERC20(bal).balanceOf(beef),
+            IERC20(bal).balanceOf(bribeAddress),
+            "not all bal bribes were claimed"
+        );
+        assertGt(
+            IERC20(aura).balanceOf(admin) + IERC20(aura).balanceOf(beef),
+            IERC20(aura).balanceOf(bribeAddress),
+            "not all aura bribes were claimed"
+        );
+
+        assertGt(IERC20(bal).balanceOf(admin), IERC20(bal).balanceOf(beef), "earlier voter should earn more bal");
+        assertGt(IERC20(aura).balanceOf(admin), IERC20(aura).balanceOf(beef), "earlier voter should earn more aura");
+        assertGt(
+            IERC20(aura).balanceOf(beef),
+            IERC20(aura).balanceOf(bribeAddress),
+            "voters should deplete the bribes"
+        );
+        assertGt(
+            IERC20(aura).balanceOf(beef),
+            IERC20(aura).balanceOf(bribeAddress),
+            "voters should deplete the bribes"
+        );
+
+        assertGt(
+            TOKEN_100K * 2,
+            IERC20(bal).balanceOf(admin) +
+                IERC20(bal).balanceOf(beef) +
+                IERC20(aura).balanceOf(admin) +
+                IERC20(aura).balanceOf(beef),
+            "bribes claimed should be less than bribes added"
+        );
     }
 
     function testBribeClaiming() public {
         uint256 tokenId1 = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
         uint256 tokenId2 = createVeAlcx(beef, TOKEN_1, MAXTIME, false);
+        uint256 tokenId3 = createVeAlcx(holder, TOKEN_1, MAXTIME, false);
         address bribeAddress = voter.bribes(address(sushiGauge));
 
         // Add BAL bribes to sushiGauge
@@ -483,6 +542,9 @@ contract VotingTest is BaseTest {
         hevm.prank(beef);
         voter.vote(tokenId2, pools, weights, 0);
 
+        hevm.prank(holder);
+        voter.vote(tokenId3, pools, weights, 0);
+
         // Reach the end of the epoch
         hevm.warp(block.timestamp + nextEpoch);
 
@@ -501,6 +563,9 @@ contract VotingTest is BaseTest {
         hevm.prank(admin);
         voter.vote(tokenId1, pools, weights, 0);
 
+        hevm.prank(holder);
+        voter.poke(tokenId3, 0);
+
         minter.updatePeriod();
 
         hevm.warp(block.timestamp + nextEpoch);
@@ -508,7 +573,16 @@ contract VotingTest is BaseTest {
         hevm.prank(beef);
         voter.claimBribes(bribes, tokens, tokenId2);
 
+        hevm.prank(holder);
+        voter.claimBribes(bribes, tokens, tokenId3);
+
         assertEq(IERC20(bal).balanceOf(beef), earnedBribes2, "user should capture old bribes");
+
+        assertGt(
+            IERC20(bal).balanceOf(holder),
+            IERC20(bal).balanceOf(beef),
+            "user who poked should capture more bribes"
+        );
     }
 
     // Voting power should be dependent on epoch at which vote is cast

@@ -9,7 +9,6 @@ import "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import "../interfaces/synthetix/IStakingRewards.sol";
 import "../external/Pausable.sol";
 
-// https://docs.synthetix.io/contracts/source/contracts/stakingrewards
 contract StakingRewards is IStakingRewards, ReentrancyGuard, Pausable {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;

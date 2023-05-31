@@ -1145,7 +1145,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     }
 
     /**
-     * @notice Exeute transfer of a token.
+     * @notice Execute transfer of a token.
      * @dev Throws unless `msg.sender` is the current owner, an authorized operator, or the approved
      *      address for this token. (NOTE: `msg.sender` not allowed in internal function so pass `_sender`.)
      *      Throws if `_to` is the zero address.
