@@ -458,12 +458,13 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
      * @notice Amount of flux claimable at current epoch
      * @param _tokenId ID of the token
      * @return uint256 Amount of claimable flux for the current epoch
-     * @dev flux should accrue at a rate that is four times the lock period earned per epoch
+     * @dev flux should accrue at the ragequit amount divided by the fluxMultiplier per epoch
      */
     function claimableFlux(uint256 _tokenId) public view returns (uint256) {
         // If the lock is expired, no flux is claimable at the current epoch
         if (block.timestamp > locked[_tokenId].end) return 0;
-        return (amountToRagequit(_tokenId)) / (((locked[_tokenId].end - block.timestamp) * fluxMultiplier) / epoch);
+        uint256 ragequitAmount = amountToRagequit(_tokenId);
+        return ((ragequitAmount / fluxMultiplier) / epoch);
     }
 
     function balanceOfAtToken(uint256 _tokenId, uint256 _block) external view returns (uint256) {
@@ -1145,7 +1146,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     }
 
     /**
-     * @notice Exeute transfer of a token.
+     * @notice Execute transfer of a token.
      * @dev Throws unless `msg.sender` is the current owner, an authorized operator, or the approved
      *      address for this token. (NOTE: `msg.sender` not allowed in internal function so pass `_sender`.)
      *      Throws if `_to` is the zero address.

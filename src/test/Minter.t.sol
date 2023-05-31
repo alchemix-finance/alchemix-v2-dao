@@ -182,6 +182,39 @@ contract MinterTest is BaseTest {
         assertEq(distributor.claimable(tokenId), 0, "amount claimable should be 0");
     }
 
+    // Rewards require an epoch to pass before there is a claimable amount
+    // Rewards are dependent on time epoch in which veALCX was created not time
+    function testRewardsWithinEpoch() public {
+        uint256 period = minter.activePeriod();
+
+        initializeVotingEscrow();
+
+        // Get a fresh epoch
+        hevm.warp(period + nextEpoch);
+        minter.updatePeriod();
+
+        uint256 tokenId1 = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+
+        // Fast forward 1/2 epoch
+        hevm.warp(block.timestamp + nextEpoch / 2);
+        hevm.roll(block.number + 1);
+
+        uint256 tokenId2 = createVeAlcx(beef, TOKEN_1, MAXTIME, false);
+
+        // Finish the epoch
+        hevm.warp(block.timestamp + nextEpoch);
+        minter.updatePeriod();
+
+        // Go to the next epoch
+        hevm.warp(block.timestamp + nextEpoch);
+        minter.updatePeriod();
+
+        uint256 claimable1 = distributor.claimable(tokenId1);
+        uint256 claimable2 = distributor.claimable(tokenId2);
+
+        assertEq(claimable1, claimable2, "claimable amounts should be equal");
+    }
+
     // Compound claiming adds ALCX rewards into their exisiting veALCX position
     function testCompoundRewards() public {
         uint256 period = minter.activePeriod();

@@ -324,6 +324,63 @@ contract VotingEscrowTest is BaseTest {
         hevm.stopPrank();
     }
 
+    function testFluxAccrual() public {
+        uint256 tokenId1 = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+        uint256 tokenId2 = createVeAlcx(beef, TOKEN_1, 3 weeks, false);
+        uint256 tokenId3 = createVeAlcx(holder, TOKEN_1, 3 weeks, false);
+
+        hevm.prank(admin);
+        voter.reset(tokenId1);
+
+        hevm.prank(beef);
+        voter.reset(tokenId2);
+
+        hevm.prank(holder);
+        voter.reset(tokenId3);
+
+        uint256 unclaimedFlux1 = veALCX.unclaimedFlux(tokenId1);
+        uint256 unclaimedFlux2 = veALCX.unclaimedFlux(tokenId2);
+
+        assertGt(unclaimedFlux1, unclaimedFlux2, "unclaimed flux should be greater for longer lock");
+
+        // Start new epoch
+        hevm.warp(block.timestamp + nextEpoch);
+        minter.updatePeriod();
+
+        hevm.prank(holder);
+        voter.reset(tokenId3);
+
+        unclaimedFlux2 = veALCX.unclaimedFlux(tokenId2);
+        uint256 unclaimedFlux3 = veALCX.unclaimedFlux(tokenId3);
+
+        assertGt(unclaimedFlux3, unclaimedFlux2, "unclaimed flux should be greater for active voter");
+    }
+
+    // Voting should not impact amount of ALCX rewards earned
+    function testRewardsClaiming() public {
+        uint256 tokenId1 = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+        uint256 tokenId2 = createVeAlcx(beef, TOKEN_1, MAXTIME, false);
+
+        hevm.prank(admin);
+        voter.reset(tokenId1);
+
+        // Start new epoch
+        hevm.warp(block.timestamp + nextEpoch);
+        minter.updatePeriod();
+
+        hevm.prank(admin);
+        voter.reset(tokenId1);
+
+        // Start new epoch
+        hevm.warp(block.timestamp + nextEpoch);
+        minter.updatePeriod();
+
+        uint256 claimable1 = distributor.claimable(tokenId1);
+        uint256 claimable2 = distributor.claimable(tokenId2);
+
+        assertEq(claimable1, claimable2, "claimable amounts should be equal");
+    }
+
     // Calling tokenURI should not work for non-existent token ids
     function testTokenURICalls() public {
         hevm.startPrank(admin);
