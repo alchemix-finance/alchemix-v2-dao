@@ -15,6 +15,8 @@ import "openzeppelin-contracts/contracts/utils/structs/DoubleEndedQueue.sol";
 import "openzeppelin-contracts/contracts/utils/Address.sol";
 import "openzeppelin-contracts/contracts/utils/Context.sol";
 import "openzeppelin-contracts/contracts/utils/Timers.sol";
+import "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /**
  * @author Modified from RollCall (https://github.com/withtally/rollcall/blob/main/src/standards/L2Governor.sol)
@@ -33,6 +35,7 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
     using DoubleEndedQueue for DoubleEndedQueue.Bytes32Deque;
     using SafeCast for uint256;
     using Timers for Timers.Timestamp;
+    using SafeERC20 for IERC20;
 
     bytes32 public constant BALLOT_TYPEHASH = keccak256("Ballot(uint256 proposalId,uint8 support)");
     bytes32 public constant EXTENDED_BALLOT_TYPEHASH =
@@ -181,9 +184,6 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
     function state(uint256 proposalId) public view virtual override returns (ProposalState) {
         ProposalCore storage proposal = _proposals[proposalId];
 
-        // Check if successful proposal have been queued
-        bytes32 queueid = _timelockIds[proposalId];
-
         if (proposal.executed) {
             return ProposalState.Executed;
         }
@@ -198,7 +198,7 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
             revert("Governor: unknown proposal id");
         }
 
-        if (start >= block.timestamp && _timelock.isOperationPending(queueid)) {
+        if (start >= block.timestamp) {
             return ProposalState.Pending;
         }
 
@@ -332,15 +332,7 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
             keccak256(bytes(description)),
             chainId
         );
-        _timelock.scheduleBatch(
-            targets,
-            values,
-            calldatas,
-            0,
-            keccak256(bytes(description)),
-            chainId,
-            executionDelay
-        );
+        _timelock.scheduleBatch(targets, values, calldatas, 0, keccak256(bytes(description)), chainId, executionDelay);
 
         emit ProposalCreated(
             proposalId,
@@ -673,5 +665,20 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
         bytes memory
     ) public virtual override returns (bytes4) {
         return this.onERC1155BatchReceived.selector;
+    }
+
+    /**
+        @dev Callable by anyone to save assets that accidentally get sent to the governor
+     */
+    function removeAsset(address asset) external {
+        IERC20(asset).safeTransfer(address(_timelock), IERC20(asset).balanceOf(address(this)));
+    }
+
+    /**
+        @dev Callable by anyone to save native tokens that accidentally get sent to the governor
+     */
+    function removeNative() external {
+        (bool sent, ) = address(_timelock).call{ value: address(this).balance }("");
+        require(sent, "transfer failed");
     }
 }

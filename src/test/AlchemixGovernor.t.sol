@@ -39,6 +39,7 @@ contract AlchemixGovernorTest is BaseTest {
 
     function testExecutorCanCreateGaugesForAnyAddress(address a) public {
         hevm.assume(a != address(0));
+        hevm.assume(voter.gauges(a) == address(0));
 
         hevm.startPrank(address(timelockExecutor));
         voter.createGauge(a, IVoter.GaugeType.Passthrough);
@@ -160,6 +161,37 @@ contract AlchemixGovernorTest is BaseTest {
         hevm.stopPrank();
 
         assertTrue(voter.isWhitelisted(usdc));
+    }
+
+    function testOnlyExecutorCanExecute() public {
+        assertFalse(voter.isWhitelisted(usdc));
+
+        (address[] memory t, uint256[] memory v, bytes[] memory c, string memory d) = craftTestProposal();
+
+        hevm.warp(block.timestamp + 2 days); // delay
+
+        // propose
+        hevm.startPrank(admin);
+        uint256 pid = governor.propose(t, v, c, d, MAINNET);
+        hevm.warp(block.timestamp + governor.votingDelay() + 1); // voting delay
+        hevm.roll(block.number + 1);
+        hevm.stopPrank();
+
+        // vote
+        hevm.startPrank(admin);
+        governor.castVote(pid, 1);
+        hevm.warp(block.timestamp + governor.votingPeriod() + 1); // voting period
+        hevm.stopPrank();
+
+        // execute
+        hevm.startPrank(admin);
+        hevm.warp(block.timestamp + timelockExecutor.executionDelay() + 1); // execution delay
+        hevm.expectRevert(
+            abi.encodePacked(
+                "AccessControl: account 0x8392f6669292fa56123f71949b52d883ae57e225 is missing role 0xd8aa0f3194971a2a116679f7c2090f6939c8d4e01a2a8d7e41d55e5351469e63"
+            )
+        );
+        timelockExecutor.executeBatch(t, v, c, "", keccak256(bytes(d)), MAINNET);
     }
 
     // Only admin can set a new proposal numerator (up to a max)

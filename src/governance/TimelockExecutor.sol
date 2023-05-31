@@ -103,19 +103,6 @@ contract TimelockExecutor is AccessControl, IERC721Receiver, IERC1155Receiver {
     }
 
     /**
-     * @dev Modifier to make a function callable only by a certain role. In
-     * addition to checking the sender's role, `address(0)` 's role is also
-     * considered. Granting a role to `address(0)` is equivalent to enabling
-     * this role for everyone.
-     */
-    modifier onlyRoleOrOpenRole(bytes32 role) {
-        if (!hasRole(role, address(0))) {
-            _checkRole(role, _msgSender());
-        }
-        _;
-    }
-
-    /**
      * @dev Contract might receive/hold ETH as part of the maintenance process.
      */
     receive() external payable {}
@@ -285,7 +272,7 @@ contract TimelockExecutor is AccessControl, IERC721Receiver, IERC1155Receiver {
         bytes32 predecessor,
         bytes32 descriptionHash,
         uint256 chainId
-    ) public payable virtual onlyRoleOrOpenRole(EXECUTOR_ROLE) {
+    ) public payable virtual onlyRole(EXECUTOR_ROLE) {
         bytes32 id = hashOperation(target, value, data, predecessor, descriptionHash, chainId);
         _beforeCall(id, predecessor);
         _execute(id, 0, target, value, data);
@@ -304,7 +291,7 @@ contract TimelockExecutor is AccessControl, IERC721Receiver, IERC1155Receiver {
         bytes32 predecessor,
         bytes32 descriptionHash,
         uint256 chainId
-    ) public payable virtual onlyRoleOrOpenRole(EXECUTOR_ROLE) {
+    ) public payable virtual onlyRole(EXECUTOR_ROLE) {
         require(targets.length == values.length, "TimelockExecutor: length mismatch");
         require(targets.length == payloads.length, "TimelockExecutor: length mismatch");
 
