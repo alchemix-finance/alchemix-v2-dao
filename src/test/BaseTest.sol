@@ -160,6 +160,7 @@ contract BaseTest is DSTestPlus {
 
         timelockExecutor.grantRole(timelockExecutor.SCHEDULER_ROLE(), address(governor));
         timelockExecutor.grantRole(timelockExecutor.TIMELOCK_ADMIN_ROLE(), address(governor));
+        timelockExecutor.grantRole(timelockExecutor.EXECUTOR_ROLE(), address(governor));
         voter.setAdmin(address(timelockExecutor));
 
         veALCX.setVoter(address(voter));
