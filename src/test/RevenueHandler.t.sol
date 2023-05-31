@@ -524,7 +524,7 @@ contract RevenueHandlerTest is BaseTest {
         _accrueRevenue(dai, revAmt);
 
         _jumpOneEpoch();
-        minter.updatePeriod();
+        // minter.updatePeriod();
         revenueHandler.checkpoint();
 
         uint256 claimable = revenueHandler.claimable(tokenId, alusd);

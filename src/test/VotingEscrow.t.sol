@@ -569,4 +569,26 @@ contract VotingEscrowTest is BaseTest {
 
         hevm.stopPrank();
     }
+
+    function testTotalVePower() public {
+        hevm.startPrank(admin);
+        uint256 tokenId = veALCX.createLock(TOKEN_1, THREE_WEEKS, false);
+        hevm.stopPrank();
+
+        hevm.warp(block.timestamp + 3 * ONE_WEEK);
+
+        uint256 totalVePower_1 = veALCX.totalSupplyAtT(block.timestamp - 3 * ONE_WEEK);
+        uint256 totalVePower_2 = veALCX.totalSupplyAtT(block.timestamp - 2 * ONE_WEEK);
+        uint256 totalVePower_3 = veALCX.totalSupplyAtT(block.timestamp - 1 * ONE_WEEK);
+
+        assertGt(totalVePower_1, totalVePower_2);
+        assertGt(totalVePower_2, totalVePower_3);
+
+        uint256 userVePower_1 = veALCX.balanceOfTokenAt(tokenId, block.timestamp - 3 * ONE_WEEK);
+        uint256 userVePower_2 = veALCX.balanceOfTokenAt(tokenId, block.timestamp - 2 * ONE_WEEK);
+        uint256 userVePower_3 = veALCX.balanceOfTokenAt(tokenId, block.timestamp - 1 * ONE_WEEK);
+
+        assertGt(userVePower_1, userVePower_2);
+        assertGt(userVePower_2, userVePower_3);
+    }
 }

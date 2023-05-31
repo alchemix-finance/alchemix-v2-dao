@@ -208,7 +208,7 @@ contract RevenueHandler is IRevenueHandler, Ownable {
     function checkpoint() public {
         // only run checkpoint() once per epoch
         if (
-            block.timestamp >= currentEpoch + WEEK /* && initializer == address(0) */
+            block.timestamp >= currentEpoch + WEEK
         ) {
             currentEpoch = (block.timestamp / WEEK) * WEEK;
 
@@ -219,6 +219,7 @@ contract RevenueHandler is IRevenueHandler, Ownable {
                 uint256 treasuryAmt = IERC20(revenueTokens[i]).balanceOf(address(this)) * treasuryPct / BPS;
                 IERC20(revenueTokens[i]).safeTransfer(treasury, treasuryAmt);
                 uint256 amountReceived = _melt(revenueTokens[i]);
+                console.log("revenue", amountReceived);
                 epochRevenues[currentEpoch][revenueTokenConfigs[revenueTokens[i]].debtToken] += amountReceived;
                 emit RevenueRealized(currentEpoch, revenueTokens[i], revenueTokenConfigs[revenueTokens[i]].debtToken, amountReceived, treasuryAmt);
             }
@@ -272,6 +273,7 @@ contract RevenueHandler is IRevenueHandler, Ownable {
             uint256 epochTotalVeSupply = IVotingEscrow(veALCX).totalSupplyAtT(epoch);
             console.log(epoch, epochRevenue, epochUserVeBalance, epochTotalVeSupply);
             totalClaimable += (epochRevenue * epochUserVeBalance) / epochTotalVeSupply;
+            console.log("claimable", totalClaimable);
         }
         return totalClaimable + userCheckpoints[tokenId][debtToken].unclaimed;
     }
