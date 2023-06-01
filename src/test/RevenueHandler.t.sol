@@ -487,4 +487,49 @@ contract RevenueHandlerTest is BaseTest {
             assertEq(revenueHandler.treasuryPct(), newPct);
         }
     }
+
+    function testClaimRevenueWithoutVoting() external {
+        revenueHandler.checkpoint();
+
+        uint256 lockAmt = 10e18;
+        uint256 tokenId = _initializeVeALCXPosition(lockAmt);
+
+        uint256 debtAmt = 5000e18;
+        _takeDebt(debtAmt);
+
+        address[] memory pools = new address[](1);
+        pools[0] = alETHPool;
+        uint256[] memory weights = new uint256[](1);
+        weights[0] = 5000;
+        voter.vote(tokenId, pools, weights, 0);
+
+        uint256 revAmt = 1000e18;
+        // voted in this epoch
+        _accrueRevenue(dai, revAmt);
+
+        _jumpOneEpoch();
+        minter.updatePeriod();
+        revenueHandler.checkpoint();
+
+        // not voting in this epoch
+        _accrueRevenue(dai, revAmt);
+
+        _jumpOneEpoch();
+        minter.updatePeriod();
+        revenueHandler.checkpoint();
+
+        voter.vote(tokenId, pools, weights, 0);
+
+        // voted in this epoch
+        _accrueRevenue(dai, revAmt);
+
+        _jumpOneEpoch();
+        // minter.updatePeriod();
+        revenueHandler.checkpoint();
+
+        uint256 claimable = revenueHandler.claimable(tokenId, alusd);
+        uint256 bal = IERC20(alusd).balanceOf(address(revenueHandler));
+        // assertEq(bal, revAmt * 3);
+        assertApproxEq(3 * revAmt, claimable, 3 * revAmt / DELTA);
+    }
 }
