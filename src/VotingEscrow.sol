@@ -1671,7 +1671,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
                 : lastPoint.slope * (int256(_time) - int256(lastPoint.ts));
 
             // Make sure we still subtract from bias if value is negative
-            biasCalculation >= 0 ? lastPoint.bias -= biasCalculation : lastPoint.bias += biasCalculation;
+            lastPoint.bias -= biasCalculation;
 
             if (lastPoint.bias < 0) {
                 lastPoint.bias = 0;
@@ -1755,10 +1755,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
                 dSlope = slopeChanges[_time];
             }
 
-            int256 biasCalculation = lastPoint.slope * (int256(_time) - int256(lastPoint.ts));
-
-            // Make sure we still subtract from bias if value is negative
-            biasCalculation >= 0 ? lastPoint.bias -= biasCalculation : lastPoint.bias += biasCalculation;
+            lastPoint.bias -= lastPoint.slope * (int256(_time) - int256(lastPoint.ts));
 
             if (_time == t) {
                 break;
