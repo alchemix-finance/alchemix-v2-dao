@@ -480,6 +480,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     function totalSupplyAtT(uint256 t) public view returns (uint256) {
         uint256 _epoch = epoch;
         Point memory lastPoint = pointHistory[_epoch];
+        if (t < lastPoint.ts) lastPoint = pointHistory[_epoch - 1];
         return _supplyAt(lastPoint, t);
     }
 
