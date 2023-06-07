@@ -634,25 +634,45 @@ contract VotingEscrowTest is BaseTest {
         hevm.warp(block.timestamp + 1 weeks + 1);
         hevm.roll(block.number + 1 weeks / 12);
 
-        assertGt(veALCX.getPastTotalSupply(block.timestamp - 2 days), veALCX.getPastTotalSupply( block.timestamp - 1 days), "before second update");
-        
+        assertGt(
+            veALCX.getPastTotalSupply(block.timestamp - 2 days),
+            veALCX.getPastTotalSupply(block.timestamp - 1 days),
+            "before second update"
+        );
+
         minter.updatePeriod();
-        
-        assertGt(veALCX.getPastTotalSupply(block.timestamp - 2 days), veALCX.getPastTotalSupply( block.timestamp - 1 days), "after second update");
+
+        assertGt(
+            veALCX.getPastTotalSupply(block.timestamp - 2 days),
+            veALCX.getPastTotalSupply(block.timestamp - 1 days),
+            "after second update"
+        );
 
         hevm.warp(block.timestamp + 1 weeks + 1);
         hevm.roll(block.number + 1 weeks / 12);
 
-        assertGt(veALCX.getPastTotalSupply(block.timestamp - 2 days), veALCX.getPastTotalSupply( block.timestamp - 1 days), "before third update");
-        
+        assertGt(
+            veALCX.getPastTotalSupply(block.timestamp - 2 days),
+            veALCX.getPastTotalSupply(block.timestamp - 1 days),
+            "before third update"
+        );
+
         minter.updatePeriod();
-        
-        assertGt(veALCX.getPastTotalSupply(block.timestamp - 2 days), veALCX.getPastTotalSupply( block.timestamp - 1 days), "after third update");
-        
+
+        assertGt(
+            veALCX.getPastTotalSupply(block.timestamp - 2 days),
+            veALCX.getPastTotalSupply(block.timestamp - 1 days),
+            "after third update"
+        );
+
         hevm.warp(block.timestamp + 1 weeks + 1);
         hevm.roll(block.number + 1 weeks / 12);
 
-        assertGt(veALCX.getPastTotalSupply(block.timestamp - 2 days), veALCX.getPastTotalSupply( block.timestamp - 1 days), "after final warp");
+        assertGt(
+            veALCX.getPastTotalSupply(block.timestamp - 2 days),
+            veALCX.getPastTotalSupply(block.timestamp - 1 days),
+            "after final warp"
+        );
     }
 
     function testTotalSupplyAtT() public {
@@ -662,25 +682,45 @@ contract VotingEscrowTest is BaseTest {
         hevm.warp(block.timestamp + 1 weeks + 1);
         hevm.roll(block.number + 1 weeks / 12);
 
-        assertGt(veALCX.totalSupplyAtT(block.timestamp - 2 days), veALCX.totalSupplyAtT( block.timestamp - 1 days), "before second update");
-        
+        assertGt(
+            veALCX.totalSupplyAtT(block.timestamp - 2 days),
+            veALCX.totalSupplyAtT(block.timestamp - 1 days),
+            "before second update"
+        );
+
         minter.updatePeriod();
-        
-        assertGt(veALCX.totalSupplyAtT(block.timestamp - 2 days), veALCX.totalSupplyAtT( block.timestamp - 1 days), "after second update");
+
+        assertGt(
+            veALCX.totalSupplyAtT(block.timestamp - 2 days),
+            veALCX.totalSupplyAtT(block.timestamp - 1 days),
+            "after second update"
+        );
 
         hevm.warp(block.timestamp + 1 weeks + 1);
         hevm.roll(block.number + 1 weeks / 12);
 
-        assertGt(veALCX.totalSupplyAtT(block.timestamp - 2 days), veALCX.totalSupplyAtT( block.timestamp - 1 days), "before third update");
-        
+        assertGt(
+            veALCX.totalSupplyAtT(block.timestamp - 2 days),
+            veALCX.totalSupplyAtT(block.timestamp - 1 days),
+            "before third update"
+        );
+
         minter.updatePeriod();
-        
-        assertGt(veALCX.totalSupplyAtT(block.timestamp - 2 days), veALCX.totalSupplyAtT( block.timestamp - 1 days), "after third update");
-        
+
+        assertGt(
+            veALCX.totalSupplyAtT(block.timestamp - 2 days),
+            veALCX.totalSupplyAtT(block.timestamp - 1 days),
+            "after third update"
+        );
+
         hevm.warp(block.timestamp + 1 weeks + 1);
         hevm.roll(block.number + 1 weeks / 12);
 
-        assertGt(veALCX.totalSupplyAtT(block.timestamp - 2 days), veALCX.totalSupplyAtT( block.timestamp - 1 days), "after final warp");
+        assertGt(
+            veALCX.totalSupplyAtT(block.timestamp - 2 days),
+            veALCX.totalSupplyAtT(block.timestamp - 1 days),
+            "after final warp"
+        );
     }
 
     function testBalanceOfTokenAt() public {
@@ -690,39 +730,59 @@ contract VotingEscrowTest is BaseTest {
         hevm.warp(block.timestamp + 1 weeks + 1);
         hevm.roll(block.number + 1 weeks / 12);
 
-        assertGt(veALCX.balanceOfTokenAt(tokenId, block.timestamp - 2 days), veALCX.balanceOfTokenAt(tokenId,  block.timestamp - 1 days), "before second update");
-        
+        assertGt(
+            veALCX.balanceOfTokenAt(tokenId, block.timestamp - 2 days),
+            veALCX.balanceOfTokenAt(tokenId, block.timestamp - 1 days),
+            "before second update"
+        );
+
         minter.updatePeriod();
         deal(bpt, address(this), TOKEN_1);
         IERC20(bpt).approve(address(veALCX), TOKEN_1);
         veALCX.depositFor(tokenId, TOKEN_1);
-        
-        assertGt(veALCX.balanceOfTokenAt(tokenId, block.timestamp - 2 days), veALCX.balanceOfTokenAt(tokenId,  block.timestamp - 1 days), "after second update");
+
+        assertGt(
+            veALCX.balanceOfTokenAt(tokenId, block.timestamp - 2 days),
+            veALCX.balanceOfTokenAt(tokenId, block.timestamp - 1 days),
+            "after second update"
+        );
 
         hevm.warp(block.timestamp + 1 weeks + 1);
         hevm.roll(block.number + 1 weeks / 12);
 
-        assertGt(veALCX.balanceOfTokenAt(tokenId, block.timestamp - 2 days), veALCX.balanceOfTokenAt(tokenId,  block.timestamp - 1 days), "before third update");
-        
+        assertGt(
+            veALCX.balanceOfTokenAt(tokenId, block.timestamp - 2 days),
+            veALCX.balanceOfTokenAt(tokenId, block.timestamp - 1 days),
+            "before third update"
+        );
+
         minter.updatePeriod();
         deal(bpt, address(this), TOKEN_1);
         IERC20(bpt).approve(address(veALCX), TOKEN_1);
         veALCX.depositFor(tokenId, TOKEN_1);
-        
-        assertGt(veALCX.balanceOfTokenAt(tokenId, block.timestamp - 2 days), veALCX.balanceOfTokenAt(tokenId,  block.timestamp - 1 days), "after third update");
-        
+
+        assertGt(
+            veALCX.balanceOfTokenAt(tokenId, block.timestamp - 2 days),
+            veALCX.balanceOfTokenAt(tokenId, block.timestamp - 1 days),
+            "after third update"
+        );
+
         hevm.warp(block.timestamp + 1 weeks + 1);
         hevm.roll(block.number + 1 weeks / 12);
 
-        assertGt(veALCX.balanceOfTokenAt(tokenId, block.timestamp - 2 days), veALCX.balanceOfTokenAt(tokenId,  block.timestamp - 1 days), "after final warp");
+        assertGt(
+            veALCX.balanceOfTokenAt(tokenId, block.timestamp - 2 days),
+            veALCX.balanceOfTokenAt(tokenId, block.timestamp - 1 days),
+            "after final warp"
+        );
     }
 
     function testManipulatePastBalanceWithDeposit() public {
         uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
 
         minter.updatePeriod();
-        hevm.warp(block.timestamp + 4 days + 1);
-        hevm.roll(block.number + 4 days / 12);
+        hevm.warp(block.timestamp + 3 days);
+        hevm.roll(block.number + 3 days / 12);
 
         uint256 t2Dp1 = block.timestamp - (2 days + 1);
         uint256 t2Dm1 = block.timestamp - (2 days - 1);
