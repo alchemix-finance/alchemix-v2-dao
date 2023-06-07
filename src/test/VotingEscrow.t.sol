@@ -799,4 +799,28 @@ contract VotingEscrowTest is BaseTest {
         assertEq(veALCX.balanceOfTokenAt(tokenId, t2Dp1), bal2DaysPlus1, "after deposit, 2 days + 1");
         assertEq(veALCX.balanceOfTokenAt(tokenId, t2Dm1), bal2DaysMinus1, "after deposit, 2 days - 1");
     }
+
+    function testManipulatePastSupplyWithDeposit() public {
+        uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+
+        minter.updatePeriod();
+        hevm.warp(block.timestamp + 1 weeks + 1);
+        hevm.roll(block.number + 1 weeks / 12);
+
+        uint256 t2Dp1 = block.timestamp - (2 days + 1);
+        uint256 t2Dm1 = block.timestamp - (2 days - 1);
+
+        uint256 bal2DaysPlus1 = veALCX.totalSupplyAtT(t2Dp1);
+        uint256 bal2DaysMinus1 = veALCX.totalSupplyAtT(t2Dm1);
+
+        assertGt(bal2DaysPlus1, bal2DaysMinus1, "first check");
+
+        deal(bpt, address(this), TOKEN_1);
+        IERC20(bpt).approve(address(veALCX), TOKEN_1);
+        veALCX.depositFor(tokenId, TOKEN_1);
+        minter.updatePeriod();
+
+        assertEq(veALCX.totalSupplyAtT(t2Dp1), bal2DaysPlus1, "after deposit, 2 days + 1");
+        assertEq(veALCX.totalSupplyAtT(t2Dm1), bal2DaysMinus1, "after deposit, 2 days - 1");
+    }
 }

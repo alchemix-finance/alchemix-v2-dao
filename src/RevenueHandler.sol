@@ -273,9 +273,10 @@ contract RevenueHandler is IRevenueHandler, Ownable {
             claimed their revenue from "lastClaimEpoch".
         */
         for (uint256 epoch = lastClaimEpoch + WEEK; epoch <= currentEpoch; epoch += WEEK) {
+            uint256 epochTotalVeSupply = IVotingEscrow(veALCX).totalSupplyAtT(epoch);
+            if (epochTotalVeSupply == 0) continue;
             uint256 epochRevenue = epochRevenues[epoch][debtToken];
             uint256 epochUserVeBalance = IVotingEscrow(veALCX).balanceOfTokenAt(tokenId, epoch);
-            uint256 epochTotalVeSupply = IVotingEscrow(veALCX).totalSupplyAtT(epoch);
             totalClaimable += (epochRevenue * epochUserVeBalance) / epochTotalVeSupply;
         }
         return totalClaimable + userCheckpoints[tokenId][debtToken].unclaimed;

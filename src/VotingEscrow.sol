@@ -476,6 +476,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     function totalSupplyAtT(uint256 t) public view returns (uint256) {
         uint256 _epoch = epoch;
         Point memory lastPoint = pointHistory[_epoch];
+        if (t < lastPoint.ts) lastPoint = pointHistory[_epoch - 1];
         return _supplyAt(lastPoint, t);
     }
 
@@ -1660,6 +1661,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
             return 0;
         } else {
             Point memory lastPoint = userPointHistory[_tokenId][_epoch];
+            if (_time < lastPoint.ts) lastPoint = userPointHistory[_tokenId][_epoch - 1];
 
             // If max lock is enabled bias is unchanged
             int256 biasCalculation = locked[_tokenId].maxLockEnabled
