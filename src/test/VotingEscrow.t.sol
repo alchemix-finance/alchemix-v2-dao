@@ -777,7 +777,9 @@ contract VotingEscrowTest is BaseTest {
         );
     }
 
-    function testManipulatePastBalanceWithDeposit() public {
+    function testManipulatePastBalanceWithDeposit(uint256 time) public {
+        hevm.assume(time < block.timestamp + 3 days);
+
         uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
 
         minter.updatePeriod();
@@ -798,6 +800,13 @@ contract VotingEscrowTest is BaseTest {
 
         assertEq(veALCX.balanceOfTokenAt(tokenId, t2Dp1), bal2DaysPlus1, "after deposit, 2 days + 1");
         assertEq(veALCX.balanceOfTokenAt(tokenId, t2Dm1), bal2DaysMinus1, "after deposit, 2 days - 1");
+
+        // Check that binary search always returns an epoch with timestamp less than time
+        assertGt(
+            veALCX.balanceOfToken(tokenId),
+            veALCX.balanceOfTokenAt(tokenId, time),
+            "point in time should always be less than current time"
+        );
     }
 
     function testManipulatePastSupplyWithDeposit() public {

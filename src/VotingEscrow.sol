@@ -463,10 +463,6 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         return ((ragequitAmount / fluxMultiplier) / epoch);
     }
 
-    function balanceOfAtToken(uint256 _tokenId, uint256 _block) external view returns (uint256) {
-        return _balanceOfAtToken(_tokenId, _block);
-    }
-
     /**
      * @notice Calculate total voting power
      * @param t Timestamp provided
@@ -1723,61 +1719,6 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
             }
 
             return uint256(lastPoint.bias);
-        }
-    }
-
-    /**
-     * @notice Measure voting power of `_tokenId` at block height `_block`
-     * @param _tokenId ID of the token
-     * @param _block Block to calculate the voting power at
-     * @return Voting power
-     * @dev Adheres to MiniMe `balanceOfAt` interface: https://github.com/Giveth/minime
-     */
-    function _balanceOfAtToken(uint256 _tokenId, uint256 _block) internal view returns (uint256) {
-        // totalSupply code because Vyper cannot pass by reference yet
-        require(_block <= block.number);
-
-        // Binary search
-        uint256 _min = 0;
-        uint256 _max = userPointEpoch[_tokenId];
-        for (uint256 i = 0; i < 128; ++i) {
-            // Will be always enough for 128-bit numbers
-            if (_min >= _max) {
-                break;
-            }
-            uint256 _mid = (_min + _max + 1) / 2;
-            if (userPointHistory[_tokenId][_mid].blk <= _block) {
-                _min = _mid;
-            } else {
-                _max = _mid - 1;
-            }
-        }
-
-        Point memory upoint = userPointHistory[_tokenId][_min];
-
-        uint256 maxEpoch = epoch;
-        uint256 _epoch = _findBlockEpoch(_block, maxEpoch);
-        Point memory point0 = pointHistory[_epoch];
-        uint256 dBlock = 0;
-        uint256 dT = 0;
-        if (_epoch < maxEpoch) {
-            Point memory point1 = pointHistory[_epoch + 1];
-            dBlock = point1.blk - point0.blk;
-            dT = point1.ts - point0.ts;
-        } else {
-            dBlock = block.number - point0.blk;
-            dT = block.timestamp - point0.ts;
-        }
-        uint256 blockTime = point0.ts;
-        if (dBlock != 0) {
-            blockTime += (dT * (_block - point0.blk)) / dBlock;
-        }
-
-        upoint.bias -= upoint.slope * (int256(blockTime - upoint.ts));
-        if (upoint.bias >= 0) {
-            return uint256(upoint.bias);
-        } else {
-            return 0;
         }
     }
 
