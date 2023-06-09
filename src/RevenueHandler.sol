@@ -10,6 +10,8 @@ import "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import "openzeppelin-contracts/contracts/access/Ownable.sol";
 import "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
+import "lib/forge-std/src/console2.sol";
+
 /// @title RevenueHandler
 /*
     This contract is meant to receive all revenue from the Alchemix protocol, and allow
@@ -52,12 +54,10 @@ contract RevenueHandler is IRevenueHandler, Ownable {
     address public veALCX;
     address[] public debtTokens;
     address[] public revenueTokens;
-    mapping(address => RevenueTokenConfig) /* token */
-        public revenueTokenConfigs;
+    mapping(address => RevenueTokenConfig) /* token */ public revenueTokenConfigs;
     mapping(uint256 => mapping(address => uint256)) /* epoch */ /* debtToken */ /* epoch revenue */
         public epochRevenues;
-    mapping(uint256 => mapping(address => Claimable)) /* tokenId */ /* debtToken */
-        public userCheckpoints;
+    mapping(uint256 => mapping(address => Claimable)) /* tokenId */ /* debtToken */ public userCheckpoints;
     uint256 public currentEpoch;
     address public treasury;
     uint256 public treasuryPct;
@@ -116,7 +116,6 @@ contract RevenueHandler is IRevenueHandler, Ownable {
         }
         revenueTokens.push(revenueToken);
         emit RevenueTokenTokenAdded(revenueToken);
-
     }
 
     /// @inheritdoc IRevenueHandler
@@ -176,12 +175,7 @@ contract RevenueHandler is IRevenueHandler, Ownable {
     */
 
     /// @inheritdoc IRevenueHandler
-    function claim(
-        uint256 tokenId,
-        address alchemist,
-        uint256 amount,
-        address recipient
-    ) external override {
+    function claim(uint256 tokenId, address alchemist, uint256 amount, address recipient) external override {
         require(IVotingEscrow(veALCX).isApprovedOrOwner(msg.sender, tokenId), "Not approved or owner");
 
         address debtToken = IAlchemistV2(alchemist).debtToken();
@@ -197,7 +191,7 @@ contract RevenueHandler is IRevenueHandler, Ownable {
         userCheckpoints[tokenId][debtToken].unclaimed = amountClaimable - amount;
 
         IERC20(debtToken).approve(alchemist, amount);
-        
+
         // Only burn if there are deposits
         uint256 amountBurned = deposits.length > 0 ? IAlchemistV2(alchemist).burn(amount, recipient) : 0;
 
@@ -214,20 +208,24 @@ contract RevenueHandler is IRevenueHandler, Ownable {
     /// @inheritdoc IRevenueHandler
     function checkpoint() public {
         // only run checkpoint() once per epoch
-        if (
-            block.timestamp >= currentEpoch + WEEK /* && initializer == address(0) */
-        ) {
+        if (block.timestamp >= currentEpoch + WEEK /* && initializer == address(0) */) {
             currentEpoch = (block.timestamp / WEEK) * WEEK;
 
             for (uint256 i = 0; i < revenueTokens.length; i++) {
                 // If a revenue token is disabled, skip it.
                 if (revenueTokenConfigs[revenueTokens[i]].disabled) continue;
 
-                uint256 treasuryAmt = IERC20(revenueTokens[i]).balanceOf(address(this)) * treasuryPct / BPS;
+                uint256 treasuryAmt = (IERC20(revenueTokens[i]).balanceOf(address(this)) * treasuryPct) / BPS;
                 IERC20(revenueTokens[i]).safeTransfer(treasury, treasuryAmt);
                 uint256 amountReceived = _melt(revenueTokens[i]);
                 epochRevenues[currentEpoch][revenueTokenConfigs[revenueTokens[i]].debtToken] += amountReceived;
-                emit RevenueRealized(currentEpoch, revenueTokens[i], revenueTokenConfigs[revenueTokens[i]].debtToken, amountReceived, treasuryAmt);
+                emit RevenueRealized(
+                    currentEpoch,
+                    revenueTokens[i],
+                    revenueTokenConfigs[revenueTokens[i]].debtToken,
+                    amountReceived,
+                    treasuryAmt
+                );
             }
         }
     }
@@ -262,6 +260,7 @@ contract RevenueHandler is IRevenueHandler, Ownable {
         uint256 totalClaimable = 0;
         uint256 lastClaimEpoch = userCheckpoints[tokenId][debtToken].lastClaimEpoch;
         if (lastClaimEpoch == 0) {
+            console2.log("lastClaimEpoch:", lastClaimEpoch);
             /*
                 If we get here, the user has not yet claimed anything from the RevenueHandler.
                 We need to get the first epoch that they deposited so we know where to start tallying from.
@@ -274,9 +273,10 @@ contract RevenueHandler is IRevenueHandler, Ownable {
             claimed their revenue from "lastClaimEpoch".
         */
         for (uint256 epoch = lastClaimEpoch + WEEK; epoch <= currentEpoch; epoch += WEEK) {
+            uint256 epochTotalVeSupply = IVotingEscrow(veALCX).totalSupplyAtT(epoch);
+            if (epochTotalVeSupply == 0) continue;
             uint256 epochRevenue = epochRevenues[epoch][debtToken];
             uint256 epochUserVeBalance = IVotingEscrow(veALCX).balanceOfTokenAt(tokenId, epoch);
-            uint256 epochTotalVeSupply = IVotingEscrow(veALCX).totalSupplyAtT(epoch);
             totalClaimable += (epochRevenue * epochUserVeBalance) / epochTotalVeSupply;
         }
         return totalClaimable + userCheckpoints[tokenId][debtToken].unclaimed;

@@ -420,6 +420,7 @@ contract RevenueHandlerTest is BaseTest {
         _accrueRevenueAndJumpOneEpoch(revAmt); // this revenue SHOULD be claimable
 
         uint256 claimable = revenueHandler.claimable(tokenId, alusd);
+        console2.log("claimable:", claimable);
         assertApproxEq(claimable, 2 * revAmt, (2 * revAmt) / DELTA);
     }
 

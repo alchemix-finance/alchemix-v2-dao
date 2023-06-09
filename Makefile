@@ -56,6 +56,8 @@ test_debug :; FOUNDRY_PROFILE=$(PROFILE) forge test $(FORK_URL) -vvv
 # runs specific test file with console logs: "make test_file FILE=Minter"
 test_file :; FOUNDRY_PROFILE=$(PROFILE) forge test $(FORK_URL) $(MATCH_PATH) -vv
 
+test_file_test :; FOUNDRY_PROFILE=$(PROFILE) forge test $(FORK_URL) $(MATCH_PATH) $(MATCH_TEST) -vv
+
 # runs specific test file with added verbosity for failing tests: "make test_file_debug FILE=Minter"
 test_file_debug :; FOUNDRY_PROFILE=$(PROFILE) forge test $(FORK_URL) $(MATCH_PATH) -vvv
 

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3
 pragma solidity ^0.8.15;
 
+import "lib/forge-std/src/console2.sol";
+
 import "src/interfaces/IVotingEscrow.sol";
 import "src/interfaces/IFluxToken.sol";
 import "src/interfaces/IRewardsDistributor.sol";
@@ -352,7 +354,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         uint256 votes = 0;
         for (uint256 i = 0; i < _tokenIds.length; i++) {
             uint256 tId = _tokenIds[i];
-            votes = votes + _balanceOfToken(tId, block.timestamp);
+            votes = votes + _balanceOfToken(tId);
         }
         return votes;
     }
@@ -410,7 +412,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         for (uint256 i = 0; i < _tokenIds.length; i++) {
             uint256 tId = _tokenIds[i];
             // Use the provided input timestamp here to get the right decay
-            votes = votes + _balanceOfToken(tId, timestamp);
+            votes = votes + _balanceOfTokenAt(tId, timestamp);
         }
         return votes;
     }
@@ -426,7 +428,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
      * @dev Amount to ragequit should be a function of the voting power
      */
     function amountToRagequit(uint256 _tokenId) public view returns (uint256) {
-        return (_balanceOfToken(_tokenId, block.timestamp) * (fluxPerVeALCX + BPS)) / BPS;
+        return (_balanceOfToken(_tokenId) * (fluxPerVeALCX + BPS)) / BPS;
     }
 
     /**
@@ -436,22 +438,16 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     function tokenURI(uint256 _tokenId) external view returns (string memory) {
         require(idToOwner[_tokenId] != address(0), "Query for nonexistent token");
         LockedBalance memory _locked = locked[_tokenId];
-        return
-            _tokenURI(
-                _tokenId,
-                _balanceOfToken(_tokenId, block.timestamp),
-                _locked.end,
-                uint256(int256(_locked.amount))
-            );
+        return _tokenURI(_tokenId, _balanceOfToken(_tokenId), _locked.end, uint256(int256(_locked.amount)));
     }
 
     function balanceOfToken(uint256 _tokenId) external view returns (uint256) {
         if (ownershipChange[_tokenId] == block.number) return 0;
-        return _balanceOfToken(_tokenId, block.timestamp);
+        return _balanceOfToken(_tokenId);
     }
 
     function balanceOfTokenAt(uint256 _tokenId, uint256 _time) external view returns (uint256) {
-        return _balanceOfToken(_tokenId, _time);
+        return _balanceOfTokenAt(_tokenId, _time);
     }
 
     /**
@@ -467,10 +463,6 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         return ((ragequitAmount / fluxMultiplier) / epoch);
     }
 
-    function balanceOfAtToken(uint256 _tokenId, uint256 _block) external view returns (uint256) {
-        return _balanceOfAtToken(_tokenId, _block);
-    }
-
     /**
      * @notice Calculate total voting power
      * @param t Timestamp provided
@@ -480,6 +472,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     function totalSupplyAtT(uint256 t) public view returns (uint256) {
         uint256 _epoch = epoch;
         Point memory lastPoint = pointHistory[_epoch];
+        if (t < lastPoint.ts) lastPoint = pointHistory[_epoch - 1];
         return _supplyAt(lastPoint, t);
     }
 
@@ -1652,11 +1645,11 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     /**
      * @notice Get the current voting power for `_tokenId`
      * @param _tokenId ID of the token
-     * @param _time Epoch time to return voting power at
      * @return User voting power
      * @dev Adheres to the ERC20 `balanceOf` interface for Aragon compatibility
      */
-    function _balanceOfToken(uint256 _tokenId, uint256 _time) internal view returns (uint256) {
+    function _balanceOfToken(uint256 _tokenId) internal view returns (uint256) {
+        uint256 _time = block.timestamp;
         uint256 _epoch = userPointEpoch[_tokenId];
 
         // If time is before before the first epoch or a tokens first timestamp, return 0
@@ -1664,6 +1657,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
             return 0;
         } else {
             Point memory lastPoint = userPointHistory[_tokenId][_epoch];
+            if (_time < lastPoint.ts) lastPoint = userPointHistory[_tokenId][_epoch - 1];
 
             // If max lock is enabled bias is unchanged
             int256 biasCalculation = locked[_tokenId].maxLockEnabled
@@ -1671,7 +1665,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
                 : lastPoint.slope * (int256(_time) - int256(lastPoint.ts));
 
             // Make sure we still subtract from bias if value is negative
-            biasCalculation >= 0 ? lastPoint.bias -= biasCalculation : lastPoint.bias += biasCalculation;
+            lastPoint.bias -= biasCalculation;
 
             if (lastPoint.bias < 0) {
                 lastPoint.bias = 0;
@@ -1682,57 +1676,49 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     }
 
     /**
-     * @notice Measure voting power of `_tokenId` at block height `_block`
+     * @notice Get the voting power for `_tokenId` at timestamp
      * @param _tokenId ID of the token
-     * @param _block Block to calculate the voting power at
-     * @return Voting power
-     * @dev Adheres to MiniMe `balanceOfAt` interface: https://github.com/Giveth/minime
+     * @param _time Timestamp to return voting power at
+     * @return User voting power
      */
-    function _balanceOfAtToken(uint256 _tokenId, uint256 _block) internal view returns (uint256) {
-        // totalSupply code because Vyper cannot pass by reference yet
-        require(_block <= block.number);
+    function _balanceOfTokenAt(uint256 _tokenId, uint256 _time) internal view returns (uint256) {
+        uint256 _epoch = userPointEpoch[_tokenId];
 
-        // Binary search
-        uint256 _min = 0;
-        uint256 _max = userPointEpoch[_tokenId];
-        for (uint256 i = 0; i < 128; ++i) {
-            // Will be always enough for 128-bit numbers
-            if (_min >= _max) {
-                break;
-            }
-            uint256 _mid = (_min + _max + 1) / 2;
-            if (userPointHistory[_tokenId][_mid].blk <= _block) {
-                _min = _mid;
-            } else {
-                _max = _mid - 1;
-            }
-        }
-
-        Point memory upoint = userPointHistory[_tokenId][_min];
-
-        uint256 maxEpoch = epoch;
-        uint256 _epoch = _findBlockEpoch(_block, maxEpoch);
-        Point memory point0 = pointHistory[_epoch];
-        uint256 dBlock = 0;
-        uint256 dT = 0;
-        if (_epoch < maxEpoch) {
-            Point memory point1 = pointHistory[_epoch + 1];
-            dBlock = point1.blk - point0.blk;
-            dT = point1.ts - point0.ts;
-        } else {
-            dBlock = block.number - point0.blk;
-            dT = block.timestamp - point0.ts;
-        }
-        uint256 blockTime = point0.ts;
-        if (dBlock != 0) {
-            blockTime += (dT * (_block - point0.blk)) / dBlock;
-        }
-
-        upoint.bias -= upoint.slope * (int256(blockTime - upoint.ts));
-        if (upoint.bias >= 0) {
-            return uint256(upoint.bias);
-        } else {
+        // If time is before before the first epoch or a tokens first timestamp, return 0
+        if (_epoch == 0 || _time < pointHistory[userFirstEpoch[_tokenId]].ts) {
             return 0;
+        } else {
+            // Binary search to get point closest to the time
+            uint256 _min = 0;
+            uint256 _max = userPointEpoch[_tokenId];
+            for (uint256 i = 0; i < 128; ++i) {
+                // Will be always enough for 128-bit numbers
+                if (_min >= _max) {
+                    break;
+                }
+                uint256 _mid = (_min + _max + 1) / 2;
+                if (userPointHistory[_tokenId][_mid].ts <= _time) {
+                    _min = _mid;
+                } else {
+                    _max = _mid - 1;
+                }
+            }
+
+            Point memory lastPoint = userPointHistory[_tokenId][_min];
+
+            // If max lock is enabled bias is unchanged
+            int256 biasCalculation = locked[_tokenId].maxLockEnabled
+                ? int256(0)
+                : lastPoint.slope * (int256(_time) - int256(lastPoint.ts));
+
+            // Make sure we still subtract from bias if value is negative
+            lastPoint.bias -= biasCalculation;
+
+            if (lastPoint.bias < 0) {
+                lastPoint.bias = 0;
+            }
+
+            return uint256(lastPoint.bias);
         }
     }
 
@@ -1755,10 +1741,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
                 dSlope = slopeChanges[_time];
             }
 
-            int256 biasCalculation = lastPoint.slope * (int256(_time) - int256(lastPoint.ts));
-
-            // Make sure we still subtract from bias if value is negative
-            biasCalculation >= 0 ? lastPoint.bias -= biasCalculation : lastPoint.bias += biasCalculation;
+            lastPoint.bias -= lastPoint.slope * (int256(_time) - int256(lastPoint.ts));
 
             if (_time == t) {
                 break;
