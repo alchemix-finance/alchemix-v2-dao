@@ -1337,7 +1337,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
                 // Plus all that's owned
                 for (uint256 i = 0; i < ownerTokenCount; i++) {
                     uint256 tId = ownerToTokenIdList[owner][i];
-                    dstTokensNew[i] = tId;
+                    dstTokensNew[dstTokensOld.length + i] = tId;
                 }
 
                 // Find the index of the checkpoint to create or update
