@@ -10,8 +10,6 @@ import "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import "openzeppelin-contracts/contracts/access/Ownable.sol";
 import "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
-import "lib/forge-std/src/console2.sol";
-
 /// @title RevenueHandler
 /*
     This contract is meant to receive all revenue from the Alchemix protocol, and allow
@@ -258,25 +256,30 @@ contract RevenueHandler is IRevenueHandler, Ownable {
 
     function _claimable(uint256 tokenId, address debtToken) internal view returns (uint256) {
         uint256 totalClaimable = 0;
-        uint256 lastClaimEpoch = userCheckpoints[tokenId][debtToken].lastClaimEpoch;
-        if (lastClaimEpoch == 0) {
-            console2.log("lastClaimEpoch:", lastClaimEpoch);
+        uint256 lastClaimEpochTimestamp = userCheckpoints[tokenId][debtToken].lastClaimEpoch;
+        if (lastClaimEpochTimestamp == 0) {
             /*
                 If we get here, the user has not yet claimed anything from the RevenueHandler.
                 We need to get the first epoch that they deposited so we know where to start tallying from.
             */
+            // Get index of first epoch
             uint256 lastUserEpoch = IVotingEscrow(veALCX).userFirstEpoch(tokenId);
-            lastClaimEpoch = (IVotingEscrow(veALCX).pointHistoryTimestamp(lastUserEpoch) / WEEK) * WEEK - WEEK;
+            // Get timestamp from index
+            lastClaimEpochTimestamp = (IVotingEscrow(veALCX).pointHistoryTimestamp(lastUserEpoch) / WEEK) * WEEK - WEEK;
         }
         /*
             Start tallying from the "next" epoch after the last epoch that they claimed, since they already
-            claimed their revenue from "lastClaimEpoch".
+            claimed their revenue from "lastClaimEpochTimestamp".
         */
-        for (uint256 epoch = lastClaimEpoch + WEEK; epoch <= currentEpoch; epoch += WEEK) {
-            uint256 epochTotalVeSupply = IVotingEscrow(veALCX).totalSupplyAtT(epoch);
+        for (
+            uint256 epochTimestamp = lastClaimEpochTimestamp + WEEK;
+            epochTimestamp <= currentEpoch;
+            epochTimestamp += WEEK
+        ) {
+            uint256 epochTotalVeSupply = IVotingEscrow(veALCX).totalSupplyAtT(epochTimestamp);
             if (epochTotalVeSupply == 0) continue;
-            uint256 epochRevenue = epochRevenues[epoch][debtToken];
-            uint256 epochUserVeBalance = IVotingEscrow(veALCX).balanceOfTokenAt(tokenId, epoch);
+            uint256 epochRevenue = epochRevenues[epochTimestamp][debtToken];
+            uint256 epochUserVeBalance = IVotingEscrow(veALCX).balanceOfTokenAt(tokenId, epochTimestamp);
             totalClaimable += (epochRevenue * epochUserVeBalance) / epochTotalVeSupply;
         }
         return totalClaimable + userCheckpoints[tokenId][debtToken].unclaimed;

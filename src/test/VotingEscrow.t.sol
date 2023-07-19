@@ -151,7 +151,7 @@ contract VotingEscrowTest is BaseTest {
 
         uint256 totalVotes = veALCX.totalSupply();
 
-        uint256 totalVotesAt = veALCX.totalSupplyAt(block.number);
+        uint256 totalVotesAt = veALCX.totalSupplyAtT(block.timestamp);
 
         assertEq(totalVotes, totalVotesAt);
 

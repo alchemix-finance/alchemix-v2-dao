@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-3
 pragma solidity ^0.8.15;
 
-import "lib/forge-std/src/console2.sol";
-
 import "src/interfaces/IVotingEscrow.sol";
 import "src/interfaces/IFluxToken.sol";
 import "src/interfaces/IRewardsDistributor.sol";
@@ -472,7 +470,27 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     function totalSupplyAtT(uint256 t) public view returns (uint256) {
         uint256 _epoch = epoch;
         Point memory lastPoint = pointHistory[_epoch];
-        if (t < lastPoint.ts) lastPoint = pointHistory[_epoch - 1];
+
+        // Binary search to find point closest to timestamp t
+        if (t < lastPoint.ts) {
+            uint256 lower = 0;
+            uint256 upper = _epoch - 1;
+
+            while (upper > lower) {
+                uint256 center = upper - (upper - lower) / 2;
+                lastPoint = pointHistory[center];
+                if (lastPoint.ts == t) {
+                    lower = center;
+                    break;
+                } else if (lastPoint.ts < t) {
+                    lower = center;
+                } else {
+                    upper = center - 1;
+                }
+            }
+
+            lastPoint = pointHistory[lower];
+        }
         return _supplyAt(lastPoint, t);
     }
 
@@ -483,32 +501,6 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
      */
     function totalSupply() external view returns (uint256) {
         return totalSupplyAtT(block.timestamp);
-    }
-
-    /**
-     * @notice Calculate total voting power at some point in the past
-     * @param _block Block to calculate the total voting power at
-     * @return Total voting power at `_block`
-     */
-    function totalSupplyAt(uint256 _block) external view returns (uint256) {
-        require(_block <= block.number);
-        uint256 _epoch = epoch;
-        uint256 targetEpoch = _findBlockEpoch(_block, _epoch);
-
-        Point memory point = pointHistory[targetEpoch];
-        uint256 dt = 0;
-        if (targetEpoch < _epoch) {
-            Point memory pointNext = pointHistory[targetEpoch + 1];
-            if (point.blk != pointNext.blk) {
-                dt = ((_block - point.blk) * (pointNext.ts - point.ts)) / (pointNext.blk - point.blk);
-            }
-        } else {
-            if (point.blk != block.number) {
-                dt = ((_block - point.blk) * (block.timestamp - point.ts)) / (block.number - point.blk);
-            }
-        }
-        // Now dt contains info on how far are we beyond point
-        return _supplyAt(point, point.ts + dt);
     }
 
     /* 
