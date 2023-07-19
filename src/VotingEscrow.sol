@@ -458,7 +458,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         // If the lock is expired, no flux is claimable at the current epoch
         if (block.timestamp > locked[_tokenId].end) return 0;
         uint256 ragequitAmount = amountToRagequit(_tokenId);
-        return ((ragequitAmount / fluxMultiplier) / epoch);
+        return ((ragequitAmount / fluxMultiplier) / EPOCH);
     }
 
     /**

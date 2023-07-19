@@ -627,6 +627,29 @@ contract VotingEscrowTest is BaseTest {
         hevm.stopPrank();
     }
 
+    // It should take MAXTIME * fluxMultiplier to accrue enough flux to ragequit
+    function testFluxAccrualOverTime() public {
+        hevm.startPrank(admin);
+
+        uint256 tokenId = veALCX.createLock(TOKEN_1, MAXTIME, true);
+
+        uint256 claimedBalance = flux.balanceOf(admin);
+        uint256 unclaimedBalance = veALCX.unclaimedFlux(tokenId);
+        uint256 ragequitAmount = veALCX.amountToRagequit(tokenId);
+
+        assertEq(claimedBalance, 0);
+        assertEq(unclaimedBalance, 0);
+
+        voter.reset(tokenId);
+
+        unclaimedBalance = veALCX.unclaimedFlux(tokenId);
+
+        // Flux accrued over one epoch should align with the fluxMultiplier and epoch length
+        uint256 fluxCalc = unclaimedBalance * veALCX.fluxMultiplier() * veALCX.EPOCH();
+
+        assertApproxEq(fluxCalc, ragequitAmount, 1e18);
+    }
+
     function testGetPastTotalSupply() public {
         createVeAlcx(admin, TOKEN_1, MAXTIME, false);
 
