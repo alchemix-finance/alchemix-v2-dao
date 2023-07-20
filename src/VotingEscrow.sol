@@ -1280,19 +1280,22 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
                 if (srcCheckpoints > 0) {
                     // Get the old array of tokenIds
                     uint256[] memory srcTokensOld = checkpoints[src][srcCheckpoints - 1].tokenIds;
-                    // Create a new array of tokenIds, leaving out the tokenIds owned by owner
-                    uint256[] memory srcTokensNew = new uint256[](srcTokensOld.length - 1);
-                    // If we are removing the only token, we can skip copying the array since it will be empty
-                    if (srcTokensNew.length > 0) {
-                        // Copy array of tokenIds except what owner owns
-                        // Track two indexes, one for the old array, one for the new array
-                        uint256 newIndex = 0;
-                        for (uint256 i = 0; i < srcTokensOld.length; i++) {
-                            uint256 tId = srcTokensOld[i];
-                            if (idToOwner[tId] != owner) {
-                                srcTokensNew[newIndex] = tId;
-                                newIndex++;
-                            }
+                    // Determine the new array's length leaving out tokenIds owned by owner
+                    uint256 count = 0;
+                    for (uint256 i = 0; i < srcTokensOld.length; i++) {
+                        if (idToOwner[srcTokensOld[i]] != owner) {
+                            count++;
+                        }
+                    }
+
+                    uint256[] memory srcTokensNew = new uint256[](count);
+                    uint256 index = 0;
+
+                    // Copy array of tokenIds except what owner owns
+                    for (uint256 i = 0; i < srcTokensOld.length; i++) {
+                        uint256 tId = srcTokensOld[i];
+                        if (idToOwner[tId] != owner) {
+                            srcTokensNew[index++] = tId;
                         }
                     }
 
