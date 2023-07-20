@@ -142,9 +142,9 @@ contract Voter is IVoter {
         emit EmergencyCouncilUpdated(_council);
     }
 
-    function swapReward(address bribeAddress, uint256 tokenIndex, address oldToken, address newToken) external {
+    function swapReward(address gaugeAddress, uint256 tokenIndex, address oldToken, address newToken) external {
         require(msg.sender == admin);
-        IBribe(bribes[bribeAddress]).swapOutRewardToken(tokenIndex, oldToken, newToken);
+        IBribe(bribes[gaugeAddress]).swapOutRewardToken(tokenIndex, oldToken, newToken);
     }
 
     /// @inheritdoc IVoter
