@@ -679,17 +679,37 @@ contract VotingTest is BaseTest {
 
     // veALCX voting power should decay to 0
     function testVotingPowerDecay() public {
-        uint256 tokenId = createVeAlcx(admin, TOKEN_1, 3 weeks, false);
+        uint256 tokenId1 = createVeAlcx(admin, TOKEN_1, 3 weeks, false);
+        uint256 tokenId2 = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+
+        address[] memory pools = new address[](1);
+        pools[0] = alETHPool;
+        uint256[] memory weights = new uint256[](1);
+        weights[0] = 5000;
 
         hevm.startPrank(admin);
 
+        voter.vote(tokenId2, pools, weights, 0);
+        uint256 usedWeight1 = voter.usedWeights(tokenId2);
+        uint256 totalWeight1 = voter.totalWeight();
+
         hevm.warp(block.timestamp + 3 weeks);
 
-        uint256 balance = veALCX.balanceOfToken(tokenId);
+        minter.updatePeriod();
+
+        voter.poke(tokenId2, 0);
+
+        uint256 usedWeight2 = voter.usedWeights(tokenId2);
+        uint256 totalWeight2 = voter.totalWeight();
+
+        assertGt(usedWeight1, usedWeight2, "used weight should decrease");
+        assertGt(totalWeight1, totalWeight2, "total weight should decrease");
+
+        uint256 balance = veALCX.balanceOfToken(tokenId1);
 
         // Voting power decays to 0
         hevm.expectRevert(abi.encodePacked("Cannot add to expired lock. Withdraw"));
-        veALCX.depositFor(tokenId, TOKEN_1);
+        veALCX.depositFor(tokenId1, TOKEN_1);
         assertEq(balance, 0);
 
         hevm.stopPrank();
