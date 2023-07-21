@@ -90,6 +90,7 @@ contract Bribe is IBribe {
         require(amount > 0);
 
         // If the token has been whitelisted by the voter contract, add it to the rewards list
+        require(IVoter(voter).isWhitelisted(token), "bribe tokens must be whitelisted");
         _addRewardToken(token);
 
         // bribes kick in at the start of next bribe period
