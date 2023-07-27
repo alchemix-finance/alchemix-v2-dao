@@ -1648,11 +1648,10 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         uint256 _epoch = userPointEpoch[_tokenId];
 
         // If time is before before the first epoch or a tokens first timestamp, return 0
-        if (_epoch == 0 || _time < pointHistory[userFirstEpoch[_tokenId]].ts) {
+        if (_epoch == 0) {
             return 0;
         } else {
             Point memory lastPoint = userPointHistory[_tokenId][_epoch];
-            if (_time < lastPoint.ts) lastPoint = userPointHistory[_tokenId][_epoch - 1];
 
             // If max lock is enabled bias is unchanged
             int256 biasCalculation = locked[_tokenId].maxLockEnabled
