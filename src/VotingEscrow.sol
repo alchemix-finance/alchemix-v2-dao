@@ -1584,7 +1584,8 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
         ++tokenId;
         uint256 _tokenId = tokenId;
-        _mint(_to, _tokenId);
+        bool mintSuccess = _mint(_to, _tokenId);
+        require(mintSuccess, "Minting failed");
 
         _depositFor(_tokenId, _value, unlockTime, _maxLockEnabled, locked[_tokenId], DepositType.CREATE_LOCK_TYPE);
         return _tokenId;

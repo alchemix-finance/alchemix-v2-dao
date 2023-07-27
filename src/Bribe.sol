@@ -61,7 +61,7 @@ contract Bribe is IBribe {
         uint256 bribeStart = _bribeStart(timestamp);
         uint256 bribeEnd = bribeStart + DURATION;
 
-        return timestamp < bribeEnd ? bribeStart : bribeStart + 7 days;
+        return timestamp < bribeEnd ? bribeStart : bribeStart + DURATION;
     }
 
     /// @inheritdoc IBribe
@@ -320,7 +320,7 @@ contract Bribe is IBribe {
     }
 
     function _bribeStart(uint256 timestamp) internal pure returns (uint256) {
-        return timestamp - (timestamp % (7 days));
+        return timestamp - (timestamp % (DURATION));
     }
 
     function _safeTransfer(address token, address to, uint256 value) internal {
