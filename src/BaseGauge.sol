@@ -43,10 +43,11 @@ abstract contract BaseGauge is IBaseGauge {
         uint256 modTime = timestamp % (1 weeks);
         if (modTime < BRIBE_LAG) {
             return VotingStage.BribesPhase;
-        } else if (modTime > (BRIBE_LAG + DURATION)) {
+        } else if (modTime >= BRIBE_LAG && modTime < (BRIBE_LAG + DURATION)) {
+            return VotingStage.VotesPhase;
+        } else {
             return VotingStage.RewardsPhase;
         }
-        return VotingStage.VotesPhase;
     }
 
     /*
