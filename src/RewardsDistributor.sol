@@ -13,13 +13,14 @@ import "src/interfaces/chainlink/AggregatorV3Interface.sol";
 import "src/libraries/Math.sol";
 import "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import "openzeppelin-contracts/contracts/security/ReentrancyGuard.sol";
 import { WeightedMath } from "src/interfaces/balancer/WeightedMath.sol";
 
 /**
  * @title  Rewards Distributor
  * @notice Contract to facilitate distribution of rewards to veALCX holders
  */
-contract RewardsDistributor is IRewardsDistributor {
+contract RewardsDistributor is IRewardsDistributor, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     uint256 public constant WEEK = 1 weeks;
@@ -127,7 +128,7 @@ contract RewardsDistributor is IRewardsDistributor {
     }
 
     /// @inheritdoc IRewardsDistributor
-    function claim(uint256 _tokenId, bool _compound) external payable returns (uint256) {
+    function claim(uint256 _tokenId, bool _compound) external payable nonReentrant returns (uint256) {
         if (!_compound) {
             require(msg.value == 0, "Value must be 0 if not compounding");
         }
@@ -161,16 +162,17 @@ contract RewardsDistributor is IRewardsDistributor {
             // Wrap eth if necessary
             if (msg.value > 0) {
                 WETH.deposit{ value: wethAmount }();
-                // Return excess ETH if necessary
-                if (msg.value > wethAmount) {
-                    (bool sent, ) = payable(msg.sender).call{ value: msg.value - wethAmount }("");
-                    require(sent, "Failed to send Ether");
-                }
             } else IERC20(address(WETH)).safeTransferFrom(msg.sender, address(this), wethAmount);
 
             _depositIntoBalancerPool(wethAmount, alcxAmount, normalizedWeights);
 
             IVotingEscrow(votingEscrow).depositFor(_tokenId, IERC20(lockedToken).balanceOf(address(this)));
+
+            // Return excess ETH if necessary
+            if (msg.value > wethAmount) {
+                (bool sent, ) = payable(msg.sender).call{ value: msg.value - wethAmount }("");
+                require(sent, "Failed to send Ether");
+            }
 
             return alcxAmount;
         } else {
