@@ -23,7 +23,6 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     enum DepositType {
         DEPOSIT_FOR_TYPE,
         CREATE_LOCK_TYPE,
-        INCREASE_LOCK_AMOUNT,
         INCREASE_UNLOCK_TIME,
         MERGE_TYPE
     }
