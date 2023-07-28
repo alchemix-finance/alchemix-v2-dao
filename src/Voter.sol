@@ -318,6 +318,8 @@ contract Voter is IVoter {
 
     /// @inheritdoc IVoter
     function distribute(address _gauge) public lock {
+        require(isAlive[_gauge], "cannot distribute to a dead gauge");
+
         IMinter(minter).updatePeriod();
         _updateFor(_gauge);
         uint256 _claimable = claimable[_gauge];
