@@ -253,6 +253,7 @@ contract Voter is IVoter {
 
     function reviveGauge(address _gauge) external {
         require(msg.sender == emergencyCouncil, "not emergency council");
+        require(isGauge[_gauge], "invalid gauge");
         require(!isAlive[_gauge], "gauge already alive");
         isAlive[_gauge] = true;
         emit GaugeRevived(_gauge);
@@ -389,7 +390,6 @@ contract Voter is IVoter {
             address _pool = _poolVote[i];
             address _gauge = gauges[_pool];
 
-            require(isGauge[_gauge], "invalid gauge");
             require(isAlive[_gauge], "cannot vote for dead gauge");
 
             IVotingEscrow(veALCX).accrueFlux(_tokenId, IVotingEscrow(veALCX).claimableFlux(_tokenId));

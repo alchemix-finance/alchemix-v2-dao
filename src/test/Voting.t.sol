@@ -154,7 +154,7 @@ contract VotingTest is BaseTest {
         uint256[] memory weights = new uint256[](1);
         weights[0] = 5000;
 
-        hevm.expectRevert(abi.encodePacked("invalid gauge"));
+        hevm.expectRevert(abi.encodePacked("cannot vote for dead gauge"));
         voter.vote(tokenId, pools, weights, 0);
 
         pools[0] = alUsdPoolAddress;
