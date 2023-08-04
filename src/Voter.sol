@@ -20,7 +20,7 @@ contract Voter is IVoter {
     address internal immutable base; // Base token, ALCX
 
     address public immutable veALCX; // veALCX that governs these contracts
-    address public immutable FLUX; // FLUX token that is distributed to veALCX holders
+    address public immutable FLUX; // FLUX token distributed to veALCX holders
     address public immutable gaugefactory;
     address public immutable bribefactory;
 
