@@ -105,6 +105,7 @@ contract Minter is IMinter {
     /// @inheritdoc IMinter
     function setVeAlcxEmissionsRate(uint256 _veAlcxEmissionsRate) external {
         require(msg.sender == admin, "not admin");
+        require(_veAlcxEmissionsRate <= BPS, "cannot be greater than 100%");
         veAlcxEmissionsRate = _veAlcxEmissionsRate;
         emit SetVeAlcxEmissionsRate(_veAlcxEmissionsRate);
     }
