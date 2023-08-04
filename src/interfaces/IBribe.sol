@@ -74,7 +74,7 @@ interface IBribe {
     function notifyRewardAmount(address token, uint256 amount) external;
 
     /**
-     * @notice return the last time the reward was modified or periodFinish if the reward has ended
+     * @notice Return the current reward period or previous periodFinish if the reward has ended
      * @param token Address of the reward token to check
      */
     function lastTimeRewardApplicable(address token) external view returns (uint256);
