@@ -351,7 +351,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         uint256 votes = 0;
         for (uint256 i = 0; i < _tokenIds.length; i++) {
             uint256 tId = _tokenIds[i];
-            votes = votes + _balanceOfToken(tId);
+            votes = votes + _balanceOfTokenAt(tId, block.timestamp);
         }
         return votes;
     }
@@ -425,7 +425,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
      * @dev Amount to ragequit should be a function of the voting power
      */
     function amountToRagequit(uint256 _tokenId) public view returns (uint256) {
-        return (_balanceOfToken(_tokenId) * (fluxPerVeALCX + BPS)) / BPS;
+        return (_balanceOfTokenAt(_tokenId, block.timestamp) * (fluxPerVeALCX + BPS)) / BPS;
     }
 
     /**
@@ -435,12 +435,18 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     function tokenURI(uint256 _tokenId) external view returns (string memory) {
         require(idToOwner[_tokenId] != address(0), "Query for nonexistent token");
         LockedBalance memory _locked = locked[_tokenId];
-        return _tokenURI(_tokenId, _balanceOfToken(_tokenId), _locked.end, uint256(int256(_locked.amount)));
+        return
+            _tokenURI(
+                _tokenId,
+                _balanceOfTokenAt(_tokenId, block.timestamp),
+                _locked.end,
+                uint256(int256(_locked.amount))
+            );
     }
 
     function balanceOfToken(uint256 _tokenId) external view returns (uint256) {
         if (ownershipChange[_tokenId] == block.number) return 0;
-        return _balanceOfToken(_tokenId);
+        return _balanceOfTokenAt(_tokenId, block.timestamp);
     }
 
     function balanceOfTokenAt(uint256 _tokenId, uint256 _time) external view returns (uint256) {
@@ -1635,38 +1641,6 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
             }
         }
         return _min;
-    }
-
-    /**
-     * @notice Get the current voting power for `_tokenId`
-     * @param _tokenId ID of the token
-     * @return User voting power
-     * @dev Adheres to the ERC20 `balanceOf` interface for Aragon compatibility
-     */
-    function _balanceOfToken(uint256 _tokenId) internal view returns (uint256) {
-        uint256 _time = block.timestamp;
-        uint256 _epoch = userPointEpoch[_tokenId];
-
-        // If time is before before the first epoch or a tokens first timestamp, return 0
-        if (_epoch == 0) {
-            return 0;
-        } else {
-            Point memory lastPoint = userPointHistory[_tokenId][_epoch];
-
-            // If max lock is enabled bias is unchanged
-            int256 biasCalculation = locked[_tokenId].maxLockEnabled
-                ? int256(0)
-                : lastPoint.slope * (int256(_time) - int256(lastPoint.ts));
-
-            // Make sure we still subtract from bias if value is negative
-            lastPoint.bias -= biasCalculation;
-
-            if (lastPoint.bias < 0) {
-                lastPoint.bias = 0;
-            }
-
-            return uint256(lastPoint.bias);
-        }
     }
 
     /**
