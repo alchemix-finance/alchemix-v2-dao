@@ -679,8 +679,16 @@ contract VotingTest is BaseTest {
 
     // veALCX voting power should decay to 0
     function testVotingPowerDecay() public {
+        // Kick off epoch cycle
+        hevm.warp(block.timestamp + nextEpoch);
+        minter.updatePeriod();
+
         uint256 tokenId1 = createVeAlcx(admin, TOKEN_1, 3 weeks, false);
         uint256 tokenId2 = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+
+        uint256[] memory tokens = new uint256[](2);
+        tokens[0] = tokenId1;
+        tokens[1] = tokenId2;
 
         address[] memory pools = new address[](1);
         pools[0] = alETHPool;
@@ -689,15 +697,30 @@ contract VotingTest is BaseTest {
 
         hevm.startPrank(admin);
 
+        // Vote and record used weights
+        voter.vote(tokenId1, pools, weights, 0);
         voter.vote(tokenId2, pools, weights, 0);
         uint256 usedWeight1 = voter.usedWeights(tokenId2);
         uint256 totalWeight1 = voter.totalWeight();
 
+        // Move to the next epoch
+        hevm.warp(block.timestamp + nextEpoch);
+        minter.updatePeriod();
+
+        // Move to when token1 expires
         hevm.warp(block.timestamp + 3 weeks);
+
+        // Mock poking idle tokens to sync voting
+        hevm.stopPrank();
+        hevm.prank(voter.admin());
+        voter.pokeIdleTokens(tokens);
+        hevm.startPrank(admin);
 
         minter.updatePeriod();
 
-        voter.poke(tokenId2, 0);
+        // tokenId1 represents user who voted once and expired
+        uint256 usedWeight = voter.usedWeights(tokenId1);
+        assertEq(usedWeight, 0, "used weight should be 0 for expired token");
 
         uint256 usedWeight2 = voter.usedWeights(tokenId2);
         uint256 totalWeight2 = voter.totalWeight();
@@ -705,12 +728,19 @@ contract VotingTest is BaseTest {
         assertGt(usedWeight1, usedWeight2, "used weight should decrease");
         assertGt(totalWeight1, totalWeight2, "total weight should decrease");
 
+        hevm.warp(block.timestamp + nextEpoch);
+        minter.updatePeriod();
+
         uint256 balance = veALCX.balanceOfToken(tokenId1);
 
         // Voting power decays to 0
         hevm.expectRevert(abi.encodePacked("Cannot add to expired lock. Withdraw"));
         veALCX.depositFor(tokenId1, TOKEN_1);
         assertEq(balance, 0);
+
+        // Voting with an expired token should revert
+        hevm.expectRevert(abi.encodePacked("cannot vote with expired token"));
+        voter.vote(tokenId1, pools, weights, 0);
 
         hevm.stopPrank();
     }

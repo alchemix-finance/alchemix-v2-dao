@@ -80,6 +80,13 @@ interface IVoter {
     function poke(uint256 _tokenId, uint256 _boost) external;
 
     /**
+     * @notice Update the voting status of multiple veALCXs to maintain the same voting status
+     * @param _tokenIds Array of token IDs to poke
+     * @dev Resets tokens that have expired
+     */
+    function pokeIdleTokens(uint256[] memory _tokenIds) external;
+
+    /**
      * @notice Vote on one or multiple pools for a single veALCX
      * @param _tokenId  ID of the token voting
      * @param _poolVote Array of the pools being voted

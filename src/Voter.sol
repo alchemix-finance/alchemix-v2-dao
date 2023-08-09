@@ -156,8 +156,10 @@ contract Voter is IVoter {
     }
 
     /// @inheritdoc IVoter
-    function reset(uint256 _tokenId) external onlyNewEpoch(_tokenId) {
-        require(IVotingEscrow(veALCX).isApprovedOrOwner(msg.sender, _tokenId), "not approved or owner");
+    function reset(uint256 _tokenId) public onlyNewEpoch(_tokenId) {
+        if (msg.sender != admin) {
+            require(IVotingEscrow(veALCX).isApprovedOrOwner(msg.sender, _tokenId), "not approved or owner");
+        }
 
         lastVoted[_tokenId] = block.timestamp;
         _reset(_tokenId);
@@ -166,8 +168,12 @@ contract Voter is IVoter {
     }
 
     /// @inheritdoc IVoter
-    function poke(uint256 _tokenId, uint256 _boost) external {
-        require(IVotingEscrow(veALCX).isApprovedOrOwner(msg.sender, _tokenId), "not approved or owner");
+    function poke(uint256 _tokenId, uint256 _boost) public {
+        // Allow admin to poke any token
+        if (msg.sender != admin) {
+            require(IVotingEscrow(veALCX).isApprovedOrOwner(msg.sender, _tokenId), "not approved or owner");
+        }
+
         require(
             IVotingEscrow(veALCX).claimableFlux(_tokenId) + IVotingEscrow(veALCX).unclaimedFlux(_tokenId) >= _boost,
             "insufficient FLUX to boost"
@@ -189,6 +195,19 @@ contract Voter is IVoter {
     }
 
     /// @inheritdoc IVoter
+    function pokeIdleTokens(uint256[] memory _tokenIds) external {
+        require(msg.sender == admin, "not admin");
+        for (uint256 i = 0; i < _tokenIds.length; i++) {
+            uint256 _tokenId = _tokenIds[i];
+            // If the token has expired, reset it
+            if (block.timestamp > IVotingEscrow(veALCX).lockEnd(_tokenId)) {
+                reset(_tokenId);
+            }
+            poke(_tokenId, 0);
+        }
+    }
+
+    /// @inheritdoc IVoter
     function vote(
         uint256 _tokenId,
         address[] calldata _poolVote,
@@ -206,6 +225,7 @@ contract Voter is IVoter {
             (IVotingEscrow(veALCX).balanceOfToken(_tokenId) + _boost) <= maxVotingPower(_tokenId),
             "cannot exceed max boost"
         );
+        require(block.timestamp < IVotingEscrow(veALCX).lockEnd(_tokenId), "cannot vote with expired token");
 
         _vote(_tokenId, _poolVote, _weights, _boost);
     }
