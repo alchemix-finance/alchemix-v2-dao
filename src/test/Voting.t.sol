@@ -81,6 +81,7 @@ contract VotingTest is BaseTest {
         assertEq(bribeBalance1, 0, "bribe balance should be 0");
 
         hevm.startPrank(admin);
+        hevm.expectRevert(abi.encodePacked("no rewards to claim"));
         voter.claimBribes(bribes, tokens, tokenId);
         distributor.claim(tokenId, false);
         hevm.stopPrank();
@@ -428,9 +429,6 @@ contract VotingTest is BaseTest {
 
         hevm.prank(admin);
         voter.vote(tokenId1, pools, weights, 0);
-
-        hevm.prank(admin);
-        voter.claimBribes(bribes, tokens, tokenId1);
 
         // Claiming before the end of the epoch should not capture bribes
         assertEq(IERC20(bal).balanceOf(admin), 0, "admin bal balance not 0");

@@ -240,6 +240,9 @@ contract VotingEscrowTest is BaseTest {
         uint256 getDecayedVotingPower = veALCX.balanceOfTokenAt(tokenId, decayedTimestamp);
         assertEq(getDecayedVotingPower, decayedVotingPower, "voting powers should be equal");
 
+        uint256 expiredVotingPower = veALCX.balanceOfToken(tokenId);
+        console2.log("expiredVotingPower:", expiredVotingPower);
+
         // Voting power before token was created should be 0
         uint256 getPastVotingPower = veALCX.balanceOfTokenAt(tokenId, originalTimestamp - nextEpoch);
         assertEq(getPastVotingPower, 0, "voting power should be 0");
