@@ -93,13 +93,6 @@ interface IBribe {
     function getPriorBalanceIndex(uint256 tokenId, uint256 timestamp) external view returns (uint256);
 
     /**
-     * @notice Allows a user to claim rewards for a given token
-     * @param tokenId Id of the token who's rewards are being claimed
-     * @param tokens  List of tokens being claimed
-     */
-    function getReward(uint256 tokenId, address[] memory tokens) external;
-
-    /**
      * @notice Used by Voter to allow batched reward claims
      * @param tokenId Id of the token who's rewards are being claimed
      * @param tokens  List of tokens being claimed
