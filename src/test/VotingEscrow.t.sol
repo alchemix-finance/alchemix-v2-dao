@@ -897,4 +897,21 @@ contract VotingEscrowTest is BaseTest {
         assertEq(veALCX.totalSupplyAtT(t2Dp1), bal2DaysPlus1, "after deposit, 2 days + 1");
         assertEq(veALCX.totalSupplyAtT(t2Dm1), bal2DaysMinus1, "after deposit, 2 days - 1");
     }
+
+    function testTotalSupplyWithMaxlock() public {
+        uint256 tokenId1 = createVeAlcx(admin, TOKEN_1, MAXTIME, true);
+
+        uint256 numCheckpoints = veALCX.numCheckpoints(admin);
+        assertEq(numCheckpoints, 1, "numCheckpoints should be 1");
+
+        hevm.warp(block.timestamp + nextEpoch * 45);
+        minter.updatePeriod();
+
+        uint256 totalPower = veALCX.totalSupply();
+        uint256 tokenPower = veALCX.balanceOfToken(tokenId1);
+        console2.log("totalPower:", totalPower);
+        console2.log("tokenPower:", tokenPower);
+
+        // assertEq(totalVotes, votingPower, "total supply should equal voting power");
+    }
 }
