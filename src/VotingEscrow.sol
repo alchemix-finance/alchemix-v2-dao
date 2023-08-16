@@ -25,7 +25,6 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     enum DepositType {
         DEPOSIT_FOR_TYPE,
         CREATE_LOCK_TYPE,
-        INCREASE_LOCK_AMOUNT,
         INCREASE_UNLOCK_TIME,
         MERGE_TYPE
     }
@@ -81,12 +80,12 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
     uint256 internal constant WEEK = 1 weeks;
     uint256 internal constant MAXTIME = 365 days;
-    uint256 internal constant MULTIPLIER = 26 ether;
+    uint256 internal constant MULTIPLIER = 1 ether;
     uint256 internal constant MAX_REWARD_POOL_TOKENS = 10;
     uint256 internal constant BPS = 10000;
 
     int256 internal constant iMAXTIME = 365 days;
-    int256 internal constant iMULTIPLIER = 26 ether;
+    int256 internal constant iMULTIPLIER = 1 ether;
 
     /// @dev Current count of token
     uint256 internal tokenId;
@@ -242,7 +241,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     /**
      * @notice Get the timestamp for checkpoint `_idx` for `_tokenId`
      * @param _tokenId ID of the token
-     * @param _idx Global epoch number
+     * @param _idx Epoch number
      * @return Epoch time of the checkpoint
      */
     function userPointHistoryTimestamp(uint256 _tokenId, uint256 _idx) external view returns (uint256) {
@@ -251,7 +250,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
     /**
      * @notice Get the timestamp for checkpoint `_idx`
-     * @param _idx Global epoch number
+     * @param _idx Epoch number
      * @return Epoch time of the checkpoint
      */
     function pointHistoryTimestamp(uint256 _idx) external view returns (uint256) {
@@ -354,7 +353,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         uint256 votes = 0;
         for (uint256 i = 0; i < _tokenIds.length; i++) {
             uint256 tId = _tokenIds[i];
-            votes = votes + _balanceOfToken(tId);
+            votes = votes + _balanceOfTokenAt(tId, block.timestamp);
         }
         return votes;
     }
@@ -428,7 +427,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
      * @dev Amount to ragequit should be a function of the voting power
      */
     function amountToRagequit(uint256 _tokenId) public view returns (uint256) {
-        return (_balanceOfToken(_tokenId) * (fluxPerVeALCX + BPS)) / BPS;
+        return (_balanceOfTokenAt(_tokenId, block.timestamp) * (fluxPerVeALCX + BPS)) / BPS;
     }
 
     /**
@@ -438,12 +437,18 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     function tokenURI(uint256 _tokenId) external view returns (string memory) {
         require(idToOwner[_tokenId] != address(0), "Query for nonexistent token");
         LockedBalance memory _locked = locked[_tokenId];
-        return _tokenURI(_tokenId, _balanceOfToken(_tokenId), _locked.end, uint256(int256(_locked.amount)));
+        return
+            _tokenURI(
+                _tokenId,
+                _balanceOfTokenAt(_tokenId, block.timestamp),
+                _locked.end,
+                uint256(int256(_locked.amount))
+            );
     }
 
     function balanceOfToken(uint256 _tokenId) external view returns (uint256) {
         if (ownershipChange[_tokenId] == block.number) return 0;
-        return _balanceOfToken(_tokenId);
+        return _balanceOfTokenAt(_tokenId, block.timestamp);
     }
 
     function balanceOfTokenAt(uint256 _tokenId, uint256 _time) external view returns (uint256) {
@@ -460,7 +465,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         // If the lock is expired, no flux is claimable at the current epoch
         if (block.timestamp > locked[_tokenId].end) return 0;
         uint256 ragequitAmount = amountToRagequit(_tokenId);
-        return ((ragequitAmount / fluxMultiplier) / epoch);
+        return ((ragequitAmount / fluxMultiplier) / EPOCH);
     }
 
     /**
@@ -472,7 +477,27 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     function totalSupplyAtT(uint256 t) public view returns (uint256) {
         uint256 _epoch = epoch;
         Point memory lastPoint = pointHistory[_epoch];
-        if (t < lastPoint.ts) lastPoint = pointHistory[_epoch - 1];
+
+        // Binary search to find point closest to timestamp t
+        if (t < lastPoint.ts) {
+            uint256 lower = 0;
+            uint256 upper = _epoch - 1;
+
+            while (upper > lower) {
+                uint256 center = upper - (upper - lower) / 2;
+                lastPoint = pointHistory[center];
+                if (lastPoint.ts == t) {
+                    lower = center;
+                    break;
+                } else if (lastPoint.ts < t) {
+                    lower = center;
+                } else {
+                    upper = center - 1;
+                }
+            }
+
+            lastPoint = pointHistory[lower];
+        }
         return _supplyAt(lastPoint, t);
     }
 
@@ -483,32 +508,6 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
      */
     function totalSupply() external view returns (uint256) {
         return totalSupplyAtT(block.timestamp);
-    }
-
-    /**
-     * @notice Calculate total voting power at some point in the past
-     * @param _block Block to calculate the total voting power at
-     * @return Total voting power at `_block`
-     */
-    function totalSupplyAt(uint256 _block) external view returns (uint256) {
-        require(_block <= block.number);
-        uint256 _epoch = epoch;
-        uint256 targetEpoch = _findBlockEpoch(_block, _epoch);
-
-        Point memory point = pointHistory[targetEpoch];
-        uint256 dt = 0;
-        if (targetEpoch < _epoch) {
-            Point memory pointNext = pointHistory[targetEpoch + 1];
-            if (point.blk != pointNext.blk) {
-                dt = ((_block - point.blk) * (pointNext.ts - point.ts)) / (pointNext.blk - point.blk);
-            }
-        } else {
-            if (point.blk != block.number) {
-                dt = ((_block - point.blk) * (block.timestamp - point.ts)) / (block.number - point.blk);
-            }
-        }
-        // Now dt contains info on how far are we beyond point
-        return _supplyAt(point, point.ts + dt);
     }
 
     /* 
@@ -929,8 +928,6 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
             require(IFluxToken(FLUX).balanceOf(msg.sender) >= fluxToRagequit, "insufficient FLUX balance");
 
-            locked[_tokenId].end = 0;
-
             IFluxToken(FLUX).burnFrom(msg.sender, fluxToRagequit);
 
             emit Ragequit(msg.sender, _tokenId, block.timestamp);
@@ -1288,19 +1285,22 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
                 if (srcCheckpoints > 0) {
                     // Get the old array of tokenIds
                     uint256[] memory srcTokensOld = checkpoints[src][srcCheckpoints - 1].tokenIds;
-                    // Create a new array of tokenIds, leaving out the tokenIds owned by owner
-                    uint256[] memory srcTokensNew = new uint256[](srcTokensOld.length - 1);
-                    // If we are removing the only token, we can skip copying the array since it will be empty
-                    if (srcTokensNew.length > 0) {
-                        // Copy array of tokenIds except what owner owns
-                        // Track two indexes, one for the old array, one for the new array
-                        uint256 newIndex = 0;
-                        for (uint256 i = 0; i < srcTokensOld.length; i++) {
-                            uint256 tId = srcTokensOld[i];
-                            if (idToOwner[tId] != owner) {
-                                srcTokensNew[newIndex] = tId;
-                                newIndex++;
-                            }
+                    // Determine the new array's length leaving out tokenIds owned by owner
+                    uint256 count = 0;
+                    for (uint256 i = 0; i < srcTokensOld.length; i++) {
+                        if (idToOwner[srcTokensOld[i]] != owner) {
+                            count++;
+                        }
+                    }
+
+                    uint256[] memory srcTokensNew = new uint256[](count);
+                    uint256 index = 0;
+
+                    // Copy array of tokenIds except what owner owns
+                    for (uint256 i = 0; i < srcTokensOld.length; i++) {
+                        uint256 tId = srcTokensOld[i];
+                        if (idToOwner[tId] != owner) {
+                            srcTokensNew[index++] = tId;
                         }
                     }
 
@@ -1337,7 +1337,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
                 // Plus all that's owned
                 for (uint256 i = 0; i < ownerTokenCount; i++) {
                     uint256 tId = ownerToTokenIdList[owner][i];
-                    dstTokensNew[i] = tId;
+                    dstTokensNew[dstTokensOld.length + i] = tId;
                 }
 
                 // Find the index of the checkpoint to create or update
@@ -1467,8 +1467,10 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         if (_tokenId != 0) {
             // If last point was in this block, the slope change has been applied already
             // But in such case we have 0 slope(s)
+
             lastPoint.slope += (newPoint.slope - oldPoint.slope);
             lastPoint.bias += (newPoint.bias - oldPoint.bias);
+
             if (lastPoint.slope < 0) {
                 lastPoint.slope = 0;
             }
@@ -1589,7 +1591,8 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
         ++tokenId;
         uint256 _tokenId = tokenId;
-        _mint(_to, _tokenId);
+        bool mintSuccess = _mint(_to, _tokenId);
+        require(mintSuccess, "Minting failed");
 
         _depositFor(_tokenId, _value, unlockTime, _maxLockEnabled, locked[_tokenId], DepositType.CREATE_LOCK_TYPE);
         return _tokenId;
@@ -1640,39 +1643,6 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
             }
         }
         return _min;
-    }
-
-    /**
-     * @notice Get the current voting power for `_tokenId`
-     * @param _tokenId ID of the token
-     * @return User voting power
-     * @dev Adheres to the ERC20 `balanceOf` interface for Aragon compatibility
-     */
-    function _balanceOfToken(uint256 _tokenId) internal view returns (uint256) {
-        uint256 _time = block.timestamp;
-        uint256 _epoch = userPointEpoch[_tokenId];
-
-        // If time is before before the first epoch or a tokens first timestamp, return 0
-        if (_epoch == 0 || _time < pointHistory[userFirstEpoch[_tokenId]].ts) {
-            return 0;
-        } else {
-            Point memory lastPoint = userPointHistory[_tokenId][_epoch];
-            if (_time < lastPoint.ts) lastPoint = userPointHistory[_tokenId][_epoch - 1];
-
-            // If max lock is enabled bias is unchanged
-            int256 biasCalculation = locked[_tokenId].maxLockEnabled
-                ? int256(0)
-                : lastPoint.slope * (int256(_time) - int256(lastPoint.ts));
-
-            // Make sure we still subtract from bias if value is negative
-            lastPoint.bias -= biasCalculation;
-
-            if (lastPoint.bias < 0) {
-                lastPoint.bias = 0;
-            }
-
-            return uint256(lastPoint.bias);
-        }
     }
 
     /**

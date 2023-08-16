@@ -81,6 +81,7 @@ contract VotingTest is BaseTest {
         assertEq(bribeBalance1, 0, "bribe balance should be 0");
 
         hevm.startPrank(admin);
+        hevm.expectRevert(abi.encodePacked("no rewards to claim"));
         voter.claimBribes(bribes, tokens, tokenId);
         distributor.claim(tokenId, false);
         hevm.stopPrank();
@@ -154,7 +155,7 @@ contract VotingTest is BaseTest {
         uint256[] memory weights = new uint256[](1);
         weights[0] = 5000;
 
-        hevm.expectRevert(abi.encodePacked("invalid gauge"));
+        hevm.expectRevert(abi.encodePacked("cannot vote for dead gauge"));
         voter.vote(tokenId, pools, weights, 0);
 
         pools[0] = alUsdPoolAddress;
@@ -429,9 +430,6 @@ contract VotingTest is BaseTest {
         hevm.prank(admin);
         voter.vote(tokenId1, pools, weights, 0);
 
-        hevm.prank(admin);
-        voter.claimBribes(bribes, tokens, tokenId1);
-
         // Claiming before the end of the epoch should not capture bribes
         assertEq(IERC20(bal).balanceOf(admin), 0, "admin bal balance not 0");
         assertEq(IERC20(aura).balanceOf(admin), 0, "admin aura balance not 0");
@@ -581,6 +579,107 @@ contract VotingTest is BaseTest {
         );
     }
 
+    // Test impact of voting on bribes earned
+    function testMultipleEpochBribeClaiming() public {
+        uint256 tokenId1 = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+        uint256 tokenId2 = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+        address bribeAddress = voter.bribes(address(sushiGauge));
+
+        // Add BAL bribes to sushiGauge
+        createThirdPartyBribe(bribeAddress, bal, TOKEN_100K);
+
+        address[] memory pools = new address[](1);
+        pools[0] = sushiPoolAddress;
+        uint256[] memory weights = new uint256[](1);
+        weights[0] = 5000;
+
+        address[] memory bribes = new address[](1);
+        bribes[0] = address(bribeAddress);
+        address[][] memory tokens = new address[][](2);
+        tokens[0] = new address[](1);
+        tokens[0][0] = bal;
+
+        hevm.prank(admin);
+        voter.vote(tokenId1, pools, weights, 0);
+
+        hevm.prank(admin);
+        voter.vote(tokenId2, pools, weights, 0);
+
+        uint256 earnedBribes0 = IBribe(bribeAddress).earned(bal, tokenId1);
+
+        assertEq(earnedBribes0, 0, "no bribes should be earned yet");
+
+        // Start second epoch
+        hevm.warp(block.timestamp + nextEpoch);
+        minter.updatePeriod();
+
+        uint256 earnedBribes1 = IBribe(bribeAddress).earned(bal, tokenId1);
+
+        hevm.prank(admin);
+        voter.claimBribes(bribes, tokens, tokenId1);
+
+        // Claiming twice shouldn't work
+        hevm.expectRevert(abi.encodePacked("no rewards to claim"));
+        hevm.prank(admin);
+        voter.claimBribes(bribes, tokens, tokenId1);
+
+        // Reset voting for tokenId1
+        hevm.prank(admin);
+        voter.reset(tokenId1);
+        hevm.prank(admin);
+        voter.reset(tokenId2);
+
+        assertEq(earnedBribes1, TOKEN_100K / 2, "bribes from voting should be earned");
+        assertEq(earnedBribes1, IERC20(bal).balanceOf(admin), "admin should receive bribes");
+
+        // Start third epoch
+        hevm.warp(block.timestamp + nextEpoch);
+        minter.updatePeriod();
+
+        uint256 earnedBribes2 = IBribe(bribeAddress).earned(bal, tokenId2);
+        assertEq(earnedBribes2, earnedBribes1, "earned bribes from previous epoch should remain");
+
+        hevm.prank(admin);
+        voter.claimBribes(bribes, tokens, tokenId2);
+
+        assertEq(earnedBribes1 + earnedBribes2, IERC20(bal).balanceOf(admin), "admin should receive both bribes");
+
+        // Start fourth epoch
+        hevm.warp(block.timestamp + nextEpoch);
+        minter.updatePeriod();
+
+        // Add more bribes
+        createThirdPartyBribe(bribeAddress, bal, TOKEN_100K);
+
+        uint256 earnedBribes3 = IBribe(bribeAddress).earned(bal, tokenId2);
+
+        assertEq(earnedBribes3, 0, "no bribes should be earned without voting");
+
+        // Claiming shouldn't work when earned is 0
+        hevm.expectRevert(abi.encodePacked("no rewards to claim"));
+        hevm.prank(admin);
+        voter.claimBribes(bribes, tokens, tokenId1);
+
+        // Participate in voting
+        hevm.prank(admin);
+        voter.vote(tokenId1, pools, weights, 0);
+
+        // Start fifth epoch
+        hevm.warp(block.timestamp + nextEpoch);
+        minter.updatePeriod();
+
+        uint256 earnedBribes4 = IBribe(bribeAddress).earned(bal, tokenId1);
+
+        hevm.prank(admin);
+        voter.claimBribes(bribes, tokens, tokenId1);
+
+        assertEq(
+            earnedBribes1 + earnedBribes2 + earnedBribes4,
+            IERC20(bal).balanceOf(admin),
+            "admin should receive bribes"
+        );
+    }
+
     // Voting power should be dependent on epoch at which vote is cast
     function testVotingPower() public {
         uint256 tokenId1 = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
@@ -679,18 +778,68 @@ contract VotingTest is BaseTest {
 
     // veALCX voting power should decay to 0
     function testVotingPowerDecay() public {
-        uint256 tokenId = createVeAlcx(admin, TOKEN_1, 3 weeks, false);
+        // Kick off epoch cycle
+        hevm.warp(block.timestamp + nextEpoch);
+        minter.updatePeriod();
+
+        uint256 tokenId1 = createVeAlcx(admin, TOKEN_1, 3 weeks, false);
+        uint256 tokenId2 = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+
+        uint256[] memory tokens = new uint256[](2);
+        tokens[0] = tokenId1;
+        tokens[1] = tokenId2;
+
+        address[] memory pools = new address[](1);
+        pools[0] = alETHPool;
+        uint256[] memory weights = new uint256[](1);
+        weights[0] = 5000;
 
         hevm.startPrank(admin);
 
+        // Vote and record used weights
+        voter.vote(tokenId1, pools, weights, 0);
+        voter.vote(tokenId2, pools, weights, 0);
+        uint256 usedWeight1 = voter.usedWeights(tokenId2);
+        uint256 totalWeight1 = voter.totalWeight();
+
+        // Move to the next epoch
+        hevm.warp(block.timestamp + nextEpoch);
+        minter.updatePeriod();
+
+        // Move to when token1 expires
         hevm.warp(block.timestamp + 3 weeks);
 
-        uint256 balance = veALCX.balanceOfToken(tokenId);
+        // Mock poking idle tokens to sync voting
+        hevm.stopPrank();
+        hevm.prank(voter.admin());
+        voter.pokeIdleTokens(tokens);
+        hevm.startPrank(admin);
+
+        minter.updatePeriod();
+
+        // tokenId1 represents user who voted once and expired
+        uint256 usedWeight = voter.usedWeights(tokenId1);
+        assertEq(usedWeight, 0, "used weight should be 0 for expired token");
+
+        uint256 usedWeight2 = voter.usedWeights(tokenId2);
+        uint256 totalWeight2 = voter.totalWeight();
+
+        assertGt(usedWeight1, usedWeight2, "used weight should decrease");
+        assertGt(totalWeight1, totalWeight2, "total weight should decrease");
+
+        hevm.warp(block.timestamp + nextEpoch);
+        minter.updatePeriod();
+
+        uint256 balance = veALCX.balanceOfToken(tokenId1);
 
         // Voting power decays to 0
         hevm.expectRevert(abi.encodePacked("Cannot add to expired lock. Withdraw"));
-        veALCX.depositFor(tokenId, TOKEN_1);
+        veALCX.depositFor(tokenId1, TOKEN_1);
         assertEq(balance, 0);
+
+        // Voting with an expired token should revert
+        hevm.expectRevert(abi.encodePacked("cannot vote with expired token"));
+        voter.vote(tokenId1, pools, weights, 0);
 
         hevm.stopPrank();
     }

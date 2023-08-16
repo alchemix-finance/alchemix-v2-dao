@@ -58,14 +58,14 @@ interface IVotingEscrow {
     /**
      * @notice Get the timestamp for checkpoint `_idx` for `_tokenId`
      * @param _tokenId ID of the token
-     * @param _idx User epoch number
+     * @param _idx Epoch number
      * @return Epoch time of the checkpoint
      */
     function userPointHistoryTimestamp(uint256 _tokenId, uint256 _idx) external view returns (uint256);
 
     /**
      * @notice Get the timestamp for checkpoint `_idx`
-     * @param _idx User epoch number
+     * @param _idx Epoch number
      * @return Epoch time of the checkpoint
      */
     function pointHistoryTimestamp(uint256 _idx) external view returns (uint256);

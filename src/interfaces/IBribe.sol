@@ -74,7 +74,7 @@ interface IBribe {
     function notifyRewardAmount(address token, uint256 amount) external;
 
     /**
-     * @notice return the last time the reward was modified or periodFinish if the reward has ended
+     * @notice Return the current reward period or previous periodFinish if the reward has ended
      * @param token Address of the reward token to check
      */
     function lastTimeRewardApplicable(address token) external view returns (uint256);
@@ -91,13 +91,6 @@ interface IBribe {
      * @return uint256  The balance the account had as of the given timestamp
      */
     function getPriorBalanceIndex(uint256 tokenId, uint256 timestamp) external view returns (uint256);
-
-    /**
-     * @notice Allows a user to claim rewards for a given token
-     * @param tokenId Id of the token who's rewards are being claimed
-     * @param tokens  List of tokens being claimed
-     */
-    function getReward(uint256 tokenId, address[] memory tokens) external;
 
     /**
      * @notice Used by Voter to allow batched reward claims

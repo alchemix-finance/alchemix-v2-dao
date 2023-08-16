@@ -151,7 +151,7 @@ contract VotingEscrowTest is BaseTest {
 
         uint256 totalVotes = veALCX.totalSupply();
 
-        uint256 totalVotesAt = veALCX.totalSupplyAt(block.number);
+        uint256 totalVotesAt = veALCX.totalSupplyAtT(block.timestamp);
 
         assertEq(totalVotes, totalVotesAt);
 
@@ -239,6 +239,12 @@ contract VotingEscrowTest is BaseTest {
         // Getting the voting power at a point in time should return the expected result
         uint256 getDecayedVotingPower = veALCX.balanceOfTokenAt(tokenId, decayedTimestamp);
         assertEq(getDecayedVotingPower, decayedVotingPower, "voting powers should be equal");
+
+        // Token is expired starting in this epoch
+        hevm.warp(block.timestamp + nextEpoch);
+
+        uint256 expiredVotingPower = veALCX.balanceOfToken(tokenId);
+        assertEq(expiredVotingPower, 0, "voting power should be 0 after lock expires");
 
         // Voting power before token was created should be 0
         uint256 getPastVotingPower = veALCX.balanceOfTokenAt(tokenId, originalTimestamp - nextEpoch);
@@ -627,6 +633,58 @@ contract VotingEscrowTest is BaseTest {
         hevm.stopPrank();
     }
 
+    // Test that the total supply is updated correctly when a token ragequits
+    function testRagequitSupplyImpact() public {
+        uint256 tokenId = createVeAlcx(admin, TOKEN_1, THREE_WEEKS, false);
+
+        uint256 ragequitAmount = veALCX.amountToRagequit(tokenId);
+
+        // Ragequit and withdraw token
+        hevm.prank(address(veALCX));
+        flux.mint(admin, ragequitAmount);
+        hevm.startPrank(admin);
+        flux.approve(address(veALCX), ragequitAmount);
+        veALCX.startCooldown(tokenId);
+        hevm.warp(block.timestamp + ONE_WEEK + 1 days);
+
+        uint256 totalVotesBefore = veALCX.totalSupply();
+        uint256 balanceOfToken = veALCX.balanceOfToken(tokenId);
+
+        veALCX.withdraw(tokenId);
+
+        // Check that the token is burnt and has no voting power
+        assertEq(veALCX.balanceOfToken(tokenId), 0);
+        assertEq(veALCX.ownerOf(tokenId), address(0));
+
+        uint256 totalVotesAfter = veALCX.totalSupply();
+        assertEq(totalVotesAfter, totalVotesBefore - balanceOfToken, "total should decrease by balance of token");
+
+        hevm.stopPrank();
+    }
+
+    // It should take MAXTIME * fluxMultiplier to accrue enough flux to ragequit
+    function testFluxAccrualOverTime() public {
+        hevm.startPrank(admin);
+
+        uint256 tokenId = veALCX.createLock(TOKEN_1, MAXTIME, true);
+
+        uint256 claimedBalance = flux.balanceOf(admin);
+        uint256 unclaimedBalance = veALCX.unclaimedFlux(tokenId);
+        uint256 ragequitAmount = veALCX.amountToRagequit(tokenId);
+
+        assertEq(claimedBalance, 0);
+        assertEq(unclaimedBalance, 0);
+
+        voter.reset(tokenId);
+
+        unclaimedBalance = veALCX.unclaimedFlux(tokenId);
+
+        // Flux accrued over one epoch should align with the fluxMultiplier and epoch length
+        uint256 fluxCalc = unclaimedBalance * veALCX.fluxMultiplier() * veALCX.EPOCH();
+
+        assertApproxEq(fluxCalc, ragequitAmount, 1e18);
+    }
+
     function testGetPastTotalSupply() public {
         createVeAlcx(admin, TOKEN_1, MAXTIME, false);
 
@@ -706,6 +764,13 @@ contract VotingEscrowTest is BaseTest {
         );
 
         minter.updatePeriod();
+
+        // Check that the RewardsDistributor and veALCX are in sync
+        uint256 timeCursor = distributor.timeCursor();
+        uint256 veSupply = distributor.veSupply(timeCursor - 1 weeks);
+        uint256 supplyAt = veALCX.totalSupplyAtT(timeCursor - 1 weeks);
+
+        assertEq(veSupply, supplyAt, "veSupply should equal supplyAt");
 
         assertGt(
             veALCX.totalSupplyAtT(block.timestamp - 2 days),
@@ -831,5 +896,22 @@ contract VotingEscrowTest is BaseTest {
 
         assertEq(veALCX.totalSupplyAtT(t2Dp1), bal2DaysPlus1, "after deposit, 2 days + 1");
         assertEq(veALCX.totalSupplyAtT(t2Dm1), bal2DaysMinus1, "after deposit, 2 days - 1");
+    }
+
+    function testTotalSupplyWithMaxlock() public {
+        uint256 tokenId1 = createVeAlcx(admin, TOKEN_1, MAXTIME, true);
+
+        uint256 numCheckpoints = veALCX.numCheckpoints(admin);
+        assertEq(numCheckpoints, 1, "numCheckpoints should be 1");
+
+        hevm.warp(block.timestamp + nextEpoch * 45);
+        minter.updatePeriod();
+
+        uint256 totalPower = veALCX.totalSupply();
+        uint256 tokenPower = veALCX.balanceOfToken(tokenId1);
+        console2.log("totalPower:", totalPower);
+        console2.log("tokenPower:", tokenPower);
+
+        // assertEq(totalVotes, votingPower, "total supply should equal voting power");
     }
 }

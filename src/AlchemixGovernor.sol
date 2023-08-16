@@ -18,7 +18,7 @@ contract AlchemixGovernor is L2Governor, L2GovernorVotes, L2GovernorVotesQuorumF
     address public pendingAdmin;
     uint256 public constant MAX_PROPOSAL_NUMERATOR = 500; // 5%
     uint256 public constant PROPOSAL_DENOMINATOR = 10000; // BPS denominator
-    uint256 public proposalNumerator = 2; // 0.02%
+    uint256 public proposalNumerator = 400; // 4%
 
     constructor(
         IVotes _ve,
@@ -26,7 +26,7 @@ contract AlchemixGovernor is L2Governor, L2GovernorVotes, L2GovernorVotesQuorumF
     )
         L2Governor("Alchemix Governor", timelockAddress)
         L2GovernorVotes(_ve)
-        L2GovernorVotesQuorumFraction(4) // 4%
+        L2GovernorVotesQuorumFraction(4) // quorum is 4% of total supply
     {
         require(address(_ve) != address(0), "ve address cannot be zero address");
         require(address(timelockAddress) != address(0), "timelock address cannot be zero address");
@@ -38,6 +38,9 @@ contract AlchemixGovernor is L2Governor, L2GovernorVotes, L2GovernorVotesQuorumF
         View functions
     */
 
+    /**
+     * @dev Part of the Governor Bravo's interface: _"The number of votes required in order for a voter to become a proposer"_.
+     */
     function proposalThreshold() public view override(L2Governor) returns (uint256) {
         return (token.getPastTotalSupply(block.timestamp) * proposalNumerator) / PROPOSAL_DENOMINATOR;
     }

@@ -89,7 +89,7 @@ contract BaseTest is DSTestPlus {
     uint256 constant TOKEN_10B = 1e28; // 1e10 = 10B tokens with 18 decimals
 
     uint256 internal constant MAXTIME = 365 days;
-    uint256 internal constant MULTIPLIER = 26 ether;
+    uint256 internal constant MULTIPLIER = 1 ether;
     uint256 internal constant BPS = 10_000;
 
     WeightedPool2TokensFactory poolFactory = WeightedPool2TokensFactory(0xA5bf2ddF098bb0Ef6d120C98217dD6B141c74EE0);
@@ -231,7 +231,7 @@ contract BaseTest is DSTestPlus {
 
         uint256 maxVotingPower = getMaxVotingPower(_amount, veALCX.lockEnd(tokenId));
 
-        assertEq(veALCX.balanceOfToken(tokenId), maxVotingPower);
+        assertEq(veALCX.balanceOfToken(tokenId), maxVotingPower, "veALCX balance error");
 
         assertEq(veALCX.ownerOf(tokenId), _account);
 
@@ -252,8 +252,10 @@ contract BaseTest is DSTestPlus {
 
         IERC20(_token).approve(_bribeAddress, _amount);
 
-        hevm.prank(address(timelockExecutor));
-        IVoter(voter).whitelist(_token);
+        if (!IVoter(voter).isWhitelisted(_token)) {
+            hevm.prank(address(timelockExecutor));
+            IVoter(voter).whitelist(_token);
+        }
 
         IBribe(_bribeAddress).notifyRewardAmount(_token, _amount);
     }

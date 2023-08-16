@@ -61,7 +61,7 @@ contract Bribe is IBribe {
         uint256 bribeStart = _bribeStart(timestamp);
         uint256 bribeEnd = bribeStart + DURATION;
 
-        return timestamp < bribeEnd ? bribeStart : bribeStart + 7 days;
+        return timestamp < bribeEnd ? bribeStart : bribeStart + DURATION;
     }
 
     /// @inheritdoc IBribe
@@ -90,6 +90,7 @@ contract Bribe is IBribe {
         require(amount > 0);
 
         // If the token has been whitelisted by the voter contract, add it to the rewards list
+        require(IVoter(voter).isWhitelisted(token), "bribe tokens must be whitelisted");
         _addRewardToken(token);
 
         // bribes kick in at the start of next bribe period
@@ -187,8 +188,14 @@ contract Bribe is IBribe {
     }
 
     function earned(address token, uint256 tokenId) public view returns (uint256) {
-        uint256 _startTimestamp = lastEarn[token][tokenId];
         if (numCheckpoints[tokenId] == 0) {
+            return 0;
+        }
+
+        uint256 _startTimestamp = lastEarn[token][tokenId];
+
+        // Prevent earning twice within an epoch
+        if (block.timestamp - _startTimestamp < DURATION) {
             return 0;
         }
 
@@ -201,7 +208,7 @@ contract Bribe is IBribe {
         prevRewards.timestamp = _bribeStart(_startTimestamp);
         uint256 _prevSupply = 1;
 
-        if (_endIndex > 0) {
+        if (_endIndex >= 0) {
             for (uint256 i = _startIndex; i <= _endIndex; i++) {
                 Checkpoint memory cp0 = checkpoints[tokenId][i];
                 uint256 _nextEpochStart = _bribeStart(cp0.timestamp);
@@ -215,6 +222,10 @@ contract Bribe is IBribe {
 
                 prevRewards.timestamp = _nextEpochStart;
                 _prevSupply = supplyCheckpoints[getPriorSupplyIndex(_nextEpochStart + DURATION)].supply;
+                // Prevent divide by zero
+                if (_prevSupply == 0) {
+                    _prevSupply = 1;
+                }
                 prevRewards.balanceOf = (cp0.balanceOf * tokenRewardsPerEpoch[token][_nextEpochStart]) / _prevSupply;
             }
         }
@@ -222,26 +233,17 @@ contract Bribe is IBribe {
         Checkpoint memory cp = checkpoints[tokenId][_endIndex];
         uint256 _lastEpochStart = _bribeStart(cp.timestamp);
         uint256 _lastEpochEnd = _lastEpochStart + DURATION;
+        uint256 _priorSupply = supplyCheckpoints[getPriorSupplyIndex(_lastEpochEnd)].supply;
+        // Prevent divide by zero
+        if (_priorSupply == 0) {
+            _priorSupply = 1;
+        }
 
         if (block.timestamp > _lastEpochEnd) {
-            reward +=
-                (cp.balanceOf * tokenRewardsPerEpoch[token][_lastEpochStart]) /
-                supplyCheckpoints[getPriorSupplyIndex(_lastEpochEnd)].supply;
+            reward += (cp.balanceOf * tokenRewardsPerEpoch[token][_lastEpochStart]) / _priorSupply;
         }
 
         return reward;
-    }
-
-    /// @inheritdoc IBribe
-    function getReward(uint256 tokenId, address[] memory tokens) external lock {
-        require(IVotingEscrow(veALCX).isApprovedOrOwner(msg.sender, tokenId));
-        for (uint256 i = 0; i < tokens.length; i++) {
-            uint256 _reward = earned(tokens[i], tokenId);
-            lastEarn[tokens[i]][tokenId] = block.timestamp;
-            if (_reward > 0) _safeTransfer(tokens[i], msg.sender, _reward);
-
-            emit ClaimRewards(msg.sender, tokens[i], _reward);
-        }
     }
 
     /// @inheritdoc IBribe
@@ -250,8 +252,11 @@ contract Bribe is IBribe {
         address _owner = IVotingEscrow(veALCX).ownerOf(tokenId);
         for (uint256 i = 0; i < tokens.length; i++) {
             uint256 _reward = earned(tokens[i], tokenId);
+
+            require(_reward > 0, "no rewards to claim");
+
             lastEarn[tokens[i]][tokenId] = block.timestamp;
-            if (_reward > 0) _safeTransfer(tokens[i], _owner, _reward);
+            _safeTransfer(tokens[i], _owner, _reward);
 
             emit ClaimRewards(_owner, tokens[i], _reward);
         }
@@ -319,7 +324,7 @@ contract Bribe is IBribe {
     }
 
     function _bribeStart(uint256 timestamp) internal pure returns (uint256) {
-        return timestamp - (timestamp % (7 days));
+        return timestamp - (timestamp % (DURATION));
     }
 
     function _safeTransfer(address token, address to, uint256 value) internal {
