@@ -736,6 +736,13 @@ contract VotingEscrowTest is BaseTest {
 
         minter.updatePeriod();
 
+        // Check that the RewardsDistributor and veALCX are in sync
+        uint256 timeCursor = distributor.timeCursor();
+        uint256 veSupply = distributor.veSupply(timeCursor - 1 weeks);
+        uint256 supplyAt = veALCX.totalSupplyAtT(timeCursor - 1 weeks);
+
+        assertEq(veSupply, supplyAt, "veSupply should equal supplyAt");
+
         assertGt(
             veALCX.totalSupplyAtT(block.timestamp - 2 days),
             veALCX.totalSupplyAtT(block.timestamp - 1 days),

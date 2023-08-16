@@ -289,13 +289,7 @@ contract RewardsDistributor is IRewardsDistributor, ReentrancyGuard {
             if (t > roundedTimestamp) {
                 break;
             } else {
-                uint256 epoch = _findTimestampEpoch(ve, t);
-                IVotingEscrow.Point memory pt = IVotingEscrow(ve).pointHistory(epoch);
-                int256 dt = 0;
-                if (t > pt.ts) {
-                    dt = int256(t - pt.ts);
-                }
-                veSupply[t] = Math.max(uint256(pt.bias - pt.slope * dt), 0);
+                veSupply[t] = IVotingEscrow(ve).totalSupplyAtT(t);
             }
             t += WEEK;
         }
