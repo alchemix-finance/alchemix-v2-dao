@@ -633,6 +633,35 @@ contract VotingEscrowTest is BaseTest {
         hevm.stopPrank();
     }
 
+    // Test that the total supply is updated correctly when a token ragequits
+    function testRagequitSupplyImpact() public {
+        uint256 tokenId = createVeAlcx(admin, TOKEN_1, THREE_WEEKS, false);
+
+        uint256 ragequitAmount = veALCX.amountToRagequit(tokenId);
+
+        // Ragequit and withdraw token
+        hevm.prank(address(veALCX));
+        flux.mint(admin, ragequitAmount);
+        hevm.startPrank(admin);
+        flux.approve(address(veALCX), ragequitAmount);
+        veALCX.startCooldown(tokenId);
+        hevm.warp(block.timestamp + ONE_WEEK + 1 days);
+
+        uint256 totalVotesBefore = veALCX.totalSupply();
+        uint256 balanceOfToken = veALCX.balanceOfToken(tokenId);
+
+        veALCX.withdraw(tokenId);
+
+        // Check that the token is burnt and has no voting power
+        assertEq(veALCX.balanceOfToken(tokenId), 0);
+        assertEq(veALCX.ownerOf(tokenId), address(0));
+
+        uint256 totalVotesAfter = veALCX.totalSupply();
+        assertEq(totalVotesAfter, totalVotesBefore - balanceOfToken, "total should decrease by balance of token");
+
+        hevm.stopPrank();
+    }
+
     // It should take MAXTIME * fluxMultiplier to accrue enough flux to ragequit
     function testFluxAccrualOverTime() public {
         hevm.startPrank(admin);

@@ -926,8 +926,6 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
             require(IFluxToken(FLUX).balanceOf(msg.sender) >= fluxToRagequit, "insufficient FLUX balance");
 
-            locked[_tokenId].end = 0;
-
             IFluxToken(FLUX).burnFrom(msg.sender, fluxToRagequit);
 
             emit Ragequit(msg.sender, _tokenId, block.timestamp);
@@ -1467,8 +1465,10 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         if (_tokenId != 0) {
             // If last point was in this block, the slope change has been applied already
             // But in such case we have 0 slope(s)
+
             lastPoint.slope += (newPoint.slope - oldPoint.slope);
             lastPoint.bias += (newPoint.bias - oldPoint.bias);
+
             if (lastPoint.slope < 0) {
                 lastPoint.slope = 0;
             }
