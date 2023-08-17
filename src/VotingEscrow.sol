@@ -1365,6 +1365,20 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     }
 
     /**
+     * @notice Calculate slope and bias taking into account if max lock is enabled
+     * @param _locked LockedBalance struct
+     * @param _time time to calculate point at
+     */
+    function _calculatePoint(LockedBalance memory _locked, uint256 _time) internal pure returns (Point memory point) {
+        if (_locked.end > _time && _locked.amount > 0) {
+            point.slope = _locked.maxLockEnabled ? int256(0) : (_locked.amount * iMULTIPLIER) / iMAXTIME;
+            point.bias = _locked.maxLockEnabled
+                ? ((_locked.amount * iMULTIPLIER) / iMAXTIME) * (int256(_locked.end - _time))
+                : (point.slope * (int256(_locked.end - _time)));
+        }
+    }
+
+    /**
      * @notice Record global and per-user data to checkpoint
      * @param _tokenId ID of the token. No user checkpoint if 0
      * @param oldLocked Pevious locked amount / end lock time for the user
@@ -1381,17 +1395,8 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         if (newLocked.maxLockEnabled) newLocked.end = ((block.timestamp + MAXTIME) / WEEK) * WEEK;
 
         if (_tokenId != 0) {
-            // Calculate slopes and biases
-            // Kept at zero when they have to
-            if (oldLocked.end > block.timestamp && oldLocked.amount > 0) {
-                oldPoint.slope = (oldLocked.amount * iMULTIPLIER) / iMAXTIME;
-                oldPoint.bias = (oldPoint.slope * (int256(oldLocked.end - block.timestamp)));
-            }
-
-            if (newLocked.end > block.timestamp && newLocked.amount > 0) {
-                newPoint.slope = (newLocked.amount * iMULTIPLIER) / iMAXTIME;
-                newPoint.bias = (newPoint.slope * (int256(newLocked.end - block.timestamp)));
-            }
+            oldPoint = _calculatePoint(oldLocked, block.timestamp);
+            newPoint = _calculatePoint(newLocked, block.timestamp);
 
             // Read values of scheduled changes in the slope
             // oldLocked.end can be in the past and in the future

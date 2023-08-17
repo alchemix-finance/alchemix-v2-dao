@@ -909,9 +909,7 @@ contract VotingEscrowTest is BaseTest {
 
         uint256 totalPower = veALCX.totalSupply();
         uint256 tokenPower = veALCX.balanceOfToken(tokenId1);
-        console2.log("totalPower:", totalPower);
-        console2.log("tokenPower:", tokenPower);
 
-        // assertEq(totalVotes, votingPower, "total supply should equal voting power");
+        assertEq(tokenPower, totalPower, "total supply should equal voting power");
     }
 }
