@@ -173,6 +173,7 @@ contract BaseTest is DSTestPlus {
             address(distributor),
             address(revenueHandler),
             address(timeGauge),
+            devmsig,
             supply,
             rewards,
             stepdown

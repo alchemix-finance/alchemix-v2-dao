@@ -15,6 +15,8 @@ contract MinterTest is BaseTest {
 
     // Test emissions for a single epoch
     function testEpochEmissions() external {
+        uint256 treasuryBalanceBefore = alcx.balanceOf(address(devmsig));
+
         uint256 period = minter.activePeriod();
 
         // Set the block timestamp to be the next epoch
@@ -24,8 +26,19 @@ contract MinterTest is BaseTest {
         uint256 epochEmissions = minter.epochEmission();
 
         assertEq(
-            minter.calculateGrowth(epochEmissions),
-            (epochEmissions * minter.veAlcxEmissionsRate()) / minter.BPS()
+            minter.calculateEmissions(epochEmissions, minter.veAlcxEmissionsRate()),
+            (epochEmissions * minter.veAlcxEmissionsRate()) / minter.BPS(),
+            "incorrect veALCX emissions"
+        );
+        assertEq(
+            minter.calculateEmissions(epochEmissions, minter.timeEmissionsRate()),
+            (epochEmissions * minter.timeEmissionsRate()) / minter.BPS(),
+            "incorrect time emissions"
+        );
+        assertEq(
+            minter.calculateEmissions(epochEmissions, minter.treasuryEmissionsRate()),
+            (epochEmissions * minter.treasuryEmissionsRate()) / minter.BPS(),
+            "incorrect treasury emissions"
         );
 
         // Mint emissions for epoch
@@ -34,11 +47,16 @@ contract MinterTest is BaseTest {
         uint256 distributorBalance = alcx.balanceOf(address(distributor));
         uint256 voterBalance = alcx.balanceOf(address(voter));
         uint256 timeBalance = alcx.balanceOf(address(timeGauge));
+        uint256 treasuryBalance = (alcx.balanceOf(address(devmsig)) - treasuryBalanceBefore);
 
         uint256 totalAfterEpoch = minter.circulatingEmissionsSupply();
         emit log_named_uint("emissions after one epoch (ether)", totalAfterEpoch / TOKEN_1);
 
-        assertEq(epochEmissions, voterBalance + distributorBalance + timeBalance);
+        assertEq(
+            epochEmissions,
+            voterBalance + distributorBalance + timeBalance + treasuryBalance,
+            "incorrect emission distribution"
+        );
         assertEq(totalAfterEpoch, currentTotalEmissions + epochEmissions);
     }
 

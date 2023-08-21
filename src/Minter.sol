@@ -10,6 +10,7 @@ import "src/interfaces/IRevenueHandler.sol";
 import "src/interfaces/synthetix/IStakingRewards.sol";
 import "src/libraries/Math.sol";
 import "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
+import "openzeppelin-contracts/contracts/utils/math/SafeMath.sol";
 
 /**
  * @title Minter
@@ -17,6 +18,8 @@ import "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
  */
 contract Minter is IMinter {
     using SafeERC20 for IERC20;
+    using SafeMath for uint256;
+
     // Allows minting once per epoch (epoch = 1 week, reset every Thursday 00:00 UTC)
     uint256 public constant WEEK = 1 weeks;
     uint256 public constant TAIL_EMISSIONS_RATE = 2194e18; // Tail emissions rate
@@ -29,6 +32,7 @@ contract Minter is IMinter {
     uint256 public supply;
     uint256 public veAlcxEmissionsRate; // bps of emissions going to veALCX holders
     uint256 public timeEmissionsRate; // bps of emissions going to TIME stakers
+    uint256 public treasuryEmissionsRate; // bps of emissions going to treasury
 
     address public admin;
     address public pendingAdmin;
@@ -42,6 +46,7 @@ contract Minter is IMinter {
     IRewardsDistributor public immutable rewardsDistributor;
     IRevenueHandler public immutable revenueHandler;
     IStakingRewards public immutable timeGauge;
+    address public immutable treasury;
 
     constructor(InitializationParams memory params) {
         stepdown = params.stepdown;
@@ -55,9 +60,11 @@ contract Minter is IMinter {
         rewardsDistributor = IRewardsDistributor(params.rewardsDistributor);
         revenueHandler = IRevenueHandler(params.revenueHandler);
         timeGauge = IStakingRewards(params.timeGauge);
+        treasury = params.treasury;
         activePeriod = ((block.timestamp + WEEK) / WEEK) * WEEK;
-        veAlcxEmissionsRate = 5000; // 50%
+        veAlcxEmissionsRate = 2500; // 25%
         timeEmissionsRate = 2000; // 20%
+        treasuryEmissionsRate = 1500; // 15%
     }
 
     /*
@@ -75,8 +82,8 @@ contract Minter is IMinter {
     }
 
     /// @inheritdoc IMinter
-    function calculateGrowth(uint256 _minted) public view returns (uint256) {
-        return (_minted * veAlcxEmissionsRate) / BPS;
+    function calculateEmissions(uint256 _emissions, uint256 _rate) public pure returns (uint256) {
+        return _emissions.mul(_rate).div(BPS);
     }
 
     function initialize() external {
@@ -120,9 +127,10 @@ contract Minter is IMinter {
             activePeriod = period;
             epochEmissions = epochEmission();
 
-            uint256 veAlcxEmissions = calculateGrowth(epochEmissions);
-            uint256 timeEmissions = (epochEmissions * timeEmissionsRate) / BPS;
-            uint256 gaugeEmissions = epochEmissions - veAlcxEmissions - timeEmissions;
+            uint256 veAlcxEmissions = calculateEmissions(epochEmissions, veAlcxEmissionsRate);
+            uint256 timeEmissions = calculateEmissions(epochEmissions, timeEmissionsRate);
+            uint256 treasuryEmissions = calculateEmissions(epochEmissions, treasuryEmissionsRate);
+            uint256 gaugeEmissions = epochEmissions.sub(veAlcxEmissions).sub(timeEmissions).sub(treasuryEmissions);
             uint256 balanceOf = alcx.balanceOf(address(this));
 
             if (balanceOf < epochEmissions) alcx.mint(address(this), epochEmissions - balanceOf);
@@ -153,6 +161,8 @@ contract Minter is IMinter {
 
             IERC20(address(alcx)).safeTransfer(address(timeGauge), timeEmissions);
             timeGauge.notifyRewardAmount(timeEmissions);
+
+            IERC20(address(alcx)).safeTransfer(treasury, treasuryEmissions);
 
             revenueHandler.checkpoint();
 

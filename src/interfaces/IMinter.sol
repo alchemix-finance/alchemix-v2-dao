@@ -12,6 +12,7 @@ interface IMinter {
         address rewardsDistributor; // veALCX distribution system
         address revenueHandler; // veALCX revenue handler
         address timeGauge; // TIME gauge
+        address treasury; // Treasury address
         uint256 supply; // Current emissions supply
         uint256 rewards; // Current amount of emissions
         uint256 stepdown; // Rate rewards decreases by
@@ -56,11 +57,12 @@ interface IMinter {
     function circulatingEmissionsSupply() external view returns (uint256);
 
     /**
-     * @notice Governance-defined portion of emissions sent to veALCX stakers
-     * @param _minted  Amount of emissions to be minted for an epoch
+     * @notice Calculate the amount of emissions to be distributed
+     * @param _emissions  Amount of emissions to be minted for an epoch
+     * @param _rate    Rate of emissions to be distributed
      * @return uint256 Amount of emissions distributed to veALCX stakers
      */
-    function calculateGrowth(uint256 _minted) external view returns (uint256);
+    function calculateEmissions(uint256 _emissions, uint256 _rate) external view returns (uint256);
 
     /**
      * @notice Updates the epoch, mints new emissions, sends emissions to rewards distributor and voter
