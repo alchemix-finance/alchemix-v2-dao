@@ -25,7 +25,7 @@ contract RewardsDistributor is IRewardsDistributor, ReentrancyGuard {
 
     uint256 public constant WEEK = 1 weeks;
     address public constant BURN_ADDRESS = address(0);
-    uint256 public constant BPS = 10000;
+    uint256 public constant BPS = 10_000;
 
     bytes32 public balancerPoolId;
 

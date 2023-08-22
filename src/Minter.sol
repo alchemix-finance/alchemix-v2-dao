@@ -23,7 +23,7 @@ contract Minter is IMinter {
     // Allows minting once per epoch (epoch = 1 week, reset every Thursday 00:00 UTC)
     uint256 public constant WEEK = 1 weeks;
     uint256 public constant TAIL_EMISSIONS_RATE = 2194e18; // Tail emissions rate
-    uint256 public constant BPS = 10000;
+    uint256 public constant BPS = 10_000;
 
     uint256 public epochEmissions;
     uint256 public activePeriod;

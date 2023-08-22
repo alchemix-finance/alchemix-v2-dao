@@ -246,6 +246,7 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
 
     /**
      * @dev Part of the Governor Bravo's interface: _"The number of votes required in order for a voter to become a proposer"_.
+     * @dev This is overridden in AlchemixGovernor
      */
     function proposalThreshold() public view virtual returns (uint256) {
         return 0;
@@ -262,10 +263,10 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
     function _voteSucceeded(uint256 proposalId) internal view virtual returns (bool);
 
     /**
-     * @dev Get the voting weight of `account` at a specific `blockTimestamp`, for a vote as described by `params`.
+     * @dev Get the voting weight of `tokenId` at a specific `blockTimestamp`, for a vote as described by `params`.
      */
     function _getVotes(
-        address account,
+        address tokenId,
         uint256 blockTimestamp,
         bytes memory params
     ) internal view virtual returns (uint256);
@@ -305,7 +306,7 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
     ) public virtual override returns (uint256) {
         require(
             getVotes(_msgSender(), block.timestamp - 1) >= proposalThreshold(),
-            "Governor: proposer votes below proposal threshold"
+            "Governor: veALCX power below proposal threshold"
         );
 
         uint256 proposalId = hashProposal(targets, values, calldatas, keccak256(bytes(description)), chainId);

@@ -76,12 +76,32 @@ contract AlchemixGovernorTest is BaseTest {
         );
     }
 
-    function testFailCannotProposeWithoutSufficientBalance() public {
-        // propose
-        hevm.startPrank(dead);
+    function testProposeFail() public {
+        createVeAlcx(admin, TOKEN_100K, MAXTIME, false);
+        createVeAlcx(beef, 1e18, MAXTIME, false);
+
+        hevm.startPrank(beef);
         (address[] memory t, uint256[] memory v, bytes[] memory c, string memory d) = craftTestProposal();
 
+        hevm.expectRevert(abi.encodePacked("Governor: veALCX power below proposal threshold"));
         governor.propose(t, v, c, d, MAINNET);
+
+        hevm.stopPrank();
+    }
+
+    function testPropose() public {
+        createVeAlcx(admin, TOKEN_100K, MAXTIME, false);
+        createVeAlcx(beef, 1e18, MAXTIME, false);
+
+        hevm.startPrank(admin);
+
+        uint256 adminVotes = governor.getVotes(admin, block.timestamp - 1);
+        uint256 pastVotes = veALCX.getPastVotes(admin, block.timestamp - 1);
+        assertEq(adminVotes, pastVotes, "governor and veALCX calculated different votes");
+
+        (address[] memory t, uint256[] memory v, bytes[] memory c, string memory d) = craftTestProposal();
+        governor.propose(t, v, c, d, MAINNET);
+
         hevm.stopPrank();
     }
 
@@ -94,16 +114,22 @@ contract AlchemixGovernorTest is BaseTest {
         assertEq(timelockExecutor.getTimestamp(opId), block.timestamp + delay);
     }
 
-    function testProposalsNeedsQuorumToPass() public {
-        createVeAlcx(dead, 1, MAXTIME, false);
+    function testProposalNeedsQuorumToPass() public {
+        createVeAlcx(dead, TOKEN_1, MAXTIME, false);
+        createVeAlcx(admin, TOKEN_100K, MAXTIME, false);
 
         assertFalse(voter.isWhitelisted(usdc));
 
         (address[] memory t, uint256[] memory v, bytes[] memory c, string memory d) = craftTestProposal();
 
+        uint256 votingPower = veALCX.getVotes(dead);
+        uint256 quorum = governor.quorum(block.timestamp);
+
+        assertGt(quorum, votingPower, "quorum should be greater than voting power");
+
         // proposal should fail to meet threshold when veALCX amount is too low
         hevm.startPrank(dead);
-        hevm.expectRevert(abi.encodePacked("Governor: proposer votes below proposal threshold"));
+        hevm.expectRevert(abi.encodePacked("Governor: veALCX power below proposal threshold"));
         governor.propose(t, v, c, d, MAINNET);
 
         uint256 proposalThreshold = governor.proposalThreshold();
@@ -140,6 +166,11 @@ contract AlchemixGovernorTest is BaseTest {
         (address[] memory t, uint256[] memory v, bytes[] memory c, string memory d) = craftTestProposal();
 
         hevm.warp(block.timestamp + 2 days); // delay
+
+        uint256 quorum = governor.quorum(block.timestamp);
+        uint256 votingPower = veALCX.getVotes(admin);
+
+        assertGt(votingPower, quorum, "voting power should be greater than quorum");
 
         // propose
         hevm.startPrank(admin);
@@ -207,7 +238,7 @@ contract AlchemixGovernorTest is BaseTest {
         governor.acceptAdmin();
 
         hevm.expectRevert(abi.encodePacked("numerator too high"));
-        governor.setProposalNumerator(600);
+        governor.setProposalNumerator(6000);
 
         governor.setProposalNumerator(500);
 
@@ -228,7 +259,7 @@ contract AlchemixGovernorTest is BaseTest {
         // proposal should fail to meet threshold when veALCX amount is too low
         hevm.startPrank(dead);
 
-        hevm.expectRevert(abi.encodePacked("Governor: proposer votes below proposal threshold"));
+        hevm.expectRevert(abi.encodePacked("Governor: veALCX power below proposal threshold"));
         governor.propose(t, v, c, d, MAINNET);
 
         hevm.warp(block.timestamp + 12);

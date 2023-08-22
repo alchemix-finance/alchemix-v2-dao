@@ -80,7 +80,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     uint256 internal constant MAXTIME = 365 days;
     uint256 internal constant MULTIPLIER = 1 ether;
     uint256 internal constant MAX_REWARD_POOL_TOKENS = 10;
-    uint256 internal constant BPS = 10000;
+    uint256 internal constant BPS = 10_000;
 
     int256 internal constant iMAXTIME = 365 days;
     int256 internal constant iMULTIPLIER = 1 ether;

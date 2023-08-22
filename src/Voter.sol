@@ -24,7 +24,7 @@ contract Voter is IVoter {
     address public immutable gaugefactory;
     address public immutable bribefactory;
 
-    uint256 internal constant BPS = 10000;
+    uint256 internal constant BPS = 10_000;
     uint256 internal constant MAX_BOOST = 5000;
     uint256 internal constant MIN_BOOST = 0;
     uint256 internal constant DURATION = 7 days; // rewards are released over 7 days
