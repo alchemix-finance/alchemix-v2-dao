@@ -45,6 +45,20 @@ interface IRevenueHandler {
     event RevenueTokenTokenRemoved(address revenueToken);
 
     /**
+     * @notice Emitted when alchemic-token is added.
+     *
+     * @param alchemicToken The alchemic-token to add
+     */
+    event AlchemicTokenAdded(address alchemicToken);
+
+    /**
+     * @notice Emitted when alchemic-token is removed.
+     *
+     * @param alchemicToken The alchemic-token to remove.
+     */
+    event AlchemicTokenRemoved(address alchemicToken);
+
+    /**
      * @notice Emitted when poolAdapter parameters are set for a revenue token.
      *
      * @param revenueToken  The address of the revenue token.
@@ -88,33 +102,17 @@ interface IRevenueHandler {
     );
 
     /**
-     * @notice Returns the total amount of debtToken currently claimable by tokenId.
+     * @notice Returns the total amount of token currently claimable by tokenId.
      * @notice This function will return the amount of claimable accrued revenue up until the most recent checkpoint.
      * @notice If `checkpoint()` has not been called in the current epoch, then calling `claimable()`
      * @notice will not return the claimable accrued revenue for the current epoch.
      *
      * @param tokenId      The tokenId with a claimable balance.
-     * @param debtToken    The debtToken that is claimable.
+     * @param token    The token that is claimable.
      *
-     * @return             The amount of debtToken that is claimable by tokenId.
+     * @return             The amount of token that is claimable by tokenId.
      */
-    function claimable(uint256 tokenId, address debtToken) external view returns (uint256);
-
-    /**
-     * @notice Add a debtToken to the list of claimable debtTokens.
-     * @notice This function is only callable by the contract owner.
-     *
-     * @param debtToken The address of the debt token to add.
-     */
-    function addDebtToken(address debtToken) external;
-
-    /**
-     * @notice Remove a debtToken from the list of claimable debtTokens.
-     * @notice This function is only callable by the contract owner.
-     *
-     * @param debtToken The address of the debt token to remove.
-     */
-    function removeDebtToken(address debtToken) external;
+    function claimable(uint256 tokenId, address token) external view returns (uint256);
 
     /**
      * @notice Add a revenueToken to the list of claimable revenueTokens.
@@ -131,6 +129,22 @@ interface IRevenueHandler {
      * @param revenueToken The address of the revenue token to remove.
      */
     function removeRevenueToken(address revenueToken) external;
+
+    /**
+     * @notice Add an alchemic-token to the list of recognized alchemic-tokens.
+     * @notice This function is only callable by the contract owner.
+     *
+     * @param alchemicToken The address of the alchemic-token to add.
+     */
+    function addAlchemicToken(address alchemicToken) external;
+
+    /**
+     * @notice Remove an alchemic-token from the list of recognized alchemic-tokens.
+     * @notice This function is only callable by the contract owner.
+     *
+     * @param alchemicToken The address of the alchemic-token to remove.
+     */
+    function removeAlchemicToken(address alchemicToken) external;
 
     /**
      * @dev Add an ERC20 token to the list of recognized revenue tokens.
@@ -178,17 +192,19 @@ interface IRevenueHandler {
 
     /**
      * @dev Claim an alotted amount of alchemic-tokens and burn them to a position in the alchemist.
+     * @dev If token being claimed is not an alchemic-token, then it will be sent to the recipient.
      *
      * @notice This function will claim accrued revenue up until the most recent checkpoint.
      * @notice If `checkpoint()` has not been called in the current epoch, then calling `claim()`
      * @notice will not claim accrued revenue for the current epoch.
      *
      * @param tokenId      The ID of the veALCX position to use.
+     * @param token        The address of the token to claim.
      * @param alchemist    The address of the target alchemist.
      * @param amount       The amount to claim.
      * @param recipient    The recipient of the resulting credit.
      */
-    function claim(uint256 tokenId, address alchemist, uint256 amount, address recipient) external;
+    function claim(uint256 tokenId, address token, address alchemist, uint256 amount, address recipient) external;
 
     /**
      * @notice Checkpoint the current epoch.
