@@ -376,4 +376,16 @@ contract MinterTest is BaseTest {
 
         hevm.stopPrank();
     }
+
+    function testSetTreasury() public {
+        hevm.expectRevert(abi.encodePacked("not admin"));
+        minter.setTreasury(beef);
+
+        hevm.prank(admin);
+        hevm.expectRevert(abi.encodePacked("treasury cannot be 0x0"));
+        minter.setTreasury(address(0));
+
+        hevm.prank(admin);
+        minter.setTreasury(beef);
+    }
 }

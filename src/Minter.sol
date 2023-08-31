@@ -37,6 +37,7 @@ contract Minter is IMinter {
     address public admin;
     address public pendingAdmin;
     address public initializer;
+    address public treasury;
 
     bool public initialized;
 
@@ -46,7 +47,6 @@ contract Minter is IMinter {
     IRewardsDistributor public immutable rewardsDistributor;
     IRevenueHandler public immutable revenueHandler;
     IStakingRewards public immutable timeGauge;
-    address public immutable treasury;
 
     constructor(InitializationParams memory params) {
         stepdown = params.stepdown;
@@ -107,6 +107,13 @@ contract Minter is IMinter {
         require(msg.sender == pendingAdmin, "not pending admin");
         admin = pendingAdmin;
         emit AdminUpdated(pendingAdmin);
+    }
+
+    function setTreasury(address _treasury) external {
+        require(msg.sender == admin, "not admin");
+        require(_treasury != address(0), "treasury cannot be 0x0");
+        treasury = _treasury;
+        emit TreasuryUpdated(_treasury);
     }
 
     /// @inheritdoc IMinter

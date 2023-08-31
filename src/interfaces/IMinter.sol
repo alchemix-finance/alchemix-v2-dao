@@ -39,6 +39,12 @@ interface IMinter {
     event SetVeAlcxEmissionsRate(uint256 veAlcxEmissionsRate);
 
     /**
+     * @notice  Emitted when treasury address is updated
+     * @param treasury The new treasury address
+     */
+    event TreasuryUpdated(address treasury);
+
+    /**
      * @notice Sets the emissions rate of rewards sent to veALCX stakers
      * @param _veAlcxEmissionsRate The rate in BPS
      */
