@@ -41,6 +41,7 @@ contract RevenueHandlerTest is BaseTest {
         revenueHandler.setDebtToken(usdc, alusd);
         revenueHandler.setPoolAdapter(usdc, address(cpa));
 
+        revenueHandler.addRevenueToken(bal);
         revenueHandler.addAlchemicToken(alusd);
 
         hevm.prank(devmsig);
@@ -83,10 +84,27 @@ contract RevenueHandlerTest is BaseTest {
         _jumpOneEpoch();
     }
 
+    function _accrueNonAlchemicRevenueAndJumpOneEpoch(uint256 revAmt) internal {
+        revenueHandler.checkpoint();
+
+        _jumpOneEpoch();
+
+        _accrueRevenue(bal, revAmt);
+        revenueHandler.checkpoint();
+
+        _jumpOneEpoch();
+    }
+
     function _setupClaimableRevenue(uint256 revAmt) internal returns (uint256 tokenId) {
         tokenId = _initializeVeALCXPosition(10e18);
 
         _accrueRevenueAndJumpOneEpoch(revAmt);
+    }
+
+    function _setupClaimableNonAlchemicRevenue(uint256 revAmt) internal returns (uint256 tokenId) {
+        tokenId = _initializeVeALCXPosition(10e18);
+
+        _accrueNonAlchemicRevenueAndJumpOneEpoch(revAmt);
     }
 
     function _takeDebt(uint256 amount) internal {
@@ -102,7 +120,7 @@ contract RevenueHandlerTest is BaseTest {
 
     function testAddRevenueToken() external {
         revenueHandler.addRevenueToken(address(weth));
-        address debtToken = revenueHandler.revenueTokens(2);
+        address debtToken = revenueHandler.revenueTokens(3);
         assertEq(debtToken, address(weth));
     }
 
@@ -110,7 +128,7 @@ contract RevenueHandlerTest is BaseTest {
         revenueHandler.addRevenueToken(address(weth));
         revenueHandler.removeRevenueToken(address(weth));
         hevm.expectRevert();
-        revenueHandler.revenueTokens(2);
+        revenueHandler.revenueTokens(3);
     }
 
     function testAddRevenueTokenFail() external {
@@ -269,6 +287,22 @@ contract RevenueHandlerTest is BaseTest {
         revenueHandler.claim(tokenId, alusd, address(alusdAlchemist), claimable, address(this));
         (int256 finalDebt, ) = alusdAlchemist.accounts(address(this));
         assertApproxEq(debtAmt - claimable, uint256(finalDebt), uint256(finalDebt) / DELTA);
+    }
+
+    function testClaimNonAlchemicRevenue() external {
+        uint256 revAmt = 1000e18;
+        uint256 tokenId = _setupClaimableNonAlchemicRevenue(revAmt);
+        uint256 balBefore = IERC20(bal).balanceOf(address(this));
+
+        assertEq(balBefore, 0, "should have no bal before claiming");
+
+        uint256 claimable = revenueHandler.claimable(tokenId, bal);
+
+        revenueHandler.claim(tokenId, bal, address(0), claimable, address(this));
+
+        uint256 balAfter = IERC20(bal).balanceOf(address(this));
+
+        assertEq(balAfter, claimable, "should be equal to amount claimed");
     }
 
     function testClaimRevenueWithoutVoting() external {
