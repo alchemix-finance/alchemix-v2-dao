@@ -197,7 +197,7 @@ contract VotingTest is BaseTest {
         // Next epoch
         hevm.warp(block.timestamp + nextEpoch);
 
-        voter.poke(tokenId, 0);
+        voter.poke(tokenId);
 
         // Pool vote should remain the same after poke
         poolVote = voter.getPoolVote(tokenId);
@@ -363,15 +363,15 @@ contract VotingTest is BaseTest {
 
         // Only approved or owner can call poke for a given tokenId
         hevm.expectRevert(abi.encodePacked("not approved or owner"));
-        voter.poke(tokenId, 0);
+        voter.poke(tokenId);
 
         hevm.prank(admin);
-        voter.poke(tokenId, 0);
+        voter.poke(tokenId);
 
         address[] memory poolVoteBefore = voter.getPoolVote(tokenId);
 
         hevm.prank(admin);
-        voter.poke(tokenId, 0);
+        voter.poke(tokenId);
 
         address[] memory poolVoteAfter = voter.getPoolVote(tokenId);
 
@@ -558,7 +558,7 @@ contract VotingTest is BaseTest {
         voter.vote(tokenId1, pools, weights, 0);
 
         hevm.prank(holder);
-        voter.poke(tokenId3, 0);
+        voter.poke(tokenId3);
 
         minter.updatePeriod();
 
