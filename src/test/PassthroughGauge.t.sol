@@ -50,6 +50,12 @@ contract PassthroughGaugeTest is BaseTest {
         // Claimable rewards of each gauge
         uint256 sushiGaugeClaimable = voter.claimable(address(sushiGauge));
 
+        address[] memory deadGauges = new address[](1);
+        deadGauges[0] = address(0);
+
+        hevm.expectRevert(abi.encodePacked("cannot distribute to a dead gauge"));
+        voter.distribute(deadGauges);
+
         voter.distribute(gauges);
 
         uint256 sushiBalanceAfter = alcx.balanceOf(sushiPoolAddress);
