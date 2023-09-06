@@ -24,7 +24,7 @@ library FixedPoint {
     uint256 internal constant ONE = 1e18; // 18 decimal places
     uint256 internal constant TWO = 2 * ONE;
     uint256 internal constant FOUR = 4 * ONE;
-    uint256 internal constant MAX_POW_RELATIVE_ERROR = 10000; // 10^(-14)
+    uint256 internal constant MAX_POW_RELATIVE_ERROR = 10_000; // 10^(-14)
 
     // Minimum base for the power function when the exponent is 'free' (larger than ONE).
     uint256 internal constant MIN_POW_BASE_FREE_EXPONENT = 0.7e18;

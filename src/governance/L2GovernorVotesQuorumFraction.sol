@@ -40,7 +40,7 @@ abstract contract L2GovernorVotesQuorumFraction is L2GovernorVotes {
      * @dev Returns the quorum denominator. Defaults to 100, but may be overridden.
      */
     function quorumDenominator() public view virtual returns (uint256) {
-        return 100;
+        return 10_000;
     }
 
     /**

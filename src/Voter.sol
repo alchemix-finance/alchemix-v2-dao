@@ -24,7 +24,7 @@ contract Voter is IVoter {
     address public immutable gaugefactory;
     address public immutable bribefactory;
 
-    uint256 internal constant BPS = 10000;
+    uint256 internal constant BPS = 10_000;
     uint256 internal constant MAX_BOOST = 5000;
     uint256 internal constant MIN_BOOST = 0;
     uint256 internal constant DURATION = 7 days; // rewards are released over 7 days
@@ -168,8 +168,10 @@ contract Voter is IVoter {
     }
 
     /// @inheritdoc IVoter
-    function poke(uint256 _tokenId, uint256 _boost) public {
-        // Allow admin to poke any token
+    function poke(uint256 _tokenId) public {
+        // Previous boost will be taken into account with weights being pulled from the votes mapping
+        uint256 _boost = 0;
+
         if (msg.sender != admin) {
             require(IVotingEscrow(veALCX).isApprovedOrOwner(msg.sender, _tokenId), "not approved or owner");
         }
@@ -203,7 +205,7 @@ contract Voter is IVoter {
             if (block.timestamp > IVotingEscrow(veALCX).lockEnd(_tokenId)) {
                 reset(_tokenId);
             }
-            poke(_tokenId, 0);
+            poke(_tokenId);
         }
     }
 

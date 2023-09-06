@@ -7,7 +7,7 @@ contract PassthroughGaugeTest is BaseTest {
     uint256 snapshotWeek = 17120807;
 
     uint256 platformFee = 400; // 4%
-    uint256 DENOMINATOR = 10000; // denominates weights 10000 = 100%
+    uint256 DENOMINATOR = 10_000; // denominates weights 10_000 = 100%
 
     function setUp() public {
         setupContracts(block.timestamp);
@@ -49,6 +49,12 @@ contract PassthroughGaugeTest is BaseTest {
 
         // Claimable rewards of each gauge
         uint256 sushiGaugeClaimable = voter.claimable(address(sushiGauge));
+
+        address[] memory deadGauges = new address[](1);
+        deadGauges[0] = address(0);
+
+        hevm.expectRevert(abi.encodePacked("cannot distribute to a dead gauge"));
+        voter.distribute(deadGauges);
 
         voter.distribute(gauges);
 

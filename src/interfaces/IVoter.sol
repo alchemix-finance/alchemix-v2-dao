@@ -74,10 +74,9 @@ interface IVoter {
     /**
      * @notice Update the voting status of a veALCX to maintain the same voting status
      * @param _tokenId ID of the token to poke
-     * @param _boost   Amount of flux to boost vote by
      * @dev Accrues any unused flux
      */
-    function poke(uint256 _tokenId, uint256 _boost) external;
+    function poke(uint256 _tokenId) external;
 
     /**
      * @notice Update the voting status of multiple veALCXs to maintain the same voting status

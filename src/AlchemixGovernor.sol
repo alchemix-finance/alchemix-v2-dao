@@ -16,9 +16,10 @@ import "openzeppelin-contracts/contracts/governance/utils/IVotes.sol";
 contract AlchemixGovernor is L2Governor, L2GovernorVotes, L2GovernorVotesQuorumFraction, L2GovernorCountingSimple {
     address public admin;
     address public pendingAdmin;
-    uint256 public constant MAX_PROPOSAL_NUMERATOR = 500; // 5%
-    uint256 public constant PROPOSAL_DENOMINATOR = 10000; // BPS denominator
-    uint256 public proposalNumerator = 400; // 4%
+    uint256 public constant MAX_PROPOSAL_NUMERATOR = 5000; // 50% of total supply to create a proposal
+    uint256 public constant PROPOSAL_DENOMINATOR = 10_000; // BPS denominator
+    uint256 public proposalNumerator = 400; // 4% of total supply to create a proposal
+    uint256 public quorumNumeratorValue = 2000; // 20% of total supply to pass a proposal
 
     constructor(
         IVotes _ve,
@@ -26,7 +27,7 @@ contract AlchemixGovernor is L2Governor, L2GovernorVotes, L2GovernorVotesQuorumF
     )
         L2Governor("Alchemix Governor", timelockAddress)
         L2GovernorVotes(_ve)
-        L2GovernorVotesQuorumFraction(4) // quorum is 4% of total supply
+        L2GovernorVotesQuorumFraction(quorumNumeratorValue)
     {
         require(address(_ve) != address(0), "ve address cannot be zero address");
         require(address(timelockAddress) != address(0), "timelock address cannot be zero address");

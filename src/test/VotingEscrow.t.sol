@@ -31,6 +31,17 @@ contract VotingEscrowTest is BaseTest {
         hevm.stopPrank();
     }
 
+    function testCreateLockFailed() public {
+        hevm.startPrank(admin);
+
+        assertEq(veALCX.balanceOf(admin), 0);
+
+        hevm.expectRevert(abi.encodePacked("cannot mint to zero address"));
+        veALCX.createLockFor(TOKEN_1, THREE_WEEKS, false, address(0));
+
+        hevm.stopPrank();
+    }
+
     // Test depositing, withdrawing from a rewardPool (Aura pool)
     function testRewardPool() public {
         // Reward pool should be set
@@ -911,5 +922,33 @@ contract VotingEscrowTest is BaseTest {
         uint256 tokenPower = veALCX.balanceOfToken(tokenId1);
 
         assertEq(tokenPower, totalPower, "total supply should equal voting power");
+    }
+
+    function testMovingDelegates() public {
+        uint256 tokenId1 = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+        uint256 tokenId2 = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+
+        uint256 balanceOfTokens = veALCX.balanceOfToken(tokenId1) + veALCX.balanceOfToken(tokenId2);
+        uint256 originalVotingPowerAdmin = veALCX.getVotes(admin);
+
+        assertEq(balanceOfTokens, originalVotingPowerAdmin, "incorrect voting power");
+
+        uint256 originalVotingPowerBeef = veALCX.getVotes(beef);
+
+        assertEq(originalVotingPowerBeef, 0, "should have no voting power");
+
+        hevm.prank(admin);
+        veALCX.delegate(beef);
+
+        address delegates = veALCX.delegates(admin);
+        assertEq(delegates, beef, "incorrect delegate");
+
+        // Admin should have no power after delegating votes
+        uint256 newVotingPowerAdmin = veALCX.getVotes(admin);
+        assertEq(newVotingPowerAdmin, 0, "should have no voting power");
+
+        // Beef should now have the voting power of admin's tokens
+        uint256 newVotingPowerBeef = veALCX.getVotes(beef);
+        assertEq(newVotingPowerBeef, balanceOfTokens, "incorrect voting power");
     }
 }

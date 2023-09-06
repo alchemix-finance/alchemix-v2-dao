@@ -80,7 +80,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     uint256 internal constant MAXTIME = 365 days;
     uint256 internal constant MULTIPLIER = 1 ether;
     uint256 internal constant MAX_REWARD_POOL_TOKENS = 10;
-    uint256 internal constant BPS = 10000;
+    uint256 internal constant BPS = 10_000;
 
     int256 internal constant iMAXTIME = 365 days;
     int256 internal constant iMULTIPLIER = 1 ether;
@@ -1181,7 +1181,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
      */
     function _mint(address _to, uint256 _tokenId) internal returns (bool) {
         // Throws if `_to` is zero address
-        assert(_to != address(0));
+        require(_to != address(0), "cannot mint to zero address");
         // checkpoint for gov
         _moveTokenDelegates(address(0), delegates(_to), _tokenId);
         // Add token. Throws if `_tokenId` is owned by someone

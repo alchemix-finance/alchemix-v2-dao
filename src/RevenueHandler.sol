@@ -15,15 +15,16 @@ import "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
     This contract is meant to receive all revenue from the Alchemix protocol, and allow
         veALCX stakers to claim it, primarily as a form of debt repayment.
     IPoolAdapter contracts are used to plug into various DEXes so that revenue tokens (dai, usdc, weth, etc)
-        can be traded for alAssets (alUSD, alETH, etc).  Once per epoch (at the beginning of the epoch)
+        can be traded for alAssets (alUSD, alETH, etc). Once per epoch (at the beginning of the epoch)
         the `checkpoint()` function needs to be called so that any revenue accrued since the last checkpoint
-        can be melted into its relative alAsset.  After `checkpoint()` is called, the current epoch's revenue
+        can be melted into its relative alAsset. After `checkpoint()` is called, the current epoch's revenue
         is available to be claimed by veALCX stakers (as long as they were staked before `checkpoint()` was
         called).
-    veALCX stakers can claim some or all of their available revenue.  When a staker calls `claim()`, they
-        choose an amount, target alchemist, and target recipient.  The RevenueHandler will `burn()` up to
-        `amount` of the alAsset used by `alchemist` on `recipient`'s account.  Any leftover revenue that
+    veALCX stakers can claim some or all of their available revenue. When a staker calls `claim()`, they
+        choose an amount, target alchemist, and target recipient. The RevenueHandler will `burn()` up to
+        `amount` of the alAsset used by `alchemist` on `recipient`'s account. Any leftover revenue that
         is not burned will be sent directly to `recipient.
+    Any revenue that is not an Alchemix protocol debt token will be sent directly to users
 */
 
 contract RevenueHandler is IRevenueHandler, Ownable {
@@ -50,12 +51,11 @@ contract RevenueHandler is IRevenueHandler, Ownable {
     uint256 internal constant BPS = 10_000;
 
     address public veALCX;
-    address[] public debtTokens;
     address[] public revenueTokens;
-    mapping(address => RevenueTokenConfig) /* token */ public revenueTokenConfigs;
-    mapping(uint256 => mapping(address => uint256)) /* epoch */ /* debtToken */ /* epoch revenue */
-        public epochRevenues;
-    mapping(uint256 => mapping(address => Claimable)) /* tokenId */ /* debtToken */ public userCheckpoints;
+    mapping(address => bool) public alchemicTokens; // token => is alchemic-token (true/false)
+    mapping(address => RevenueTokenConfig) public revenueTokenConfigs; // token => RevenueTokenConfig
+    mapping(uint256 => mapping(address => uint256)) public epochRevenues; // epoch => (debtToken => epoch revenue)
+    mapping(uint256 => mapping(address => Claimable)) public userCheckpoints; // tokenId => (debtToken => Claimable)
     uint256 public currentEpoch;
     address public treasury;
     uint256 public treasuryPct;
@@ -73,37 +73,13 @@ contract RevenueHandler is IRevenueHandler, Ownable {
     */
 
     /// @inheritdoc IRevenueHandler
-    function claimable(uint256 tokenId, address debtToken) external view override returns (uint256) {
-        return _claimable(tokenId, debtToken);
+    function claimable(uint256 tokenId, address token) external view override returns (uint256) {
+        return _claimable(tokenId, token);
     }
 
     /*
         Admin functions
     */
-
-    /// @inheritdoc IRevenueHandler
-    function addDebtToken(address debtToken) external override onlyOwner {
-        for (uint256 i = 0; i < debtTokens.length; i++) {
-            if (debtTokens[i] == debtToken) {
-                revert("debt token already exists");
-            }
-        }
-        debtTokens.push(debtToken);
-        emit DebtTokenAdded(debtToken);
-    }
-
-    /// @inheritdoc IRevenueHandler
-    function removeDebtToken(address debtToken) external override onlyOwner {
-        for (uint256 i = 0; i < debtTokens.length; i++) {
-            if (debtTokens[i] == debtToken) {
-                debtTokens[i] = debtTokens[debtTokens.length - 1];
-                debtTokens.pop();
-                emit DebtTokenRemoved(debtToken);
-                return;
-            }
-        }
-        revert("debt token does not exist");
-    }
 
     /// @inheritdoc IRevenueHandler
     function addRevenueToken(address revenueToken) external override onlyOwner {
@@ -127,6 +103,22 @@ contract RevenueHandler is IRevenueHandler, Ownable {
             }
         }
         revert("revenue token does not exist");
+    }
+
+    /// @inheritdoc IRevenueHandler
+    function addAlchemicToken(address alchemicToken) external override onlyOwner {
+        require(!alchemicTokens[alchemicToken], "alchemic token already exists");
+        alchemicTokens[alchemicToken] = true;
+
+        emit AlchemicTokenAdded(alchemicToken);
+    }
+
+    /// @inheritdoc IRevenueHandler
+    function removeAlchemicToken(address alchemicToken) external override onlyOwner {
+        require(alchemicTokens[alchemicToken], "alchemic token does not exist");
+        alchemicTokens[alchemicToken] = false;
+
+        emit AlchemicTokenRemoved(alchemicToken);
     }
 
     /// @inheritdoc IRevenueHandler
@@ -173,34 +165,44 @@ contract RevenueHandler is IRevenueHandler, Ownable {
     */
 
     /// @inheritdoc IRevenueHandler
-    function claim(uint256 tokenId, address alchemist, uint256 amount, address recipient) external override {
+    function claim(
+        uint256 tokenId,
+        address token,
+        address alchemist,
+        uint256 amount,
+        address recipient
+    ) external override {
         require(IVotingEscrow(veALCX).isApprovedOrOwner(msg.sender, tokenId), "Not approved or owner");
 
-        address debtToken = IAlchemistV2(alchemist).debtToken();
-        (, address[] memory deposits) = IAlchemistV2(alchemist).accounts(recipient);
-        uint256 amountClaimable = _claimable(tokenId, debtToken);
+        uint256 amountBurned = 0;
 
+        uint256 amountClaimable = _claimable(tokenId, token);
         require(amount <= amountClaimable, "Not enough claimable");
         require(amount > 0, "Amount must be greater than 0");
-        // TODO Determine if we want to handle this scenario differently
-        require(amount <= IERC20(debtToken).balanceOf(address(this)), "Not enough revenue to claim");
+        require(amount <= IERC20(token).balanceOf(address(this)), "Not enough revenue to claim");
 
-        userCheckpoints[tokenId][debtToken].lastClaimEpoch = currentEpoch;
-        userCheckpoints[tokenId][debtToken].unclaimed = amountClaimable - amount;
+        userCheckpoints[tokenId][token].lastClaimEpoch = currentEpoch;
+        userCheckpoints[tokenId][token].unclaimed = amountClaimable - amount;
 
-        IERC20(debtToken).approve(alchemist, amount);
+        if (alchemicTokens[token]) {
+            require(alchemist != address(0), "if token is alchemic-token, alchemist must be set");
 
-        // Only burn if there are deposits
-        uint256 amountBurned = deposits.length > 0 ? IAlchemistV2(alchemist).burn(amount, recipient) : 0;
+            (, address[] memory deposits) = IAlchemistV2(alchemist).accounts(recipient);
+            IERC20(token).approve(alchemist, amount);
+
+            // Only burn if there are deposits
+            amountBurned = deposits.length > 0 ? IAlchemistV2(alchemist).burn(amount, recipient) : 0;
+        }
 
         /*
             burn() will only burn up to total cdp debt
             send the leftover directly to the user
         */
         if (amountBurned < amount) {
-            IERC20(debtToken).safeTransfer(recipient, amount - amountBurned);
+            IERC20(token).safeTransfer(recipient, amount - amountBurned);
         }
-        emit ClaimRevenue(tokenId, debtToken, amount, recipient);
+
+        emit ClaimRevenue(tokenId, token, amount, recipient);
     }
 
     /// @inheritdoc IRevenueHandler
@@ -210,16 +212,36 @@ contract RevenueHandler is IRevenueHandler, Ownable {
             currentEpoch = (block.timestamp / WEEK) * WEEK;
 
             for (uint256 i = 0; i < revenueTokens.length; i++) {
-                // If a revenue token is disabled, skip it.
-                if (revenueTokenConfigs[revenueTokens[i]].disabled) continue;
+                // These will be zero if the revenue token is not an alchemic-token
+                uint256 treasuryAmt = 0;
+                uint256 amountReceived = 0;
+                address token = revenueTokens[i];
 
-                uint256 treasuryAmt = (IERC20(revenueTokens[i]).balanceOf(address(this)) * treasuryPct) / BPS;
-                IERC20(revenueTokens[i]).safeTransfer(treasury, treasuryAmt);
-                uint256 amountReceived = _melt(revenueTokens[i]);
-                epochRevenues[currentEpoch][revenueTokenConfigs[revenueTokens[i]].debtToken] += amountReceived;
+                // If a revenue token is disabled, skip it.
+                if (revenueTokenConfigs[token].disabled) continue;
+
+                // If poolAdapter is set, the revenue token is an alchemic-token
+                if (revenueTokenConfigs[token].poolAdapter != address(0)) {
+                    // Treasury only receives revenue if the token is an alchemic-token
+                    treasuryAmt = (IERC20(token).balanceOf(address(this)) * treasuryPct) / BPS;
+                    IERC20(token).safeTransfer(treasury, treasuryAmt);
+
+                    // Only melt if there is an alchemic-token to melt to
+                    amountReceived = _melt(token);
+
+                    // Update amount of alchemic-token revenue received for this epoch
+                    epochRevenues[currentEpoch][revenueTokenConfigs[token].debtToken] += amountReceived;
+                } else {
+                    // If the revenue token doesn't have a poolAdapter, it is not an alchemic-token
+                    amountReceived = IERC20(token).balanceOf(address(this));
+
+                    // Update amount of non-alchemic-token revenue received for this epoch
+                    epochRevenues[currentEpoch][token] += amountReceived;
+                }
+
                 emit RevenueRealized(
                     currentEpoch,
-                    revenueTokens[i],
+                    token,
                     revenueTokenConfigs[revenueTokens[i]].debtToken,
                     amountReceived,
                     treasuryAmt
@@ -254,9 +276,9 @@ contract RevenueHandler is IRevenueHandler, Ownable {
             );
     }
 
-    function _claimable(uint256 tokenId, address debtToken) internal view returns (uint256) {
+    function _claimable(uint256 tokenId, address token) internal view returns (uint256) {
         uint256 totalClaimable = 0;
-        uint256 lastClaimEpochTimestamp = userCheckpoints[tokenId][debtToken].lastClaimEpoch;
+        uint256 lastClaimEpochTimestamp = userCheckpoints[tokenId][token].lastClaimEpoch;
         if (lastClaimEpochTimestamp == 0) {
             /*
                 If we get here, the user has not yet claimed anything from the RevenueHandler.
@@ -278,10 +300,10 @@ contract RevenueHandler is IRevenueHandler, Ownable {
         ) {
             uint256 epochTotalVeSupply = IVotingEscrow(veALCX).totalSupplyAtT(epochTimestamp);
             if (epochTotalVeSupply == 0) continue;
-            uint256 epochRevenue = epochRevenues[epochTimestamp][debtToken];
+            uint256 epochRevenue = epochRevenues[epochTimestamp][token];
             uint256 epochUserVeBalance = IVotingEscrow(veALCX).balanceOfTokenAt(tokenId, epochTimestamp);
             totalClaimable += (epochRevenue * epochUserVeBalance) / epochTotalVeSupply;
         }
-        return totalClaimable + userCheckpoints[tokenId][debtToken].unclaimed;
+        return totalClaimable + userCheckpoints[tokenId][token].unclaimed;
     }
 }

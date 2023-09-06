@@ -33,8 +33,6 @@ contract RevenueHandlerTest is BaseTest {
         hevm.prank(admin);
         revenueHandler.transferOwnership(address(this));
 
-        revenueHandler.addDebtToken(alusd);
-
         revenueHandler.addRevenueToken(dai);
         revenueHandler.setDebtToken(dai, alusd);
         revenueHandler.setPoolAdapter(dai, address(cpa));
@@ -42,6 +40,9 @@ contract RevenueHandlerTest is BaseTest {
         revenueHandler.addRevenueToken(usdc);
         revenueHandler.setDebtToken(usdc, alusd);
         revenueHandler.setPoolAdapter(usdc, address(cpa));
+
+        revenueHandler.addRevenueToken(bal);
+        revenueHandler.addAlchemicToken(alusd);
 
         hevm.prank(devmsig);
         whitelist.disable();
@@ -83,10 +84,27 @@ contract RevenueHandlerTest is BaseTest {
         _jumpOneEpoch();
     }
 
+    function _accrueNonAlchemicRevenueAndJumpOneEpoch(uint256 revAmt) internal {
+        revenueHandler.checkpoint();
+
+        _jumpOneEpoch();
+
+        _accrueRevenue(bal, revAmt);
+        revenueHandler.checkpoint();
+
+        _jumpOneEpoch();
+    }
+
     function _setupClaimableRevenue(uint256 revAmt) internal returns (uint256 tokenId) {
         tokenId = _initializeVeALCXPosition(10e18);
 
         _accrueRevenueAndJumpOneEpoch(revAmt);
+    }
+
+    function _setupClaimableNonAlchemicRevenue(uint256 revAmt) internal returns (uint256 tokenId) {
+        tokenId = _initializeVeALCXPosition(10e18);
+
+        _accrueNonAlchemicRevenueAndJumpOneEpoch(revAmt);
     }
 
     function _takeDebt(uint256 amount) internal {
@@ -100,35 +118,9 @@ contract RevenueHandlerTest is BaseTest {
         Admin Function Tests
     */
 
-    function testAddDebtToken() external {
-        revenueHandler.addDebtToken(aleth);
-        address debtToken = revenueHandler.debtTokens(1);
-        assertEq(debtToken, aleth);
-    }
-
-    function testRemoveDebtToken() external {
-        revenueHandler.addDebtToken(aleth);
-        revenueHandler.removeDebtToken(aleth);
-        hevm.expectRevert();
-        revenueHandler.debtTokens(1);
-    }
-
-    function testAddDebtTokenFail() external {
-        revenueHandler.addDebtToken(aleth);
-        expectError("debt token already exists");
-        revenueHandler.addDebtToken(aleth);
-    }
-
-    function testRemoveDebtTokenFail() external {
-        revenueHandler.addDebtToken(aleth);
-        revenueHandler.removeDebtToken(aleth);
-        expectError("debt token does not exist");
-        revenueHandler.removeDebtToken(aleth);
-    }
-
     function testAddRevenueToken() external {
         revenueHandler.addRevenueToken(address(weth));
-        address debtToken = revenueHandler.revenueTokens(2);
+        address debtToken = revenueHandler.revenueTokens(3);
         assertEq(debtToken, address(weth));
     }
 
@@ -136,7 +128,7 @@ contract RevenueHandlerTest is BaseTest {
         revenueHandler.addRevenueToken(address(weth));
         revenueHandler.removeRevenueToken(address(weth));
         hevm.expectRevert();
-        revenueHandler.revenueTokens(2);
+        revenueHandler.revenueTokens(3);
     }
 
     function testAddRevenueTokenFail() external {
@@ -152,8 +144,33 @@ contract RevenueHandlerTest is BaseTest {
         revenueHandler.removeRevenueToken(address(weth));
     }
 
+    function testAddAlchemicToken() external {
+        revenueHandler.addAlchemicToken(aleth);
+        bool isAlchemicToken = revenueHandler.alchemicTokens(aleth);
+        assertEq(isAlchemicToken, true);
+    }
+
+    function testAddAlchemicTokenFail() external {
+        revenueHandler.addAlchemicToken(aleth);
+        expectError("alchemic token already exists");
+        revenueHandler.addAlchemicToken(aleth);
+    }
+
+    function testRemoveAlchemicToken() external {
+        revenueHandler.addAlchemicToken(aleth);
+        revenueHandler.removeAlchemicToken(aleth);
+        bool isAlchemicToken = revenueHandler.alchemicTokens(aleth);
+        assertEq(isAlchemicToken, false);
+    }
+
+    function testRemoveAlchemicTokenFail() external {
+        revenueHandler.addAlchemicToken(aleth);
+        revenueHandler.removeAlchemicToken(aleth);
+        expectError("alchemic token does not exist");
+        revenueHandler.removeAlchemicToken(aleth);
+    }
+
     function testSetDebtToken() external {
-        revenueHandler.addDebtToken(aleth);
         revenueHandler.addRevenueToken(address(weth));
         revenueHandler.setDebtToken(address(weth), aleth);
         (address debtToken, , ) = revenueHandler.revenueTokenConfigs(address(weth));
@@ -161,7 +178,6 @@ contract RevenueHandlerTest is BaseTest {
     }
 
     function testSetPoolAdapter() external {
-        revenueHandler.addDebtToken(aleth);
         revenueHandler.addRevenueToken(address(weth));
         revenueHandler.setPoolAdapter(address(weth), alusd3crv);
         (, address poolAdapter, ) = revenueHandler.revenueTokenConfigs(address(weth));
@@ -220,7 +236,7 @@ contract RevenueHandlerTest is BaseTest {
         uint256 claimable = revenueHandler.claimable(tokenId, alusd);
         hevm.prank(holder);
         expectError("Not approved or owner");
-        revenueHandler.claim(tokenId, address(alusdAlchemist), claimable, address(this));
+        revenueHandler.claim(tokenId, alusd, address(alusdAlchemist), claimable, address(this));
     }
 
     function testClaimBeforeEpoch() external {
@@ -242,7 +258,7 @@ contract RevenueHandlerTest is BaseTest {
         assertEq(claimable, 0, "claimable should be 0");
 
         hevm.expectRevert(abi.encodePacked("Amount must be greater than 0"));
-        revenueHandler.claim(tokenId1, address(alusdAlchemist), claimable, address(this));
+        revenueHandler.claim(tokenId1, alusd, address(alusdAlchemist), claimable, address(this));
 
         hevm.warp(period + nextEpoch);
         minter.updatePeriod();
@@ -252,7 +268,7 @@ contract RevenueHandlerTest is BaseTest {
 
         assertGt(claimable2, claimable, "earlier veALCX should have more claimable");
 
-        revenueHandler.claim(tokenId1, address(alusdAlchemist), claimable / 2, address(this));
+        revenueHandler.claim(tokenId1, alusd, address(alusdAlchemist), claimable / 2, address(this));
 
         assertEq(IERC20(alusd).balanceOf(address(this)), claimable / 2, "should be equal to amount claimed");
     }
@@ -268,9 +284,25 @@ contract RevenueHandlerTest is BaseTest {
         uint256 debtAmt = 5000e18;
         _takeDebt(debtAmt);
 
-        revenueHandler.claim(tokenId, address(alusdAlchemist), claimable, address(this));
+        revenueHandler.claim(tokenId, alusd, address(alusdAlchemist), claimable, address(this));
         (int256 finalDebt, ) = alusdAlchemist.accounts(address(this));
         assertApproxEq(debtAmt - claimable, uint256(finalDebt), uint256(finalDebt) / DELTA);
+    }
+
+    function testClaimNonAlchemicRevenue() external {
+        uint256 revAmt = 1000e18;
+        uint256 tokenId = _setupClaimableNonAlchemicRevenue(revAmt);
+        uint256 balBefore = IERC20(bal).balanceOf(address(this));
+
+        assertEq(balBefore, 0, "should have no bal before claiming");
+
+        uint256 claimable = revenueHandler.claimable(tokenId, bal);
+
+        revenueHandler.claim(tokenId, bal, address(0), claimable, address(this));
+
+        uint256 balAfter = IERC20(bal).balanceOf(address(this));
+
+        assertEq(balAfter, claimable, "should be equal to amount claimed");
     }
 
     function testClaimRevenueWithoutVoting() external {
@@ -305,7 +337,7 @@ contract RevenueHandlerTest is BaseTest {
         uint256 debtAmt = 5000e18;
         _takeDebt(debtAmt);
 
-        revenueHandler.claim(tokenId, address(alusdAlchemist), claimable, address(this));
+        revenueHandler.claim(tokenId, alusd, address(alusdAlchemist), claimable, address(this));
         (int256 finalDebt, ) = alusdAlchemist.accounts(address(this));
         assertApproxEq(debtAmt - claimable, uint256(finalDebt), uint256(finalDebt) / DELTA);
     }
@@ -319,11 +351,11 @@ contract RevenueHandlerTest is BaseTest {
         uint256 debtAmt = 5000e18;
         _takeDebt(debtAmt);
 
-        revenueHandler.claim(tokenId, address(alusdAlchemist), claimAmt, address(this));
+        revenueHandler.claim(tokenId, alusd, address(alusdAlchemist), claimAmt, address(this));
         (int256 currentDebt, ) = alusdAlchemist.accounts(address(this));
         assertApproxEq(debtAmt - (claimAmt), uint256(currentDebt), uint256(currentDebt) / DELTA);
 
-        revenueHandler.claim(tokenId, address(alusdAlchemist), claimAmt, address(this));
+        revenueHandler.claim(tokenId, alusd, address(alusdAlchemist), claimAmt, address(this));
         (int256 finalDebt, ) = alusdAlchemist.accounts(address(this));
         assertApproxEq(debtAmt - (2 * claimAmt), uint256(finalDebt), uint256(finalDebt) / DELTA);
     }
@@ -337,10 +369,10 @@ contract RevenueHandlerTest is BaseTest {
         uint256 debtAmt = 5000e18;
         _takeDebt(debtAmt);
 
-        revenueHandler.claim(tokenId, address(alusdAlchemist), claimable / 2, address(this));
+        revenueHandler.claim(tokenId, alusd, address(alusdAlchemist), claimable / 2, address(this));
 
         expectError("Not enough claimable");
-        revenueHandler.claim(tokenId, address(alusdAlchemist), claimable, address(this));
+        revenueHandler.claim(tokenId, alusd, address(alusdAlchemist), claimable, address(this));
 
         uint256 finalClaimable = revenueHandler.claimable(tokenId, alusd);
         assertApproxEq(claimable / 2, finalClaimable, 1);
@@ -356,7 +388,7 @@ contract RevenueHandlerTest is BaseTest {
         _takeDebt(debtAmt);
 
         uint256 balBefore = IERC20(alusd).balanceOf(address(this));
-        revenueHandler.claim(tokenId, address(alusdAlchemist), claimable, address(this));
+        revenueHandler.claim(tokenId, alusd, address(alusdAlchemist), claimable, address(this));
         uint256 balAfter = IERC20(alusd).balanceOf(address(this));
 
         uint256 bal = balAfter - balBefore;
@@ -390,7 +422,7 @@ contract RevenueHandlerTest is BaseTest {
         uint256 claimable = revenueHandler.claimable(tokenId, alusd);
         assertApproxEq(claimable, revAmt, revAmt / DELTA);
 
-        revenueHandler.claim(tokenId, address(alusdAlchemist), claimable, address(this));
+        revenueHandler.claim(tokenId, alusd, address(alusdAlchemist), claimable, address(this));
 
         claimable = revenueHandler.claimable(tokenId, alusd);
         assertEq(claimable, 0);
@@ -429,8 +461,6 @@ contract RevenueHandlerTest is BaseTest {
         alethCrvTokenIds[1] = aleth;
 
         CurveEthPoolAdapter alethCpa = new CurveEthPoolAdapter(alethcrv, alethCrvTokenIds, address(weth));
-
-        revenueHandler.addDebtToken(aleth);
 
         revenueHandler.addRevenueToken(address(weth));
         revenueHandler.setDebtToken(address(weth), aleth);
@@ -473,18 +503,18 @@ contract RevenueHandlerTest is BaseTest {
 
         uint256 claimable = revenueHandler.claimable(tokenId, alusd);
         assertApproxEq(claimable, revAmt / 5, (revAmt / 5) / 10);
-        revenueHandler.claim(tokenId, address(alusdAlchemist), claimable, address(this));
+        revenueHandler.claim(tokenId, alusd, address(alusdAlchemist), claimable, address(this));
 
         _accrueRevenueAndJumpOneEpoch(revAmt);
         uint256 holderClaimable = revenueHandler.claimable(holderTokenId, alusd);
         assertApproxEq(holderClaimable, (2 * revAmt * 4) / 5, ((2 * revAmt * 4) / 5) / DELTA);
 
         hevm.startPrank(holder);
-        revenueHandler.claim(holderTokenId, address(alusdAlchemist), holderClaimable, holder);
+        revenueHandler.claim(holderTokenId, alusd, address(alusdAlchemist), holderClaimable, holder);
         hevm.stopPrank();
 
         claimable = revenueHandler.claimable(tokenId, alusd);
-        revenueHandler.claim(tokenId, address(alusdAlchemist), claimable, address(this));
+        revenueHandler.claim(tokenId, alusd, address(alusdAlchemist), claimable, address(this));
 
         uint256 bal = IERC20(alusd).balanceOf(address(revenueHandler));
         assertApproxEq(bal, 0, 10); // maybe dust

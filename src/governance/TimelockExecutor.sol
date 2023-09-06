@@ -25,7 +25,6 @@ import "openzeppelin-contracts/contracts/access/AccessControl.sol";
  */
 contract TimelockExecutor is AccessControl, IERC721Receiver, IERC1155Receiver {
     bytes32 public constant TIMELOCK_ADMIN_ROLE = keccak256("TIMELOCK_ADMIN_ROLE");
-    bytes32 public constant SCHEDULER_ROLE = keccak256("SCHEDULER_ROLE");
     bytes32 public constant EXECUTOR_ROLE = keccak256("EXECUTOR_ROLE");
     bytes32 public constant CANCELLER_ROLE = keccak256("CANCELLER_ROLE");
 
@@ -70,24 +69,14 @@ contract TimelockExecutor is AccessControl, IERC721Receiver, IERC1155Receiver {
     /**
      * @dev Initializes the contract with a given `executionDelay`, and an admin.
      */
-    constructor(
-        uint256 _executionDelay,
-        address[] memory schedulers,
-        address[] memory cancellers,
-        address[] memory executors
-    ) {
+    constructor(uint256 _executionDelay, address[] memory cancellers, address[] memory executors) {
         _setRoleAdmin(TIMELOCK_ADMIN_ROLE, TIMELOCK_ADMIN_ROLE);
-        _setRoleAdmin(SCHEDULER_ROLE, TIMELOCK_ADMIN_ROLE);
         _setRoleAdmin(EXECUTOR_ROLE, TIMELOCK_ADMIN_ROLE);
         _setRoleAdmin(CANCELLER_ROLE, TIMELOCK_ADMIN_ROLE);
 
         // deployer + self administration
         _setupRole(TIMELOCK_ADMIN_ROLE, _msgSender());
         _setupRole(TIMELOCK_ADMIN_ROLE, address(this));
-
-        for (uint256 i = 0; i < schedulers.length; ++i) {
-            _setupRole(SCHEDULER_ROLE, schedulers[i]);
-        }
 
         for (uint256 i = 0; i < cancellers.length; ++i) {
             _setupRole(CANCELLER_ROLE, cancellers[i]);
@@ -199,7 +188,7 @@ contract TimelockExecutor is AccessControl, IERC721Receiver, IERC1155Receiver {
         bytes32 descriptionHash,
         uint256 chainId,
         uint256 delay
-    ) public virtual onlyRole(SCHEDULER_ROLE) {
+    ) public virtual {
         bytes32 id = hashOperation(target, value, data, predecessor, descriptionHash, chainId);
         _schedule(id, delay);
         emit CallScheduled(id, 0, target, value, data, predecessor, delay);
@@ -222,7 +211,7 @@ contract TimelockExecutor is AccessControl, IERC721Receiver, IERC1155Receiver {
         bytes32 descriptionHash,
         uint256 chainId,
         uint256 delay
-    ) public virtual onlyRole(SCHEDULER_ROLE) {
+    ) public virtual {
         require(targets.length == values.length, "TimelockExecutor: length mismatch");
         require(targets.length == payloads.length, "TimelockExecutor: length mismatch");
 
