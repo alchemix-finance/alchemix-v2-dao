@@ -31,6 +31,17 @@ contract VotingEscrowTest is BaseTest {
         hevm.stopPrank();
     }
 
+    function testCreateLockFailed() public {
+        hevm.startPrank(admin);
+
+        assertEq(veALCX.balanceOf(admin), 0);
+
+        hevm.expectRevert(abi.encodePacked("cannot mint to zero address"));
+        veALCX.createLockFor(TOKEN_1, THREE_WEEKS, false, address(0));
+
+        hevm.stopPrank();
+    }
+
     // Test depositing, withdrawing from a rewardPool (Aura pool)
     function testRewardPool() public {
         // Reward pool should be set

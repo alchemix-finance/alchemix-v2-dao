@@ -1181,7 +1181,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
      */
     function _mint(address _to, uint256 _tokenId) internal returns (bool) {
         // Throws if `_to` is zero address
-        assert(_to != address(0));
+        require(_to != address(0), "cannot mint to zero address");
         // checkpoint for gov
         _moveTokenDelegates(address(0), delegates(_to), _tokenId);
         // Add token. Throws if `_tokenId` is owned by someone
