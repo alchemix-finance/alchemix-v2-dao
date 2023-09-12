@@ -84,12 +84,12 @@ contract RevenueHandlerTest is BaseTest {
         _jumpOneEpoch();
     }
 
-    function _accrueNonAlchemicRevenueAndJumpOneEpoch(uint256 revAmt) internal {
+    function _accrueNonAlchemicRevenueAndJumpOneEpoch(uint256 revAmt, address token) internal {
         revenueHandler.checkpoint();
 
         _jumpOneEpoch();
 
-        _accrueRevenue(bal, revAmt);
+        _accrueRevenue(token, revAmt);
         revenueHandler.checkpoint();
 
         _jumpOneEpoch();
@@ -101,10 +101,10 @@ contract RevenueHandlerTest is BaseTest {
         _accrueRevenueAndJumpOneEpoch(revAmt);
     }
 
-    function _setupClaimableNonAlchemicRevenue(uint256 revAmt) internal returns (uint256 tokenId) {
+    function _setupClaimableNonAlchemicRevenue(uint256 revAmt, address token) internal returns (uint256 tokenId) {
         tokenId = _initializeVeALCXPosition(10e18);
 
-        _accrueNonAlchemicRevenueAndJumpOneEpoch(revAmt);
+        _accrueNonAlchemicRevenueAndJumpOneEpoch(revAmt, token);
     }
 
     function _takeDebt(uint256 amount) internal {
@@ -291,7 +291,7 @@ contract RevenueHandlerTest is BaseTest {
 
     function testClaimNonAlchemicRevenue() external {
         uint256 revAmt = 1000e18;
-        uint256 tokenId = _setupClaimableNonAlchemicRevenue(revAmt);
+        uint256 tokenId = _setupClaimableNonAlchemicRevenue(revAmt, bal);
         uint256 balBefore = IERC20(bal).balanceOf(address(this));
 
         assertEq(balBefore, 0, "should have no bal before claiming");
@@ -303,6 +303,37 @@ contract RevenueHandlerTest is BaseTest {
         uint256 balAfter = IERC20(bal).balanceOf(address(this));
 
         assertEq(balAfter, claimable, "should be equal to amount claimed");
+    }
+
+    function testClaimNonApprovedRevenue() external {
+        uint256 revAmt = 1000e18;
+        uint256 tokenId = _setupClaimableNonAlchemicRevenue(revAmt, aura);
+        uint256 balBefore = IERC20(aura).balanceOf(address(this));
+        uint256 revenueHandlerAuraBal = IERC20(aura).balanceOf(address(revenueHandler));
+
+        assertEq(revenueHandlerAuraBal, revAmt, "should be equal to revAmt");
+        assertEq(balBefore, 0, "should have no aura before claiming");
+
+        uint256 claimableBefore = revenueHandler.claimable(tokenId, aura);
+
+        assertEq(claimableBefore, 0, "claimable should be 0 before token is added to revenueHandler");
+
+        revenueHandler.addRevenueToken(aura);
+
+        uint256 claimableAfter = revenueHandler.claimable(tokenId, aura);
+
+        assertEq(claimableAfter, 0, "claimable should be equal to 0 until checkpoint is called");
+
+        _jumpOneEpoch();
+        revenueHandler.checkpoint();
+
+        claimableAfter = revenueHandler.claimable(tokenId, aura);
+
+        revenueHandler.claim(tokenId, aura, address(0), claimableAfter, address(this));
+
+        uint256 balAfter = IERC20(aura).balanceOf(address(this));
+
+        assertEq(balAfter, claimableAfter, "should be equal to amount claimed");
     }
 
     function testClaimRevenueWithoutVoting() external {
