@@ -21,6 +21,9 @@ contract VotingEscrowTest is BaseTest {
 
         uint256 tokenId = veALCX.createLock(TOKEN_1, THREE_WEEKS, false);
 
+        uint256[] memory tokenIds = veALCX.getTokenIds(admin);
+
+        assertEq(tokenIds.length, 1);
         assertEq(veALCX.isApprovedForAll(admin, address(0)), false);
         assertEq(veALCX.getApproved(1), address(0));
         assertEq(veALCX.userPointHistoryTimestamp(1, 1), block.timestamp);

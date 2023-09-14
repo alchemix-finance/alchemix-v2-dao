@@ -218,6 +218,16 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     */
 
     /**
+     * @notice Get the tokenIds for a given address from the last checkpoint
+     * @param _address Address of the user
+     * @return Array of tokenIds
+     */
+    function getTokenIds(address _address) external view returns (uint256[] memory) {
+        uint32 lastCheckpoint = uint32(numCheckpoints[_address] - 1);
+        return checkpoints[_address][lastCheckpoint].tokenIds;
+    }
+
+    /**
      * @notice Interface identification is specified in ERC-165.
      * @param _interfaceID Id of the interface
      * @return bool Boolean result of provided interface
