@@ -138,8 +138,6 @@ contract BaseTest is DSTestPlus {
 
         IERC20(bpt).approve(address(veALCX), type(uint256).max);
 
-        FluxToken(flux).setMinter(address(veALCX));
-
         timeGauge = new StakingRewards(address(this), address(alcx), time);
         revenueHandler = new RevenueHandler(address(veALCX), admin, 0);
         gaugeFactory = new GaugeFactory();
@@ -159,6 +157,10 @@ contract BaseTest is DSTestPlus {
 
         veALCX.setVoter(address(voter));
         veALCX.setRewardsDistributor(address(distributor));
+
+        flux.setMinter(address(veALCX));
+        flux.setVeALCX(address(veALCX));
+        flux.setVoter(address(voter));
 
         IMinter.InitializationParams memory params = IMinter.InitializationParams(
             address(alcx),

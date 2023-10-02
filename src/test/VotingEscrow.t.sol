@@ -314,7 +314,7 @@ contract VotingEscrowTest is BaseTest {
         minter.updatePeriod();
 
         uint256 unclaimedAlcx = distributor.claimable(tokenId);
-        uint256 unclaimedFlux = veALCX.unclaimedFlux(tokenId);
+        uint256 unclaimedFlux = flux.getUnclaimedFlux(tokenId);
 
         // Start cooldown once lock is expired
         veALCX.startCooldown(tokenId);
@@ -358,8 +358,8 @@ contract VotingEscrowTest is BaseTest {
         hevm.prank(holder);
         voter.reset(tokenId3);
 
-        uint256 unclaimedFlux1 = veALCX.unclaimedFlux(tokenId1);
-        uint256 unclaimedFlux2 = veALCX.unclaimedFlux(tokenId2);
+        uint256 unclaimedFlux1 = flux.getUnclaimedFlux(tokenId1);
+        uint256 unclaimedFlux2 = flux.getUnclaimedFlux(tokenId2);
 
         assertGt(unclaimedFlux1, unclaimedFlux2, "unclaimed flux should be greater for longer lock");
 
@@ -370,8 +370,8 @@ contract VotingEscrowTest is BaseTest {
         hevm.prank(holder);
         voter.reset(tokenId3);
 
-        unclaimedFlux2 = veALCX.unclaimedFlux(tokenId2);
-        uint256 unclaimedFlux3 = veALCX.unclaimedFlux(tokenId3);
+        unclaimedFlux2 = flux.getUnclaimedFlux(tokenId2);
+        uint256 unclaimedFlux3 = flux.getUnclaimedFlux(tokenId3);
 
         assertGt(unclaimedFlux3, unclaimedFlux2, "unclaimed flux should be greater for active voter");
     }
@@ -511,16 +511,16 @@ contract VotingEscrowTest is BaseTest {
         voter.reset(tokenId1);
         voter.reset(tokenId2);
 
-        uint256 unclaimedFluxBefore1 = veALCX.unclaimedFlux(tokenId1);
-        uint256 unclaimedFluxBefore2 = veALCX.unclaimedFlux(tokenId2);
+        uint256 unclaimedFluxBefore1 = flux.getUnclaimedFlux(tokenId1);
+        uint256 unclaimedFluxBefore2 = flux.getUnclaimedFlux(tokenId2);
 
         hevm.expectRevert(abi.encodePacked("must be different tokens"));
         veALCX.merge(tokenId1, tokenId1);
 
         veALCX.merge(tokenId1, tokenId2);
 
-        uint256 unclaimedFluxAfter1 = veALCX.unclaimedFlux(tokenId1);
-        uint256 unclaimedFluxAfter2 = veALCX.unclaimedFlux(tokenId2);
+        uint256 unclaimedFluxAfter1 = flux.getUnclaimedFlux(tokenId1);
+        uint256 unclaimedFluxAfter2 = flux.getUnclaimedFlux(tokenId2);
 
         // After merge unclaimed flux should consolidate into one token
         assertEq(unclaimedFluxAfter2, unclaimedFluxBefore1 + unclaimedFluxBefore2, "unclaimed flux not consolidated");
@@ -683,7 +683,7 @@ contract VotingEscrowTest is BaseTest {
         uint256 tokenId = veALCX.createLock(TOKEN_1, MAXTIME, true);
 
         uint256 claimedBalance = flux.balanceOf(admin);
-        uint256 unclaimedBalance = veALCX.unclaimedFlux(tokenId);
+        uint256 unclaimedBalance = flux.getUnclaimedFlux(tokenId);
         uint256 ragequitAmount = veALCX.amountToRagequit(tokenId);
 
         assertEq(claimedBalance, 0);
@@ -691,7 +691,7 @@ contract VotingEscrowTest is BaseTest {
 
         voter.reset(tokenId);
 
-        unclaimedBalance = veALCX.unclaimedFlux(tokenId);
+        unclaimedBalance = flux.getUnclaimedFlux(tokenId);
 
         // Flux accrued over one epoch should align with the fluxMultiplier and epoch length
         uint256 fluxCalc = unclaimedBalance * veALCX.fluxMultiplier() * veALCX.EPOCH();

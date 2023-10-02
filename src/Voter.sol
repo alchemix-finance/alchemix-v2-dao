@@ -164,7 +164,8 @@ contract Voter is IVoter {
         lastVoted[_tokenId] = block.timestamp;
         _reset(_tokenId);
         IVotingEscrow(veALCX).abstain(_tokenId);
-        IVotingEscrow(veALCX).accrueFlux(_tokenId, IVotingEscrow(veALCX).claimableFlux(_tokenId));
+        uint256 claimableFlux = IVotingEscrow(veALCX).claimableFlux(_tokenId);
+        IFluxToken(FLUX).accrueFlux(_tokenId, claimableFlux);
     }
 
     /// @inheritdoc IVoter
@@ -177,7 +178,7 @@ contract Voter is IVoter {
         }
 
         require(
-            IVotingEscrow(veALCX).claimableFlux(_tokenId) + IVotingEscrow(veALCX).unclaimedFlux(_tokenId) >= _boost,
+            IVotingEscrow(veALCX).claimableFlux(_tokenId) + IFluxToken(FLUX).getUnclaimedFlux(_tokenId) >= _boost,
             "insufficient FLUX to boost"
         );
         require(
@@ -220,7 +221,7 @@ contract Voter is IVoter {
         require(_poolVote.length == _weights.length);
         require(_poolVote.length <= pools.length, "invalid pools");
         require(
-            IVotingEscrow(veALCX).claimableFlux(_tokenId) + IVotingEscrow(veALCX).unclaimedFlux(_tokenId) >= _boost,
+            IVotingEscrow(veALCX).claimableFlux(_tokenId) + IFluxToken(FLUX).getUnclaimedFlux(_tokenId) >= _boost,
             "insufficient FLUX to boost"
         );
         require(
@@ -414,7 +415,7 @@ contract Voter is IVoter {
 
             require(isAlive[_gauge], "cannot vote for dead gauge");
 
-            IVotingEscrow(veALCX).accrueFlux(_tokenId, IVotingEscrow(veALCX).claimableFlux(_tokenId));
+            IFluxToken(FLUX).accrueFlux(_tokenId, IVotingEscrow(veALCX).claimableFlux(_tokenId));
             uint256 _poolWeight = (_weights[i] * (IVotingEscrow(veALCX).balanceOfToken(_tokenId) + _boost)) /
                 _totalVoteWeight;
             require(votes[_tokenId][_pool] == 0);
@@ -438,7 +439,7 @@ contract Voter is IVoter {
 
         // Update flux balance of token if boost was used
         if (_boost > 0) {
-            IVotingEscrow(veALCX).updateFlux(_tokenId, _boost);
+            IFluxToken(FLUX).updateFlux(_tokenId, _boost);
         }
     }
 

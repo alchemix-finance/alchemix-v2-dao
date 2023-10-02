@@ -106,7 +106,6 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
     address[] public rewardPoolTokens;
 
-    mapping(uint256 => uint256) public unclaimedFlux; // tokenId => amount of unclaimed flux
     mapping(uint256 => LockedBalance) public locked;
     mapping(uint256 => uint256) public ownershipChange;
     mapping(uint256 => Point) public pointHistory; // epoch -> unsigned point
@@ -743,9 +742,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         // If max lock is enabled retain the max lock
         _locked1.maxLockEnabled = _locked0.maxLockEnabled ? _locked0.maxLockEnabled : _locked1.maxLockEnabled;
 
-        // Consolidate unclaimed flux
-        unclaimedFlux[_to] += unclaimedFlux[_from];
-        unclaimedFlux[_from] = 0;
+        IFluxToken(FLUX).mergeFlux(_from, _to);
 
         // If max lock is enabled end is the max lock time, otherwise it is the greater of the two end times
         uint256 end = _locked1.maxLockEnabled
@@ -871,44 +868,13 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
         // Claim any unclaimed ALCX rewards and FLUX
         IRewardsDistributor(distributor).claim(_tokenId, false);
-        _claimFlux(_tokenId, unclaimedFlux[_tokenId]);
+        IFluxToken(FLUX).claimFlux(_tokenId, IFluxToken(FLUX).getUnclaimedFlux(_tokenId));
 
         // Burn the token
         _burn(_tokenId);
 
         emit Withdraw(msg.sender, _tokenId, value, block.timestamp);
         emit Supply(supplyBefore, supplyBefore - value);
-    }
-
-    /**
-     * @notice Accrue unclaimed flux for a given veALCX
-     * @param _tokenId ID of the token flux is being accrued to
-     * @param _amount Amount of flux being accrued
-     */
-    function accrueFlux(uint256 _tokenId, uint256 _amount) external {
-        require(msg.sender == voter, "not voter");
-        unclaimedFlux[_tokenId] += _amount;
-    }
-
-    /**
-     * @notice Update unclaimed flux balance for a given veALCX
-     * @param _tokenId ID of the token flux is being updated for
-     * @param _amount Amount of flux being used
-     */
-    function updateFlux(uint256 _tokenId, uint256 _amount) external {
-        require(msg.sender == voter, "not voter");
-        require(_amount <= unclaimedFlux[_tokenId], "not enough flux");
-        unclaimedFlux[_tokenId] -= _amount;
-    }
-
-    /**
-     * @notice Claim unclaimed flux for a given veALCX
-     * @param _tokenId ID of the token flux is being accrued to
-     * @param _amount Amount of flux being claimed
-     * @dev flux can only be claimed after accrual
-     */
-    function claimFlux(uint256 _tokenId, uint256 _amount) external {
-        _claimFlux(_tokenId, _amount);
     }
 
     /**
@@ -1030,16 +996,6 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     function _balance(address _owner) internal view returns (uint256) {
         require(_owner != address(0), "tokens assigned to the zero address are considered invalid");
         return ownerToTokenCount[_owner];
-    }
-
-    function _claimFlux(uint256 _tokenId, uint256 _amount) internal {
-        require(_isApprovedOrOwner(msg.sender, _tokenId));
-        require(unclaimedFlux[_tokenId] >= _amount, "amount greater than unclaimed balance");
-
-        unclaimedFlux[_tokenId] -= _amount;
-
-        // FLUX is minted to the veALCX owner's address
-        IFluxToken(FLUX).mint(ownerOf(_tokenId), _amount);
     }
 
     /**
