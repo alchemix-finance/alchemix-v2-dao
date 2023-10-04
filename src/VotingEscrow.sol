@@ -4,8 +4,7 @@ pragma solidity ^0.8.15;
 import "src/interfaces/IVotingEscrow.sol";
 import "src/interfaces/IFluxToken.sol";
 import "src/interfaces/IRewardsDistributor.sol";
-import "src/interfaces/aura/IRewardPool4626.sol";
-import "src/interfaces/aura/IRewardStaking.sol";
+import "src/interfaces/IRewardPoolManager.sol";
 import "src/libraries/Base64.sol";
 import "openzeppelin-contracts/contracts/token/ERC721/extensions/IERC721Metadata.sol";
 import "openzeppelin-contracts/contracts/governance/utils/IVotes.sol";
@@ -79,7 +78,6 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     uint256 internal constant WEEK = 1 weeks;
     uint256 internal constant MAXTIME = 365 days;
     uint256 internal constant MULTIPLIER = 1 ether;
-    uint256 internal constant MAX_REWARD_POOL_TOKENS = 10;
     uint256 internal constant BPS = 10_000;
 
     int256 internal constant iMAXTIME = 365 days;
@@ -91,7 +89,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     address public ALCX;
     address public FLUX;
     address public BPT;
-    address public rewardPool; // destination for BPT
+    address public rewardPoolManager; // destination for BPT
     address public admin; // the timelock executor
     address public pendingAdmin; // the timelock executor
     address public voter;
@@ -103,8 +101,6 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     uint256 public fluxMultiplier; // Multiplier for flux reward accrual
     uint256 public fluxPerVeALCX; // Percent of veALCX power needed in flux in order to unlock early
     uint256 public epoch;
-
-    address[] public rewardPoolTokens;
 
     mapping(uint256 => LockedBalance) public locked;
     mapping(uint256 => uint256) public ownershipChange;
@@ -166,12 +162,10 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     event RewardsDistributorUpdated(address distributor);
     event FluxMultiplierUpdated(uint256 fluxMultiplier);
     event FluxPerVeALCXUpdated(uint256 fluxPerVeALCX);
-    event RewardPoolUpdated(address newRewardPool);
     event Withdraw(address indexed provider, uint256 tokenId, uint256 value, uint256 ts);
     event Supply(uint256 prevSupply, uint256 supply);
     event Ragequit(address indexed provider, uint256 tokenId, uint256 ts);
     event CooldownStarted(address indexed provider, uint256 tokenId, uint256 ts);
-    event ClaimRewardPoolRewards(address indexed claimer, address rewardToken, uint256 rewardAmount);
     event TreasuryUpdated(address indexed newTreasury);
 
     /// @dev reentrancy guard
@@ -191,14 +185,14 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
      * @param _alcx `ALCX` token address
      * @param _flux `FLUX` token address
      */
-    constructor(address _bpt, address _alcx, address _flux, address _rewardPool, address _treasury) {
+    constructor(address _bpt, address _alcx, address _flux, address _treasury) {
         BPT = _bpt;
         ALCX = _alcx;
         FLUX = _flux;
-        rewardPool = _rewardPool;
         treasury = _treasury;
 
         voter = msg.sender;
+        rewardPoolManager = msg.sender;
         admin = msg.sender;
         distributor = msg.sender;
         fluxPerVeALCX = 5000; // 5000 bps = 50%
@@ -672,6 +666,11 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         emit RewardsDistributorUpdated(_distributor);
     }
 
+    function setRewardPoolManager(address _rewardPoolManager) external {
+        require(msg.sender == rewardPoolManager, "not rewardPoolManager");
+        rewardPoolManager = _rewardPoolManager;
+    }
+
     function voting(uint256 _tokenId) external {
         require(msg.sender == voter);
         voted[_tokenId] = true;
@@ -862,7 +861,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         _checkpoint(_tokenId, _locked, LockedBalance(0, 0, false, 0));
 
         // Withdraws BPT from reward pool
-        require(_withdrawFromRewardPool(value));
+        require(IRewardPoolManager(rewardPoolManager).withdrawFromRewardPool(value));
 
         require(IERC20(BPT).transfer(ownerOf(_tokenId), value));
 
@@ -910,83 +909,9 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         emit CooldownStarted(msg.sender, _tokenId, _locked.cooldown);
     }
 
-    /**
-     * @notice Deposit amount into rewardPool
-     * @dev Can only be called by governance
-     */
-    function depositIntoRewardPool(uint256 _amount) external {
-        require(msg.sender == admin, "not admin");
-        _depositIntoRewardPool(_amount);
-    }
-
-    /**
-     * @notice Withdraw amount from rewardPool
-     * @dev Can only be called by governance
-     */
-    function withdrawFromRewardPool(uint256 _amount) external {
-        require(msg.sender == admin, "not admin");
-        _withdrawFromRewardPool(_amount);
-    }
-
-    /**
-     * @notice Update the address of the rewardPool
-     */
-    function updateRewardPool(address _newRewardPool) external {
-        require(msg.sender == admin, "not admin");
-        rewardPool = _newRewardPool;
-        emit RewardPoolUpdated(_newRewardPool);
-    }
-
-    /**
-     * @notice Claim rewards from the rewardPool
-     */
-    function claimRewardPoolRewards() external {
-        require(msg.sender == admin, "not admin");
-        IRewardStaking(rewardPool).getReward(address(this), false);
-        uint256[] memory rewardPoolAmounts = new uint256[](rewardPoolTokens.length);
-        for (uint256 i = 0; i < rewardPoolTokens.length; i++) {
-            rewardPoolAmounts[i] = IERC20(rewardPoolTokens[i]).balanceOf(address(this));
-            if (rewardPoolAmounts[i] > 0) {
-                IERC20(rewardPoolTokens[i]).safeTransfer(treasury, rewardPoolAmounts[i]);
-                emit ClaimRewardPoolRewards(msg.sender, rewardPoolTokens[i], rewardPoolAmounts[i]);
-            }
-        }
-    }
-
-    function addRewardPoolToken(address _token) external {
-        require(msg.sender == admin, "not admin");
-        _addRewardPoolToken(_token);
-    }
-
-    function addRewardPoolTokens(address[] calldata _tokens) external {
-        require(msg.sender == admin, "not admin");
-        for (uint256 i = 0; i < _tokens.length; i++) {
-            _addRewardPoolToken(_tokens[i]);
-        }
-    }
-
-    function swapOutRewardPoolToken(uint256 i, address oldToken, address newToken) external {
-        require(msg.sender == admin, "not admin");
-        require(rewardPoolTokens[i] == oldToken, "incorrect token");
-        require(newToken != address(0));
-
-        isRewardPoolToken[oldToken] = false;
-        isRewardPoolToken[newToken] = true;
-        rewardPoolTokens[i] = newToken;
-    }
-
     /*
         Internal functions
     */
-
-    function _addRewardPoolToken(address token) internal {
-        if (!isRewardPoolToken[token] && token != address(0)) {
-            require(rewardPoolTokens.length < MAX_REWARD_POOL_TOKENS, "too many reward pool tokens");
-
-            isRewardPoolToken[token] = true;
-            rewardPoolTokens.push(token);
-        }
-    }
 
     /**
      * @notice Returns the number of tokens owned by `_owner`.
@@ -1526,9 +1451,12 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
         address from = msg.sender;
         if (_value != 0 && depositType != DepositType.MERGE_TYPE) {
-            require(IERC20(BPT).transferFrom(from, address(this), _value));
+            require(IERC20(BPT).transferFrom(from, rewardPoolManager, _value));
             // Deposits BPT into reward pool
-            require(_depositIntoRewardPool(_value), "Deposit into reward pool failed");
+            require(
+                IRewardPoolManager(rewardPoolManager).depositIntoRewardPool(_value),
+                "Deposit into reward pool failed"
+            );
         }
 
         emit Deposit(from, _tokenId, _value, _locked.end, _locked.maxLockEnabled, depositType, block.timestamp);
@@ -1565,25 +1493,6 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
         _depositFor(_tokenId, _value, unlockTime, _maxLockEnabled, locked[_tokenId], DepositType.CREATE_LOCK_TYPE);
         return _tokenId;
-    }
-
-    /**
-     * @notice Deposit amount into rewardPool
-     * @param _amount Amount to deposit
-     */
-    function _depositIntoRewardPool(uint256 _amount) internal returns (bool) {
-        IERC20(BPT).approve(rewardPool, _amount);
-        IRewardPool4626(rewardPool).deposit(_amount, address(this));
-        return true;
-    }
-
-    /**
-     * @notice Withdraw amount from rewardPool
-     * @param _amount Amount to withdraw
-     */
-    function _withdrawFromRewardPool(uint256 _amount) internal returns (bool) {
-        IRewardPool4626(rewardPool).withdraw(_amount, address(this), address(this));
-        return true;
     }
 
     // The following ERC20/minime-compatible methods are not real balanceOf and supply!
