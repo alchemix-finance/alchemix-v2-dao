@@ -55,23 +55,6 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     string public constant version = "1.0.0";
     uint8 public constant decimals = 18;
 
-    /// @notice The EIP-712 typehash for the contract's domain
-    bytes32 public constant DOMAIN_TYPEHASH =
-        keccak256("EIP712Domain(string name,uint256 chainId,address verifyingContract)");
-
-    /// @notice The EIP-712 typehash for the delegation struct used by the contract
-    bytes32 public constant DELEGATION_TYPEHASH =
-        keccak256("Delegation(address delegatee,uint256 nonce,uint256 expiry)");
-
-    /// @dev ERC165 interface ID of ERC165
-    bytes4 internal constant ERC165_INTERFACE_ID = 0x01ffc9a7;
-
-    /// @dev ERC165 interface ID of ERC721
-    bytes4 internal constant ERC721_INTERFACE_ID = 0x80ac58cd;
-
-    /// @dev ERC165 interface ID of ERC721Metadata
-    bytes4 internal constant ERC721_METADATA_INTERFACE_ID = 0x5b5e139f;
-
     uint256 public constant EPOCH = 1 weeks;
     uint256 public constant MAX_DELEGATES = 1024; // avoid too much gas
 
@@ -130,9 +113,6 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
     /// @dev Mapping from owner address to mapping of operator addresses.
     mapping(address => mapping(address => bool)) internal ownerToOperators;
-
-    /// @dev Mapping of interface id to bool about whether or not it's supported
-    mapping(bytes4 => bool) internal supportedInterfaces;
 
     /// @notice A record of each accounts delegate
     mapping(address => address) private _delegates;
@@ -200,10 +180,6 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
 
         pointHistory[0].blk = block.number;
         pointHistory[0].ts = block.timestamp;
-
-        supportedInterfaces[ERC165_INTERFACE_ID] = true;
-        supportedInterfaces[ERC721_INTERFACE_ID] = true;
-        supportedInterfaces[ERC721_METADATA_INTERFACE_ID] = true;
     }
 
     /*
@@ -220,14 +196,8 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         return checkpoints[_address][lastCheckpoint].tokenIds;
     }
 
-    /**
-     * @notice Interface identification is specified in ERC-165.
-     * @param _interfaceID Id of the interface
-     * @return bool Boolean result of provided interface
-     */
-    function supportsInterface(bytes4 _interfaceID) external view returns (bool) {
-        return supportedInterfaces[_interfaceID];
-    }
+    // Not supported
+    function supportsInterface(bytes4 _interfaceID) external view returns (bool) {}
 
     /**
      * @notice Get the most recently recorded rate of voting power decrease for `_tokenId`
@@ -641,18 +611,8 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         return _delegate(msg.sender, delegatee);
     }
 
-    function delegateBySig(address delegatee, uint256 nonce, uint256 expiry, uint8 v, bytes32 r, bytes32 s) public {
-        bytes32 domainSeparator = keccak256(
-            abi.encode(DOMAIN_TYPEHASH, keccak256(bytes(name)), keccak256(bytes(version)), block.chainid, address(this))
-        );
-        bytes32 structHash = keccak256(abi.encode(DELEGATION_TYPEHASH, delegatee, nonce, expiry));
-        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
-        address signatory = ecrecover(digest, v, r, s);
-        require(signatory != address(0), "VotingEscrow::delegateBySig: invalid signature");
-        require(nonce == nonces[signatory]++, "VotingEscrow::delegateBySig: invalid nonce");
-        require(block.timestamp <= expiry, "VotingEscrow::delegateBySig: signature expired");
-        return _delegate(signatory, delegatee);
-    }
+    // Not supported
+    function delegateBySig(address delegatee, uint256 nonce, uint256 expiry, uint8 v, bytes32 r, bytes32 s) public {}
 
     function setVoter(address _voter) external {
         require(msg.sender == admin, "not admin");

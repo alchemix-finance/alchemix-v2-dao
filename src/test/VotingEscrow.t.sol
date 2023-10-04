@@ -430,23 +430,6 @@ contract VotingEscrowTest is BaseTest {
         hevm.stopPrank();
     }
 
-    // Check support of supported interfaces
-    function testSupportedInterfaces() public {
-        bytes4 ERC165_INTERFACE_ID = 0x01ffc9a7;
-        bytes4 ERC721_INTERFACE_ID = 0x80ac58cd;
-        bytes4 ERC721_METADATA_INTERFACE_ID = 0x5b5e139f;
-
-        assertTrue(veALCX.supportsInterface(ERC165_INTERFACE_ID));
-        assertTrue(veALCX.supportsInterface(ERC721_INTERFACE_ID));
-        assertTrue(veALCX.supportsInterface(ERC721_METADATA_INTERFACE_ID));
-    }
-
-    // Check support of unsupported interfaces
-    function testUnsupportedInterfaces() public {
-        bytes4 ERC721_FAKE = 0x780e9d61;
-        assertFalse(veALCX.supportsInterface(ERC721_FAKE));
-    }
-
     // Check approving another address of veALCX
     function testApprovedOrOwner() public {
         uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
