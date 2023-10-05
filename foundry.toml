@@ -5,3 +5,4 @@ libs = ['lib']
 remappings = ['forge-std/=lib/forge-std/src/', 'openzeppelin-contracts/contracts/=lib/openzeppelin-contracts/contracts/']
 solc_version = "0.8.15"
 optimizer_runs = 200
+gas_reports = ["AlchemixGovernor", "BaseGauge", "Bribe", "FluxToken", "Minter", "RevenueHandler", "RewardPoolManager", "RewardsDistributor", "Voter", "VotingEscrow"]

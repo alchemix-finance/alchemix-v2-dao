@@ -32,6 +32,9 @@ docs_local :; forge doc --serve --port 4000
 # generates and builds documentation to ./documentation
 docs_build :; forge doc --build --out ./documentation
 
+# generates gas reports for files in foundry.toml
+gas_report :; FOUNDRY_PROFILE=$(PROFILE) forge snapshot $(FORK_URL) $(FORK_BLOCK) --gas-report
+
 # runs all tests: "make test_all"
 test_all :; FOUNDRY_PROFILE=$(PROFILE) forge test $(FORK_URL)
 
