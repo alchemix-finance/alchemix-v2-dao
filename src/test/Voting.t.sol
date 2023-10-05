@@ -219,14 +219,14 @@ contract VotingTest is BaseTest {
         hevm.startPrank(admin);
 
         uint256 claimedBalance = flux.balanceOf(admin);
-        uint256 unclaimedBalance = veALCX.unclaimedFlux(tokenId);
+        uint256 unclaimedBalance = flux.getUnclaimedFlux(tokenId);
 
         assertEq(claimedBalance, 0);
         assertEq(unclaimedBalance, 0);
 
         voter.reset(tokenId);
 
-        unclaimedBalance = veALCX.unclaimedFlux(tokenId);
+        unclaimedBalance = flux.getUnclaimedFlux(tokenId);
 
         // Claimed balance is equal to the amount able to be claimed
         assertEq(unclaimedBalance, veALCX.claimableFlux(tokenId));
@@ -239,7 +239,7 @@ contract VotingTest is BaseTest {
         unclaimedBalance += veALCX.claimableFlux(tokenId);
 
         // The unclaimed balance should equal the total amount of unclaimed flux
-        assertEq(unclaimedBalance, veALCX.unclaimedFlux(tokenId));
+        assertEq(unclaimedBalance, flux.getUnclaimedFlux(tokenId));
 
         hevm.stopPrank();
     }
@@ -247,31 +247,31 @@ contract VotingTest is BaseTest {
     // veALCX holder should be able to mint flux they have accrued
     function testMintFlux() public {
         hevm.expectRevert(abi.encodePacked("FluxToken: only minter"));
-        FluxToken(flux).setMinter(address(admin));
+        flux.setMinter(address(admin));
 
         uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
 
         hevm.startPrank(admin);
 
         uint256 claimedBalance = flux.balanceOf(admin);
-        uint256 unclaimedBalance = veALCX.unclaimedFlux(tokenId);
+        uint256 unclaimedBalance = flux.getUnclaimedFlux(tokenId);
 
-        assertEq(claimedBalance, 0);
-        assertEq(unclaimedBalance, 0);
+        assertEq(claimedBalance, 0, "claimed balance should be 0");
+        assertEq(unclaimedBalance, 0, "unclaimed balance should be 0");
 
         hevm.expectRevert(abi.encodePacked("amount greater than unclaimed balance"));
-        veALCX.claimFlux(tokenId, TOKEN_1);
+        flux.claimFlux(tokenId, TOKEN_1);
 
         voter.reset(tokenId);
 
-        claimedBalance = veALCX.unclaimedFlux(tokenId);
+        claimedBalance = flux.getUnclaimedFlux(tokenId);
 
-        veALCX.claimFlux(tokenId, claimedBalance);
+        flux.claimFlux(tokenId, claimedBalance);
 
-        unclaimedBalance = veALCX.unclaimedFlux(tokenId);
+        unclaimedBalance = flux.getUnclaimedFlux(tokenId);
 
-        assertEq(unclaimedBalance, 0);
-        assertEq(flux.balanceOf(admin), claimedBalance);
+        assertEq(unclaimedBalance, 0, "unclaimed balance should reset");
+        assertEq(flux.balanceOf(admin), claimedBalance, "admin flux balance should increase");
 
         hevm.stopPrank();
     }
@@ -301,7 +301,7 @@ contract VotingTest is BaseTest {
 
         uint256 votingWeight = veALCX.balanceOfToken(tokenId);
         uint256 maxFluxAmount = voter.maxFluxBoost(tokenId);
-        uint256 fluxAccessable = veALCX.claimableFlux(tokenId) + veALCX.unclaimedFlux(tokenId);
+        uint256 fluxAccessable = veALCX.claimableFlux(tokenId) + flux.getUnclaimedFlux(tokenId);
 
         // Max boost amount should be the voting weight plus the boost multiplier
         assertEq(voter.maxVotingPower(tokenId), votingWeight + maxFluxAmount);

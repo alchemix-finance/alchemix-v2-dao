@@ -225,7 +225,7 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
     /**
      * @dev Public accessor to check the eta of a queued proposal
      */
-    function proposalEta(uint256 proposalId) public view virtual returns (uint256) {
+    function proposalEta(uint256 proposalId) external view virtual returns (uint256) {
         uint256 eta = _timelock.getTimestamp(_timelockIds[proposalId]);
         return eta == 1 ? 0 : eta; // _DONE_TIMESTAMP (1) should be replaced with a 0 value
     }
@@ -309,7 +309,8 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
             "Governor: veALCX power below proposal threshold"
         );
 
-        uint256 proposalId = hashProposal(targets, values, calldatas, keccak256(bytes(description)), chainId);
+        bytes32 descriptionHash = keccak256(bytes(description));
+        uint256 proposalId = hashProposal(targets, values, calldatas, descriptionHash, chainId);
 
         require(targets.length == values.length, "Governor: invalid proposal length");
         require(targets.length == calldatas.length, "Governor: invalid proposal length");
@@ -318,32 +319,25 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
         ProposalCore storage proposal = _proposals[proposalId];
         require(proposal.voteStart.isUnset(), "Governor: proposal already exists");
 
-        uint64 start = block.timestamp.toUint64() + votingDelay.toUint64();
-        uint64 deadline = start + votingPeriod.toUint64();
         uint256 executionDelay = votingDelay + votingPeriod + _timelock.executionDelay();
 
-        proposal.voteStart.setDeadline(start);
-        proposal.voteEnd.setDeadline(deadline);
+        proposal.voteStart.setDeadline(block.timestamp.toUint64() + votingDelay.toUint64());
+        proposal.voteEnd.setDeadline(proposal.voteStart.getDeadline() + votingPeriod.toUint64());
 
-        _timelockIds[proposalId] = _timelock.hashOperationBatch(
-            targets,
-            values,
-            calldatas,
-            0,
-            keccak256(bytes(description)),
-            chainId
-        );
-        _timelock.scheduleBatch(targets, values, calldatas, 0, keccak256(bytes(description)), chainId, executionDelay);
+        // creates the identifier of an operation containing a batch of transactions
+        _timelockIds[proposalId] = keccak256(abi.encode(targets, values, calldatas, 0, descriptionHash, chainId));
+
+        _timelock.scheduleBatch(targets, values, calldatas, 0, descriptionHash, chainId, executionDelay);
 
         emit ProposalCreated(
             proposalId,
             _msgSender(),
             targets,
             values,
-            new string[](targets.length),
+            new string[](0),
             calldatas,
-            start,
-            deadline,
+            proposal.voteStart.getDeadline(),
+            proposal.voteEnd.getDeadline(),
             chainId
         );
 

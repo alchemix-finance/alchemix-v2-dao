@@ -48,9 +48,9 @@ contract VotingEscrowTest is BaseTest {
     // Test depositing, withdrawing from a rewardPool (Aura pool)
     function testRewardPool() public {
         // Reward pool should be set
-        assertEq(rewardPool, veALCX.rewardPool());
+        assertEq(rewardPool, rewardPoolManager.rewardPool());
 
-        deal(bpt, address(veALCX), TOKEN_1);
+        deal(bpt, address(rewardPoolManager), TOKEN_1);
 
         // Initial amount of bal and aura rewards earned
         uint256 rewardBalanceBefore1 = IERC20(bal).balanceOf(admin);
@@ -58,25 +58,25 @@ contract VotingEscrowTest is BaseTest {
         assertEq(rewardBalanceBefore1, 0, "rewardBalanceBefore1 should be 0");
         assertEq(rewardBalanceBefore2, 0, "rewardBalanceBefore2 should be 0");
 
-        // Initial BPT balance of veALCX
-        uint256 amount = IERC20(bpt).balanceOf(address(veALCX));
+        // Initial BPT balance of rewardPoolManager
+        uint256 amount = IERC20(bpt).balanceOf(address(rewardPoolManager));
         assertEq(amount, TOKEN_1);
 
         // Deposit BPT balance into rewardPool
-        hevm.prank(admin);
-        veALCX.depositIntoRewardPool(amount);
+        hevm.prank(address(veALCX));
+        rewardPoolManager.depositIntoRewardPool(amount);
 
-        uint256 amountAfterDeposit = IERC20(bpt).balanceOf(address(veALCX));
+        uint256 amountAfterDeposit = IERC20(bpt).balanceOf(address(rewardPoolManager));
         assertEq(amountAfterDeposit, 0, "full balance should be deposited");
 
-        uint256 rewardPoolBalance = IRewardPool4626(rewardPool).balanceOf(address(veALCX));
+        uint256 rewardPoolBalance = IRewardPool4626(rewardPool).balanceOf(address(rewardPoolManager));
         assertEq(rewardPoolBalance, amount, "rewardPool balance should equal amount deposited");
 
         // Fast forward to accumulate rewards
         hevm.warp(block.timestamp + 2 weeks);
 
         hevm.prank(admin);
-        veALCX.claimRewardPoolRewards();
+        rewardPoolManager.claimRewardPoolRewards();
         uint256 rewardBalanceAfter1 = IERC20(bal).balanceOf(address(admin));
         uint256 rewardBalanceAfter2 = IERC20(aura).balanceOf(address(admin));
 
@@ -84,22 +84,22 @@ contract VotingEscrowTest is BaseTest {
         assertGt(rewardBalanceAfter1, rewardBalanceBefore1, "should accumulate bal rewards");
         assertGt(rewardBalanceAfter2, rewardBalanceBefore2, "should accumulate aura rewards");
 
-        hevm.prank(admin);
-        veALCX.withdrawFromRewardPool(amount);
+        hevm.prank(address(veALCX));
+        rewardPoolManager.withdrawFromRewardPool(amount);
 
         // veALCX BPT balance should equal original amount after withdrawing from rewardPool
         uint256 amountAfterWithdraw = IERC20(bpt).balanceOf(address(veALCX));
         assertEq(amountAfterWithdraw, amount, "should equal original amount");
 
-        // Only veALCX admin can update rewardPool
+        // Only rewardPoolManager admin can update rewardPool
         hevm.expectRevert(abi.encodePacked("not admin"));
-        veALCX.updateRewardPool(sushiPoolAddress);
+        rewardPoolManager.setRewardPool(sushiPoolAddress);
 
         hevm.prank(admin);
-        veALCX.updateRewardPool(sushiPoolAddress);
+        rewardPoolManager.setRewardPool(sushiPoolAddress);
 
         // Reward pool should update
-        assertEq(sushiPoolAddress, veALCX.rewardPool(), "rewardPool not updated");
+        assertEq(sushiPoolAddress, rewardPoolManager.rewardPool(), "rewardPool not updated");
     }
 
     function testUpdateLockDuration() public {
@@ -314,7 +314,7 @@ contract VotingEscrowTest is BaseTest {
         minter.updatePeriod();
 
         uint256 unclaimedAlcx = distributor.claimable(tokenId);
-        uint256 unclaimedFlux = veALCX.unclaimedFlux(tokenId);
+        uint256 unclaimedFlux = flux.getUnclaimedFlux(tokenId);
 
         // Start cooldown once lock is expired
         veALCX.startCooldown(tokenId);
@@ -358,8 +358,8 @@ contract VotingEscrowTest is BaseTest {
         hevm.prank(holder);
         voter.reset(tokenId3);
 
-        uint256 unclaimedFlux1 = veALCX.unclaimedFlux(tokenId1);
-        uint256 unclaimedFlux2 = veALCX.unclaimedFlux(tokenId2);
+        uint256 unclaimedFlux1 = flux.getUnclaimedFlux(tokenId1);
+        uint256 unclaimedFlux2 = flux.getUnclaimedFlux(tokenId2);
 
         assertGt(unclaimedFlux1, unclaimedFlux2, "unclaimed flux should be greater for longer lock");
 
@@ -370,8 +370,8 @@ contract VotingEscrowTest is BaseTest {
         hevm.prank(holder);
         voter.reset(tokenId3);
 
-        unclaimedFlux2 = veALCX.unclaimedFlux(tokenId2);
-        uint256 unclaimedFlux3 = veALCX.unclaimedFlux(tokenId3);
+        unclaimedFlux2 = flux.getUnclaimedFlux(tokenId2);
+        uint256 unclaimedFlux3 = flux.getUnclaimedFlux(tokenId3);
 
         assertGt(unclaimedFlux3, unclaimedFlux2, "unclaimed flux should be greater for active voter");
     }
@@ -428,23 +428,6 @@ contract VotingEscrowTest is BaseTest {
         veALCX.tokenURI(tokenId);
 
         hevm.stopPrank();
-    }
-
-    // Check support of supported interfaces
-    function testSupportedInterfaces() public {
-        bytes4 ERC165_INTERFACE_ID = 0x01ffc9a7;
-        bytes4 ERC721_INTERFACE_ID = 0x80ac58cd;
-        bytes4 ERC721_METADATA_INTERFACE_ID = 0x5b5e139f;
-
-        assertTrue(veALCX.supportsInterface(ERC165_INTERFACE_ID));
-        assertTrue(veALCX.supportsInterface(ERC721_INTERFACE_ID));
-        assertTrue(veALCX.supportsInterface(ERC721_METADATA_INTERFACE_ID));
-    }
-
-    // Check support of unsupported interfaces
-    function testUnsupportedInterfaces() public {
-        bytes4 ERC721_FAKE = 0x780e9d61;
-        assertFalse(veALCX.supportsInterface(ERC721_FAKE));
     }
 
     // Check approving another address of veALCX
@@ -511,16 +494,16 @@ contract VotingEscrowTest is BaseTest {
         voter.reset(tokenId1);
         voter.reset(tokenId2);
 
-        uint256 unclaimedFluxBefore1 = veALCX.unclaimedFlux(tokenId1);
-        uint256 unclaimedFluxBefore2 = veALCX.unclaimedFlux(tokenId2);
+        uint256 unclaimedFluxBefore1 = flux.getUnclaimedFlux(tokenId1);
+        uint256 unclaimedFluxBefore2 = flux.getUnclaimedFlux(tokenId2);
 
         hevm.expectRevert(abi.encodePacked("must be different tokens"));
         veALCX.merge(tokenId1, tokenId1);
 
         veALCX.merge(tokenId1, tokenId2);
 
-        uint256 unclaimedFluxAfter1 = veALCX.unclaimedFlux(tokenId1);
-        uint256 unclaimedFluxAfter2 = veALCX.unclaimedFlux(tokenId2);
+        uint256 unclaimedFluxAfter1 = flux.getUnclaimedFlux(tokenId1);
+        uint256 unclaimedFluxAfter2 = flux.getUnclaimedFlux(tokenId2);
 
         // After merge unclaimed flux should consolidate into one token
         assertEq(unclaimedFluxAfter2, unclaimedFluxBefore1 + unclaimedFluxBefore2, "unclaimed flux not consolidated");
@@ -683,7 +666,7 @@ contract VotingEscrowTest is BaseTest {
         uint256 tokenId = veALCX.createLock(TOKEN_1, MAXTIME, true);
 
         uint256 claimedBalance = flux.balanceOf(admin);
-        uint256 unclaimedBalance = veALCX.unclaimedFlux(tokenId);
+        uint256 unclaimedBalance = flux.getUnclaimedFlux(tokenId);
         uint256 ragequitAmount = veALCX.amountToRagequit(tokenId);
 
         assertEq(claimedBalance, 0);
@@ -691,7 +674,7 @@ contract VotingEscrowTest is BaseTest {
 
         voter.reset(tokenId);
 
-        unclaimedBalance = veALCX.unclaimedFlux(tokenId);
+        unclaimedBalance = flux.getUnclaimedFlux(tokenId);
 
         // Flux accrued over one epoch should align with the fluxMultiplier and epoch length
         uint256 fluxCalc = unclaimedBalance * veALCX.fluxMultiplier() * veALCX.EPOCH();

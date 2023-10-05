@@ -10,6 +10,7 @@ import "src/AlchemixGovernor.sol";
 import "src/FluxToken.sol";
 import "src/Voter.sol";
 import "src/Minter.sol";
+import "src/RewardPoolManager.sol";
 import "src/RewardsDistributor.sol";
 import "src/RevenueHandler.sol";
 import "src/Bribe.sol";
@@ -107,6 +108,7 @@ contract BaseTest is DSTestPlus {
     BribeFactory public bribeFactory;
     RewardsDistributor public distributor;
     Minter public minter;
+    RewardPoolManager public rewardPoolManager;
     RevenueHandler public revenueHandler;
     TimelockExecutor public timelockExecutor;
     AlchemixGovernor public governor;
@@ -129,16 +131,17 @@ contract BaseTest is DSTestPlus {
 
         hevm.startPrank(admin);
 
-        veALCX = new VotingEscrow(bpt, address(alcx), address(flux), address(rewardPool), admin);
+        veALCX = new VotingEscrow(bpt, address(alcx), address(flux), admin);
+
+        rewardPoolManager = new RewardPoolManager(admin, address(veALCX), bpt, rewardPool, admin);
 
         veALCX.setVoter(admin);
         veALCX.setRewardsDistributor(admin);
-        veALCX.addRewardPoolToken(bal);
-        veALCX.addRewardPoolToken(aura);
+        veALCX.setRewardPoolManager(address(rewardPoolManager));
+        rewardPoolManager.addRewardPoolToken(bal);
+        rewardPoolManager.addRewardPoolToken(aura);
 
         IERC20(bpt).approve(address(veALCX), type(uint256).max);
-
-        FluxToken(flux).setMinter(address(veALCX));
 
         timeGauge = new StakingRewards(address(this), address(alcx), time);
         revenueHandler = new RevenueHandler(address(veALCX), admin, 0);
@@ -159,6 +162,10 @@ contract BaseTest is DSTestPlus {
 
         veALCX.setVoter(address(voter));
         veALCX.setRewardsDistributor(address(distributor));
+
+        flux.setMinter(address(veALCX));
+        flux.setVeALCX(address(veALCX));
+        flux.setVoter(address(voter));
 
         IMinter.InitializationParams memory params = IMinter.InitializationParams(
             address(alcx),

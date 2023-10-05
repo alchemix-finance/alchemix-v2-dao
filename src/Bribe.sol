@@ -21,8 +21,8 @@ contract Bribe is IBribe {
     uint256 public supplyNumCheckpoints;
     uint256 public totalSupply;
 
-    address public veALCX;
-    address public voter;
+    address public immutable veALCX;
+    address public immutable voter;
     address public gauge; // Address of the gauge that the bribes are for
     address[] public rewards;
 
@@ -250,7 +250,8 @@ contract Bribe is IBribe {
     function getRewardForOwner(uint256 tokenId, address[] memory tokens) external lock {
         require(msg.sender == voter, "not voter");
         address _owner = IVotingEscrow(veALCX).ownerOf(tokenId);
-        for (uint256 i = 0; i < tokens.length; i++) {
+        uint256 length = tokens.length;
+        for (uint256 i = 0; i < length; i++) {
             uint256 _reward = earned(tokens[i], tokenId);
 
             require(_reward > 0, "no rewards to claim");
