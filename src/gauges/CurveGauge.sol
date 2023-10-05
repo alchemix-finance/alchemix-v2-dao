@@ -99,8 +99,6 @@ contract CurveGauge is BaseGauge {
      */
     function _passthroughRewards(uint256 _amount) internal override {
         require(initialized, "gauge must me initialized");
-        require(_amount > 0, "insufficient amount");
-        require(msg.sender == voter, "not voter");
         require(proposalUpdated == true, "proposal must be updated");
 
         // Reset proposal flag

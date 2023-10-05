@@ -21,9 +21,9 @@ contract Minter is IMinter {
     using SafeMath for uint256;
 
     // Allows minting once per epoch (epoch = 1 week, reset every Thursday 00:00 UTC)
-    uint256 public constant WEEK = 1 weeks;
+    uint256 public immutable WEEK = 1 weeks;
+    uint256 public immutable BPS = 10_000;
     uint256 public constant TAIL_EMISSIONS_RATE = 2194e18; // Tail emissions rate
-    uint256 public constant BPS = 10_000;
 
     uint256 public epochEmissions;
     uint256 public activePeriod;
@@ -39,9 +39,7 @@ contract Minter is IMinter {
     address public initializer;
     address public treasury;
 
-    bool public initialized;
-
-    IAlchemixToken public alcx;
+    IAlchemixToken public immutable alcx;
     IVoter public immutable voter;
     IVotingEscrow public immutable ve;
     IRewardsDistributor public immutable rewardsDistributor;
@@ -87,11 +85,9 @@ contract Minter is IMinter {
     }
 
     function initialize() external {
-        require(msg.sender != address(0), "cannot be zero address");
-        require(initialized == false, "already initialized");
         require(initializer == msg.sender, "not initializer");
+        require(msg.sender != address(0), "already initialized");
         initializer = address(0);
-        initialized = true;
     }
 
     /*
@@ -173,7 +169,7 @@ contract Minter is IMinter {
 
             revenueHandler.checkpoint();
 
-            emit Mint(msg.sender, epochEmissions, circulatingEmissionsSupply());
+            emit Mint(msg.sender, epochEmissions, supply);
         }
         return period;
     }

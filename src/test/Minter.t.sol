@@ -242,7 +242,7 @@ contract MinterTest is BaseTest {
         hevm.startPrank(admin);
 
         // Initial amount of BPT locked in a veALCX position
-        (int256 initLockedAmount, , , ) = veALCX.locked(tokenId);
+        (uint256 initLockedAmount, , , ) = veALCX.locked(tokenId);
 
         minter.updatePeriod();
 
@@ -267,7 +267,7 @@ contract MinterTest is BaseTest {
         uint256 wethBalanceAfter = weth.balanceOf(admin);
 
         // Updated amount of BPT locked
-        (int256 nextLockedAmount, , , ) = veALCX.locked(tokenId);
+        (uint256 nextLockedAmount, , , ) = veALCX.locked(tokenId);
 
         // BPT locked should be higher after compounding
         assertGt(nextLockedAmount, initLockedAmount, "error compounding");
@@ -352,9 +352,8 @@ contract MinterTest is BaseTest {
     // Test admin controlled functions
     function testAdminFunctions() public {
         assertEq(minter.initializer(), address(0), "minter not initialized");
-        assertEq(minter.initialized(), true, "minter not initialized");
 
-        hevm.expectRevert(abi.encodePacked("already initialized"));
+        hevm.expectRevert(abi.encodePacked("not initializer"));
         minter.initialize();
 
         hevm.expectRevert(abi.encodePacked("not admin"));

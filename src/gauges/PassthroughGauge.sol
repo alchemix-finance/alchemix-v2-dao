@@ -35,9 +35,6 @@ contract PassthroughGauge is BaseGauge {
      * @param _amount Amount of rewards
      */
     function _passthroughRewards(uint256 _amount) internal override {
-        require(_amount > 0, "insufficient amount");
-        require(msg.sender == voter, "not voter");
-
         uint256 rewardBalance = IERC20(rewardToken).balanceOf(address(this));
         require(rewardBalance >= _amount, "insufficient rewards");
 

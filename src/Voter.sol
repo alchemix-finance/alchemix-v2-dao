@@ -93,13 +93,13 @@ contract Voter is IVoter {
 
     /// @inheritdoc IVoter
     function maxVotingPower(uint256 _tokenId) public view returns (uint256) {
-        return
-            IVotingEscrow(veALCX).balanceOfToken(_tokenId) +
-            ((IVotingEscrow(veALCX).balanceOfToken(_tokenId) * boostMultiplier) / BPS);
+        uint256 balance = IVotingEscrow(veALCX).balanceOfToken(_tokenId);
+
+        return balance + ((balance * boostMultiplier) / BPS);
     }
 
     /// @inheritdoc IVoter
-    function maxFluxBoost(uint256 _tokenId) public view returns (uint256) {
+    function maxFluxBoost(uint256 _tokenId) external view returns (uint256) {
         return (IVotingEscrow(veALCX).balanceOfToken(_tokenId) * boostMultiplier) / BPS;
     }
 
@@ -107,7 +107,7 @@ contract Voter is IVoter {
         return pools.length;
     }
 
-    function getPoolVote(uint256 _tokenId) public view returns (address[] memory) {
+    function getPoolVote(uint256 _tokenId) external view returns (address[] memory) {
         return poolVote[_tokenId];
     }
 
@@ -164,8 +164,7 @@ contract Voter is IVoter {
         lastVoted[_tokenId] = block.timestamp;
         _reset(_tokenId);
         IVotingEscrow(veALCX).abstain(_tokenId);
-        uint256 claimableFlux = IVotingEscrow(veALCX).claimableFlux(_tokenId);
-        IFluxToken(FLUX).accrueFlux(_tokenId, claimableFlux);
+        IFluxToken(FLUX).accrueFlux(_tokenId);
     }
 
     /// @inheritdoc IVoter
@@ -233,9 +232,16 @@ contract Voter is IVoter {
         _vote(_tokenId, _poolVote, _weights, _boost);
     }
 
+    /// @inheritdoc IVoter
     function whitelist(address _token) public {
         require(msg.sender == admin, "not admin");
         _whitelist(_token);
+    }
+
+    /// @inheritdoc IVoter
+    function removeFromWhitelist(address _token) external {
+        require(msg.sender == admin, "not admin");
+        _removeFromWhitelist(_token);
     }
 
     /// @inheritdoc IVoter
@@ -250,8 +256,8 @@ contract Voter is IVoter {
 
         if (_gaugeType == IVoter.GaugeType.Curve) {
             _gauge = IGaugeFactory(gaugefactory).createCurveGauge(_bribe, veALCX);
-        }
-        if (_gaugeType == IVoter.GaugeType.Passthrough) {
+        } else {
+            // _gaugeType == IVoter.GaugeType.Passthrough
             _gauge = IGaugeFactory(gaugefactory).createPassthroughGauge(_pool, _bribe, veALCX);
         }
 
@@ -342,14 +348,8 @@ contract Voter is IVoter {
 
     /// @inheritdoc IVoter
     function distribute(address _gauge) public lock {
-        require(isAlive[_gauge], "cannot distribute to a dead gauge");
-
+        _distribute(_gauge);
         IMinter(minter).updatePeriod();
-        _updateFor(_gauge);
-        uint256 _claimable = claimable[_gauge];
-        IBaseGauge(_gauge).notifyRewardAmount(_claimable);
-
-        emit DistributeReward(msg.sender, _gauge, _claimable);
     }
 
     function distribute() external {
@@ -358,19 +358,31 @@ contract Voter is IVoter {
 
     function distribute(uint256 start, uint256 finish) public {
         for (uint256 x = start; x < finish; x++) {
-            distribute(gauges[pools[x]]);
+            _distribute(gauges[pools[x]]);
         }
+        IMinter(minter).updatePeriod();
     }
 
     function distribute(address[] memory _gauges) external {
         for (uint256 x = 0; x < _gauges.length; x++) {
-            distribute(_gauges[x]);
+            _distribute(_gauges[x]);
         }
+        IMinter(minter).updatePeriod();
     }
 
     /*
         Internal functions
     */
+
+    function _distribute(address _gauge) internal {
+        require(isAlive[_gauge], "cannot distribute to a dead gauge");
+
+        _updateFor(_gauge);
+        uint256 _claimable = claimable[_gauge];
+        IBaseGauge(_gauge).notifyRewardAmount(_claimable);
+
+        emit DistributeReward(msg.sender, _gauge, _claimable);
+    }
 
     function _reset(uint256 _tokenId) internal {
         address[] storage _poolVote = poolVote[_tokenId];
@@ -385,10 +397,10 @@ contract Voter is IVoter {
                 _updateFor(gauges[_pool]);
                 weights[_pool] -= _votes;
                 votes[_tokenId][_pool] -= _votes;
-                if (_votes > 0) {
-                    IBribe(bribes[gauges[_pool]]).withdraw(uint256(_votes), _tokenId);
-                    _totalWeight += _votes;
-                }
+
+                IBribe(bribes[gauges[_pool]]).withdraw(uint256(_votes), _tokenId);
+                _totalWeight += _votes;
+
                 emit Abstained(msg.sender, _pool, _tokenId, _votes);
             }
         }
@@ -403,11 +415,13 @@ contract Voter is IVoter {
         uint256 _poolCnt = _poolVote.length;
         uint256 _totalVoteWeight = 0;
         uint256 _totalWeight = 0;
-        uint256 _usedWeight = 0;
 
         for (uint256 i = 0; i < _poolCnt; i++) {
             _totalVoteWeight += _weights[i];
         }
+
+        IFluxToken(FLUX).accrueFlux(_tokenId);
+        uint256 totalPower = (IVotingEscrow(veALCX).balanceOfToken(_tokenId) + _boost);
 
         for (uint256 i = 0; i < _poolCnt; i++) {
             address _pool = _poolVote[i];
@@ -415,9 +429,7 @@ contract Voter is IVoter {
 
             require(isAlive[_gauge], "cannot vote for dead gauge");
 
-            IFluxToken(FLUX).accrueFlux(_tokenId, IVotingEscrow(veALCX).claimableFlux(_tokenId));
-            uint256 _poolWeight = (_weights[i] * (IVotingEscrow(veALCX).balanceOfToken(_tokenId) + _boost)) /
-                _totalVoteWeight;
+            uint256 _poolWeight = (_weights[i] * totalPower) / _totalVoteWeight;
             require(votes[_tokenId][_pool] == 0);
             require(_poolWeight != 0);
             _updateFor(_gauge);
@@ -427,14 +439,13 @@ contract Voter is IVoter {
             weights[_pool] += _poolWeight;
             votes[_tokenId][_pool] += _poolWeight;
             IBribe(bribes[_gauge]).deposit(uint256(_poolWeight), _tokenId);
-            _usedWeight += _poolWeight;
             _totalWeight += _poolWeight;
             emit Voted(msg.sender, _pool, _tokenId, _poolWeight);
         }
 
-        if (_usedWeight > 0) IVotingEscrow(veALCX).voting(_tokenId);
+        if (_totalWeight > 0) IVotingEscrow(veALCX).voting(_tokenId);
         totalWeight += uint256(_totalWeight);
-        usedWeights[_tokenId] = uint256(_usedWeight);
+        usedWeights[_tokenId] = uint256(_totalWeight);
         lastVoted[_tokenId] = block.timestamp;
 
         // Update flux balance of token if boost was used
@@ -447,6 +458,12 @@ contract Voter is IVoter {
         require(!isWhitelisted[_token]);
         isWhitelisted[_token] = true;
         emit Whitelisted(msg.sender, _token);
+    }
+
+    function _removeFromWhitelist(address _token) internal {
+        require(isWhitelisted[_token]);
+        isWhitelisted[_token] = false;
+        emit RemovedFromWhitelist(msg.sender, _token);
     }
 
     function _updateFor(address _gauge) internal {
@@ -469,7 +486,6 @@ contract Voter is IVoter {
     }
 
     function _safeTransferFrom(address token, address from, address to, uint256 value) internal {
-        require(token.code.length > 0);
         (bool success, bytes memory data) = token.call(
             abi.encodeWithSelector(IERC20.transferFrom.selector, from, to, value)
         );

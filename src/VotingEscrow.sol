@@ -34,7 +34,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     }
 
     struct LockedBalance {
-        int256 amount;
+        uint256 amount;
         uint256 end;
         bool maxLockEnabled;
         uint256 cooldown;
@@ -53,15 +53,15 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     string public constant name = "veALCX";
     string public constant symbol = "veALCX";
     string public constant version = "1.0.0";
-    uint8 public constant decimals = 18;
+    uint8 public immutable decimals = 18;
 
     uint256 public constant EPOCH = 1 weeks;
     uint256 public constant MAX_DELEGATES = 1024; // avoid too much gas
 
-    uint256 internal constant WEEK = 1 weeks;
+    uint256 internal immutable WEEK = 1 weeks;
+    uint256 internal immutable BPS = 10_000;
     uint256 internal constant MAXTIME = 365 days;
     uint256 internal constant MULTIPLIER = 1 ether;
-    uint256 internal constant BPS = 10_000;
 
     int256 internal constant iMAXTIME = 365 days;
     int256 internal constant iMULTIPLIER = 1 ether;
@@ -69,9 +69,9 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     /// @dev Current count of token
     uint256 internal tokenId;
 
-    address public ALCX;
-    address public FLUX;
-    address public BPT;
+    address public immutable ALCX;
+    address public immutable FLUX;
+    address public immutable BPT;
     address public rewardPoolManager; // destination for BPT
     address public admin; // the timelock executor
     address public pendingAdmin; // the timelock executor
@@ -320,9 +320,10 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         if (nCheckpoints == 0) {
             return 0;
         }
-        uint256[] storage _tokenIds = checkpoints[account][nCheckpoints - 1].tokenIds;
+        uint256[] memory _tokenIds = checkpoints[account][nCheckpoints - 1].tokenIds;
         uint256 votes = 0;
-        for (uint256 i = 0; i < _tokenIds.length; i++) {
+        uint256 tokenIdCount = _tokenIds.length;
+        for (uint256 i = 0; i < tokenIdCount; i++) {
             uint256 tId = _tokenIds[i];
             votes = votes + _balanceOfTokenAt(tId, block.timestamp);
         }
@@ -351,7 +352,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         // Binary search to find the index of the checkpoint that is the closest to the requested timestamp
         while (upper > lower) {
             uint32 center = upper - (upper - lower) / 2; // ceil, avoiding overflow
-            Checkpoint storage cp = checkpoints[account][center];
+            Checkpoint memory cp = checkpoints[account][center];
             if (cp.timestamp == timestamp) {
                 return center;
             } else if (cp.timestamp < timestamp) {
@@ -378,7 +379,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         }
 
         // Sum votes
-        uint256[] storage _tokenIds = checkpoints[account][_checkIndex].tokenIds;
+        uint256[] memory _tokenIds = checkpoints[account][_checkIndex].tokenIds;
         for (uint256 i = 0; i < _tokenIds.length; i++) {
             uint256 tId = _tokenIds[i];
             // Use the provided input timestamp here to get the right decay
@@ -408,13 +409,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     function tokenURI(uint256 _tokenId) external view returns (string memory) {
         require(idToOwner[_tokenId] != address(0), "Query for nonexistent token");
         LockedBalance memory _locked = locked[_tokenId];
-        return
-            _tokenURI(
-                _tokenId,
-                _balanceOfTokenAt(_tokenId, block.timestamp),
-                _locked.end,
-                uint256(int256(_locked.amount))
-            );
+        return _tokenURI(_tokenId, _balanceOfTokenAt(_tokenId, block.timestamp), _locked.end, _locked.amount);
     }
 
     function balanceOfToken(uint256 _tokenId) external view returns (uint256) {
@@ -579,7 +574,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         // Throws if `_approved` is the current owner
         require(_approved != owner, "Approved is already owner");
         // Check requirements
-        bool senderIsOwner = (idToOwner[_tokenId] == msg.sender);
+        bool senderIsOwner = (owner == msg.sender);
         bool senderIsApprovedForAll = (ownerToOperators[owner])[msg.sender];
         require(senderIsOwner || senderIsApprovedForAll);
         // Set the approval
@@ -621,13 +616,13 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     }
 
     function setRewardsDistributor(address _distributor) external {
-        require(msg.sender == distributor, "not distributor");
+        require(msg.sender == distributor, "not admin");
         distributor = _distributor;
         emit RewardsDistributorUpdated(_distributor);
     }
 
     function setRewardPoolManager(address _rewardPoolManager) external {
-        require(msg.sender == rewardPoolManager, "not rewardPoolManager");
+        require(msg.sender == rewardPoolManager, "not admin");
         rewardPoolManager = _rewardPoolManager;
     }
 
@@ -809,7 +804,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         require(_locked.cooldown > 0, "Cooldown period has not started");
         require(block.timestamp >= _locked.cooldown, "Cooldown period in progress");
 
-        uint256 value = uint256(int256(_locked.amount));
+        uint256 value = _locked.amount;
 
         locked[_tokenId] = LockedBalance(0, 0, false, 0);
         uint256 supplyBefore = supply;
@@ -1220,9 +1215,9 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
      */
     function _calculatePoint(LockedBalance memory _locked, uint256 _time) internal pure returns (Point memory point) {
         if (_locked.end > _time && _locked.amount > 0) {
-            point.slope = _locked.maxLockEnabled ? int256(0) : (_locked.amount * iMULTIPLIER) / iMAXTIME;
+            point.slope = _locked.maxLockEnabled ? int256(0) : (int256(_locked.amount) * iMULTIPLIER) / iMAXTIME;
             point.bias = _locked.maxLockEnabled
-                ? ((_locked.amount * iMULTIPLIER) / iMAXTIME) * (int256(_locked.end - _time))
+                ? ((int256(_locked.amount) * iMULTIPLIER) / iMAXTIME) * (int256(_locked.end - _time))
                 : (point.slope * (int256(_locked.end - _time)));
         }
     }
@@ -1393,7 +1388,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
             _locked.maxLockEnabled
         );
         // Adding to existing lock, or if a lock is expired - creating a new one
-        _locked.amount += int256(_value);
+        _locked.amount += _value;
 
         _locked.maxLockEnabled = _maxLockEnabled;
 
@@ -1441,8 +1436,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
             ? ((block.timestamp + MAXTIME) / WEEK) * WEEK
             : ((block.timestamp + _lockDuration) / WEEK) * WEEK;
 
-        require(_value > 0); // dev: need non-zero value
-        require(unlockTime > block.timestamp, "Can only lock until time in the future");
+        require(_value > 0, "Cannot lock 0 value");
         require(unlockTime <= block.timestamp + MAXTIME, "Voting lock can be 1 year max");
         require(unlockTime >= block.timestamp + EPOCH, "Voting lock must be 1 epoch");
 

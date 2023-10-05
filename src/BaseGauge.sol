@@ -3,7 +3,6 @@ pragma solidity ^0.8.15;
 
 import "src/libraries/Math.sol";
 import "src/interfaces/IBribe.sol";
-import "src/interfaces/IGaugeFactory.sol";
 import "src/interfaces/IBaseGauge.sol";
 import "src/interfaces/IVoter.sol";
 import "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
@@ -39,7 +38,7 @@ abstract contract BaseGauge is IBaseGauge {
         View functions
     */
 
-    function getVotingStage(uint256 timestamp) public pure returns (VotingStage) {
+    function getVotingStage(uint256 timestamp) external pure returns (VotingStage) {
         uint256 modTime = timestamp % (1 weeks);
         if (modTime < BRIBE_LAG) {
             return VotingStage.BribesPhase;
@@ -97,12 +96,6 @@ abstract contract BaseGauge is IBaseGauge {
         (bool success, bytes memory data) = token.call(
             abi.encodeWithSelector(IERC20.transferFrom.selector, from, to, value)
         );
-        require(success && (data.length == 0 || abi.decode(data, (bool))));
-    }
-
-    function _safeApprove(address token, address spender, uint256 value) internal {
-        require(token.code.length > 0);
-        (bool success, bytes memory data) = token.call(abi.encodeWithSelector(IERC20.approve.selector, spender, value));
         require(success && (data.length == 0 || abi.decode(data, (bool))));
     }
 

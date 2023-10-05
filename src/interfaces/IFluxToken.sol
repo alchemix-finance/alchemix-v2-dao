@@ -72,9 +72,8 @@ interface IFluxToken is IERC20 {
     /**
      * @notice Accrue unclaimed flux for a given veALCX
      * @param _tokenId ID of the token flux is being accrued to
-     * @param _amount Amount of flux being accrued
      */
-    function accrueFlux(uint256 _tokenId, uint256 _amount) external;
+    function accrueFlux(uint256 _tokenId) external;
 
     /**
      * @notice Update unclaimed flux balance for a given veALCX

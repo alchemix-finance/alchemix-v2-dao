@@ -23,9 +23,9 @@ import { WeightedMath } from "src/interfaces/balancer/WeightedMath.sol";
 contract RewardsDistributor is IRewardsDistributor, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
-    uint256 public constant WEEK = 1 weeks;
-    address public constant BURN_ADDRESS = address(0);
-    uint256 public constant BPS = 10_000;
+    uint256 public immutable WEEK = 1 weeks;
+    address public immutable BURN_ADDRESS = address(0);
+    uint256 public immutable BPS = 10_000;
 
     bytes32 public balancerPoolId;
 
@@ -34,7 +34,7 @@ contract RewardsDistributor is IRewardsDistributor, ReentrancyGuard {
     uint256 public lastTokenTime;
     uint256 public tokenLastBalance;
 
-    address public votingEscrow;
+    address public immutable votingEscrow;
     address public rewardsToken;
     address public lockedToken;
     address public depositor;
@@ -45,9 +45,9 @@ contract RewardsDistributor is IRewardsDistributor, ReentrancyGuard {
     mapping(uint256 => uint256) public timeCursorOf;
     mapping(uint256 => uint256) public userEpochOf;
 
-    IWETH9 public WETH;
-    IVault public balancerVault;
-    IBasePool public balancerPool;
+    IWETH9 public immutable WETH;
+    IVault public immutable balancerVault;
+    IBasePool public immutable balancerPool;
     AggregatorV3Interface public priceFeed;
     IAsset[] public poolAssets = new IAsset[](2);
 

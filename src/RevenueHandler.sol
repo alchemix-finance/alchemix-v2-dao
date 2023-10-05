@@ -50,7 +50,7 @@ contract RevenueHandler is IRevenueHandler, Ownable {
     uint256 internal constant WEEK = 1 weeks;
     uint256 internal constant BPS = 10_000;
 
-    address public veALCX;
+    address public immutable veALCX;
     address[] public revenueTokens;
     mapping(address => bool) public alchemicTokens; // token => is alchemic-token (true/false)
     mapping(address => RevenueTokenConfig) public revenueTokenConfigs; // token => RevenueTokenConfig
@@ -83,7 +83,8 @@ contract RevenueHandler is IRevenueHandler, Ownable {
 
     /// @inheritdoc IRevenueHandler
     function addRevenueToken(address revenueToken) external override onlyOwner {
-        for (uint256 i = 0; i < revenueTokens.length; i++) {
+        uint256 length = revenueTokens.length;
+        for (uint256 i = 0; i < length; i++) {
             if (revenueTokens[i] == revenueToken) {
                 revert("revenue token already exists");
             }
@@ -94,9 +95,10 @@ contract RevenueHandler is IRevenueHandler, Ownable {
 
     /// @inheritdoc IRevenueHandler
     function removeRevenueToken(address revenueToken) external override onlyOwner {
-        for (uint256 i = 0; i < revenueTokens.length; i++) {
+        uint256 length = revenueTokens.length;
+        for (uint256 i = 0; i < length; i++) {
             if (revenueTokens[i] == revenueToken) {
-                revenueTokens[i] = revenueTokens[revenueTokens.length - 1];
+                revenueTokens[i] = revenueTokens[length - 1];
                 revenueTokens.pop();
                 emit RevenueTokenTokenRemoved(revenueToken);
                 return;
@@ -211,41 +213,40 @@ contract RevenueHandler is IRevenueHandler, Ownable {
         if (block.timestamp >= currentEpoch + WEEK /* && initializer == address(0) */) {
             currentEpoch = (block.timestamp / WEEK) * WEEK;
 
-            for (uint256 i = 0; i < revenueTokens.length; i++) {
+            uint256 length = revenueTokens.length;
+            for (uint256 i = 0; i < length; i++) {
                 // These will be zero if the revenue token is not an alchemic-token
                 uint256 treasuryAmt = 0;
                 uint256 amountReceived = 0;
                 address token = revenueTokens[i];
 
+                RevenueTokenConfig memory tokenConfig = revenueTokenConfigs[token];
+
                 // If a revenue token is disabled, skip it.
-                if (revenueTokenConfigs[token].disabled) continue;
+                if (tokenConfig.disabled) continue;
+
+                uint256 thisBalance = IERC20(token).balanceOf(address(this));
 
                 // If poolAdapter is set, the revenue token is an alchemic-token
-                if (revenueTokenConfigs[token].poolAdapter != address(0)) {
+                if (tokenConfig.poolAdapter != address(0)) {
                     // Treasury only receives revenue if the token is an alchemic-token
-                    treasuryAmt = (IERC20(token).balanceOf(address(this)) * treasuryPct) / BPS;
+                    treasuryAmt = (thisBalance * treasuryPct) / BPS;
                     IERC20(token).safeTransfer(treasury, treasuryAmt);
 
                     // Only melt if there is an alchemic-token to melt to
                     amountReceived = _melt(token);
 
                     // Update amount of alchemic-token revenue received for this epoch
-                    epochRevenues[currentEpoch][revenueTokenConfigs[token].debtToken] += amountReceived;
+                    epochRevenues[currentEpoch][tokenConfig.debtToken] += amountReceived;
                 } else {
                     // If the revenue token doesn't have a poolAdapter, it is not an alchemic-token
-                    amountReceived = IERC20(token).balanceOf(address(this));
+                    amountReceived = thisBalance;
 
                     // Update amount of non-alchemic-token revenue received for this epoch
                     epochRevenues[currentEpoch][token] += amountReceived;
                 }
 
-                emit RevenueRealized(
-                    currentEpoch,
-                    token,
-                    revenueTokenConfigs[revenueTokens[i]].debtToken,
-                    amountReceived,
-                    treasuryAmt
-                );
+                emit RevenueRealized(currentEpoch, token, tokenConfig.debtToken, amountReceived, treasuryAmt);
             }
         }
     }

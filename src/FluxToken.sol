@@ -96,9 +96,10 @@ contract FluxToken is ERC20("Flux", "FLUX"), IFluxToken {
     }
 
     /// @inheritdoc IFluxToken
-    function accrueFlux(uint256 _tokenId, uint256 _amount) external {
+    function accrueFlux(uint256 _tokenId) external {
         require(msg.sender == voter, "not voter");
-        unclaimedFlux[_tokenId] += _amount;
+        uint256 amount = IVotingEscrow(veALCX).claimableFlux(_tokenId);
+        unclaimedFlux[_tokenId] += amount;
     }
 
     /// @inheritdoc IFluxToken

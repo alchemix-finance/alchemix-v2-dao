@@ -23,6 +23,7 @@ interface IVoter {
     event Voted(address indexed voter, address indexed pool, uint256 tokenId, uint256 weight);
     event Withdraw(address indexed account, address indexed gauge, uint256 tokenId, uint256 amount);
     event Whitelisted(address indexed whitelister, address indexed token);
+    event RemovedFromWhitelist(address indexed whitelister, address indexed token);
 
     function veALCX() external view returns (address);
 
@@ -41,6 +42,12 @@ interface IVoter {
      * @param _token address of the token
      */
     function whitelist(address _token) external;
+
+    /**
+     * @notice Remove a token from the whitelist
+     * @param _token address of the token
+     */
+    function removeFromWhitelist(address _token) external;
 
     /**
      * @notice Get the maximum voting power a given veALCX can have by using FLUX
