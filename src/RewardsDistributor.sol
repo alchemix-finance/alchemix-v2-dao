@@ -245,7 +245,7 @@ contract RewardsDistributor is IRewardsDistributor, ReentrancyGuard {
         for (uint256 i = 0; i < 128; i++) {
             if (_min >= _max) break;
             uint256 _mid = (_min + _max + 2) / 2;
-            IVotingEscrow.Point memory pt = IVotingEscrow(ve).pointHistory(_mid);
+            IVotingEscrow.Point memory pt = IVotingEscrow(ve).getPointHistory(_mid);
             if (pt.ts <= _timestamp) {
                 _min = _mid;
             } else {
@@ -266,7 +266,7 @@ contract RewardsDistributor is IRewardsDistributor, ReentrancyGuard {
         for (uint256 i = 0; i < 128; i++) {
             if (_min >= _max) break;
             uint256 _mid = (_min + _max + 2) / 2;
-            IVotingEscrow.Point memory pt = IVotingEscrow(ve).userPointHistory(tokenId, _mid);
+            IVotingEscrow.Point memory pt = IVotingEscrow(ve).getUserPointHistory(tokenId, _mid);
             if (pt.ts <= _timestamp) {
                 _min = _mid;
             } else {
@@ -340,7 +340,7 @@ contract RewardsDistributor is IRewardsDistributor, ReentrancyGuard {
 
         if (userEpoch == 0) userEpoch = 1;
 
-        IVotingEscrow.Point memory userPoint = IVotingEscrow(_ve).userPointHistory(_tokenId, userEpoch);
+        IVotingEscrow.Point memory userPoint = IVotingEscrow(_ve).getUserPointHistory(_tokenId, userEpoch);
 
         if (weekCursor == 0) weekCursor = ((userPoint.ts + WEEK - 1) / WEEK) * WEEK;
         if (weekCursor >= lastTokenTime) return (0, userEpoch, maxUserEpoch, weekCursor);
@@ -357,7 +357,7 @@ contract RewardsDistributor is IRewardsDistributor, ReentrancyGuard {
                 if (userEpoch > maxUserEpoch) {
                     userPoint = IVotingEscrow.Point(0, 0, 0, 0);
                 } else {
-                    userPoint = IVotingEscrow(_ve).userPointHistory(_tokenId, userEpoch);
+                    userPoint = IVotingEscrow(_ve).getUserPointHistory(_tokenId, userEpoch);
                 }
             } else {
                 int256 dt = int256(weekCursor - oldUserPoint.ts);

@@ -16,39 +16,12 @@ import "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 /// @notice veALCX implementation that escrows ERC-20 tokens in the form of an ERC-721 token
 /// @notice Votes have a weight depending on time, so that users are committed to the future of (whatever they are voting for)
 /// @dev Vote weight decays linearly over time. Lock time cannot be more than `MAXTIME` (1 year).
-contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
+contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
     using SafeERC20 for IERC20;
-
-    enum DepositType {
-        DEPOSIT_FOR_TYPE,
-        CREATE_LOCK_TYPE,
-        INCREASE_UNLOCK_TIME,
-        MERGE_TYPE
-    }
-
-    struct Point {
-        int256 bias;
-        int256 slope; // # -dweight / dt
-        uint256 ts;
-        uint256 blk; // block
-    }
-
-    struct LockedBalance {
-        uint256 amount;
-        uint256 end;
-        bool maxLockEnabled;
-        uint256 cooldown;
-    }
 
     /* We cannot really do block numbers per se b/c slope is per time, not per block
      * and per block could be fairly bad b/c Ethereum changes blocktimes.
      * What we can do is to extrapolate ***At functions */
-
-    /// @notice A checkpoint for marking delegated tokenIds from a given timestamp
-    struct Checkpoint {
-        uint256 timestamp;
-        uint256[] tokenIds;
-    }
 
     string public constant name = "veALCX";
     string public constant symbol = "veALCX";
@@ -126,28 +99,6 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     /// @notice A record of states for signing / validating signatures
     mapping(address => uint256) public nonces;
 
-    event Deposit(
-        address indexed provider,
-        uint256 tokenId,
-        uint256 value,
-        uint256 indexed locktime,
-        bool maxLockEnabled,
-        DepositType depositType,
-        uint256 ts
-    );
-
-    event AdminUpdated(address admin);
-    event ClaimFeeUpdated(uint256 claimFee);
-    event VoterUpdated(address voter);
-    event RewardsDistributorUpdated(address distributor);
-    event FluxMultiplierUpdated(uint256 fluxMultiplier);
-    event FluxPerVeALCXUpdated(uint256 fluxPerVeALCX);
-    event Withdraw(address indexed provider, uint256 tokenId, uint256 value, uint256 ts);
-    event Supply(uint256 prevSupply, uint256 supply);
-    event Ragequit(address indexed provider, uint256 tokenId, uint256 ts);
-    event CooldownStarted(address indexed provider, uint256 tokenId, uint256 ts);
-    event TreasuryUpdated(address indexed newTreasury);
-
     /// @dev reentrancy guard
     uint8 internal constant NOT_ENTERED = 1;
     uint8 internal constant ENTERED = 2;
@@ -186,11 +137,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         View functions
     */
 
-    /**
-     * @notice Get the tokenIds for a given address from the last checkpoint
-     * @param _address Address of the user
-     * @return Array of tokenIds
-     */
+    /// @inheritdoc IVotingEscrow
     function getTokenIds(address _address) external view returns (uint256[] memory) {
         uint32 lastCheckpoint = uint32(numCheckpoints[_address] - 1);
         return checkpoints[_address][lastCheckpoint].tokenIds;
@@ -199,99 +146,69 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
     // Not supported
     function supportsInterface(bytes4 _interfaceID) external view returns (bool) {}
 
-    /**
-     * @notice Get the most recently recorded rate of voting power decrease for `_tokenId`
-     * @param _tokenId ID of the token
-     * @return int256 Value of the slope
-     */
+    /// @inheritdoc IVotingEscrow
     function getLastUserSlope(uint256 _tokenId) external view returns (int256) {
         uint256 userEpoch = userPointEpoch[_tokenId];
         return userPointHistory[_tokenId][userEpoch].slope;
     }
 
-    /**
-     * @notice Get the timestamp for checkpoint `_idx` for `_tokenId`
-     * @param _tokenId ID of the token
-     * @param _idx Epoch number
-     * @return Epoch time of the checkpoint
-     */
+    /// @inheritdoc IVotingEscrow
     function userPointHistoryTimestamp(uint256 _tokenId, uint256 _idx) external view returns (uint256) {
         return userPointHistory[_tokenId][_idx].ts;
     }
 
-    /**
-     * @notice Get the timestamp for checkpoint `_idx`
-     * @param _idx Epoch number
-     * @return Epoch time of the checkpoint
-     */
+    /// @inheritdoc IVotingEscrow
     function pointHistoryTimestamp(uint256 _idx) external view returns (uint256) {
         return pointHistory[_idx].ts;
     }
 
-    /**
-     * @notice Get timestamp when `_tokenId`'s lock finishes
-     * @param _tokenId ID of the token
-     * @return Epoch time of the lock end
-     */
+    /// @inheritdoc IVotingEscrow
     function lockEnd(uint256 _tokenId) public view returns (uint256) {
         return locked[_tokenId].end;
     }
 
-    /**
-     * @notice Get amount locked for `_tokenId`
-     * @param _tokenId ID of the token
-     * @return Amount locked
-     */
+    /// @inheritdoc IVotingEscrow
     function lockedAmount(uint256 _tokenId) external view returns (uint256) {
         return uint256(locked[_tokenId].amount);
     }
 
-    /**
-     * @notice Get timestamp when `_tokenId`'s cooldown finishes
-     * @param _tokenId ID of the token
-     * @return Epoch time of the cooldown end
-     */
+    /// @inheritdoc IVotingEscrow
     function cooldownEnd(uint256 _tokenId) external view returns (uint256) {
         return locked[_tokenId].cooldown;
     }
 
-    /**
-     * @notice Returns the number of tokens owned by `_owner`.
-     * @param _owner Address for whom to query the balance.
-     * @dev Throws if `_owner` is the zero address. tokens assigned to the zero address are considered invalid.
-     */
-    function balanceOf(address _owner) external view returns (uint256) {
+    function getPointHistory(uint256 _loc) external view returns (Point memory) {
+        return pointHistory[_loc];
+    }
+
+    function getUserPointHistory(uint256 _tokenId, uint256 _loc) external view returns (Point memory) {
+        return userPointHistory[_tokenId][_loc];
+    }
+
+    /// @inheritdoc IVotingEscrow
+    function balanceOf(address _owner) external view override(IERC721, IVotingEscrow) returns (uint256) {
         return _balance(_owner);
     }
 
-    /**
-     * @notice Returns the address of the owner of the token.
-     * @param _tokenId ID of the token.
-     */
-    function ownerOf(uint256 _tokenId) public view returns (address) {
+    /// @inheritdoc IVotingEscrow
+    function ownerOf(uint256 _tokenId) public view override(IERC721, IVotingEscrow) returns (address) {
         return idToOwner[_tokenId];
     }
 
-    /**
-     * @notice Get the approved address for a single token.
-     * @param _tokenId ID of the token to query the approval of.
-     */
-    function getApproved(uint256 _tokenId) external view returns (address) {
+    /// @inheritdoc IVotingEscrow
+    function getApproved(uint256 _tokenId) external view override(IERC721, IVotingEscrow) returns (address) {
         return idToApprovals[_tokenId];
     }
 
-    /**
-     * @notice Checks if `_operator` is an approved operator for `_owner`.
-     * @param _owner The address that owns the tokens.
-     * @param _operator The address that acts on behalf of the owner.
-     */
-    function isApprovedForAll(address _owner, address _operator) external view returns (bool) {
+    /// @inheritdoc IVotingEscrow
+    function isApprovedForAll(
+        address _owner,
+        address _operator
+    ) external view override(IERC721, IVotingEscrow) returns (bool) {
         return (ownerToOperators[_owner])[_operator];
     }
 
-    /**
-     * @notice  Get token by index
-     */
+    /// @inheritdoc IVotingEscrow
     function tokenOfOwnerByIndex(address _owner, uint256 _tokenIndex) external view returns (uint256) {
         return ownerToTokenIdList[_owner][_tokenIndex];
     }
@@ -392,12 +309,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         return totalSupplyAtT(timestamp);
     }
 
-    /**
-     * @notice Amount of FLUX required to ragequit for a given token
-     * @param _tokenId ID of token to ragequit
-     * @return uint256 Amount of FLUX required to ragequit
-     * @dev Amount to ragequit should be a function of the voting power
-     */
+    /// @inheritdoc IVotingEscrow
     function amountToRagequit(uint256 _tokenId) public view returns (uint256) {
         return (_balanceOfTokenAt(_tokenId, block.timestamp) * (fluxPerVeALCX + BPS)) / BPS;
     }
@@ -421,12 +333,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         return _balanceOfTokenAt(_tokenId, _time);
     }
 
-    /**
-     * @notice Amount of flux claimable at current epoch
-     * @param _tokenId ID of the token
-     * @return uint256 Amount of claimable flux for the current epoch
-     * @dev flux should accrue at the ragequit amount divided by the fluxMultiplier per epoch
-     */
+    /// @inheritdoc IVotingEscrow
     function claimableFlux(uint256 _tokenId) public view returns (uint256) {
         // If the lock is expired, no flux is claimable at the current epoch
         if (block.timestamp > locked[_tokenId].end) return 0;
@@ -434,12 +341,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         return ((ragequitAmount / fluxMultiplier) / EPOCH);
     }
 
-    /**
-     * @notice Calculate total voting power
-     * @param t Timestamp provided
-     * @return Total voting power
-     * @dev Adheres to the ERC20 `totalSupply` interface for Aragon compatibility
-     */
+    /// @inheritdoc IVotingEscrow
     function totalSupplyAtT(uint256 t) public view returns (uint256) {
         uint256 _epoch = epoch;
         Point memory lastPoint = pointHistory[_epoch];
@@ -467,11 +369,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         return _supplyAt(lastPoint, t);
     }
 
-    /**
-     * @notice Calculate total voting power
-     * @return Total voting power
-     * @dev Adheres to the ERC20 `totalSupply` interface for Aragon compatibility
-     */
+    /// @inheritdoc IVotingEscrow
     function totalSupply() external view returns (uint256) {
         return totalSupplyAtT(block.timestamp);
     }
@@ -493,18 +391,8 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         emit TreasuryUpdated(_treasury);
     }
 
-    /**
-     * @dev Throws unless `msg.sender` is the current owner, an authorized operator, or the approved address for this token.
-     *      Throws if `_from` is not the current owner.
-     *      Throws if `_to` is the zero address.
-     *      Throws if `_tokenId` is not a valid token.
-     * @dev The caller is responsible to confirm that `_to` is capable of receiving tokens or else
-     *        they maybe be permanently lost.
-     * @param _from The current owner of the token.
-     * @param _to The new owner.
-     * @param _tokenId ID of the token to transfer.
-     */
-    function transferFrom(address _from, address _to, uint256 _tokenId) external {
+    /// @inheritdoc IVotingEscrow
+    function transferFrom(address _from, address _to, uint256 _tokenId) external override(IERC721, IVotingEscrow) {
         _transferFrom(_from, _to, _tokenId, msg.sender);
     }
 
@@ -711,20 +599,12 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         _depositFor(_to, value0, end, _locked1.maxLockEnabled, _locked1, DepositType.MERGE_TYPE);
     }
 
-    /**
-     * @notice Record global data to checkpoint
-     */
+    /// @inheritdoc IVotingEscrow
     function checkpoint() external {
         _checkpoint(0, LockedBalance(0, 0, false, 0), LockedBalance(0, 0, false, 0));
     }
 
-    /**
-     * @notice Deposit `_value` tokens for `_tokenId` and add to the lock
-     * @param _tokenId ID of the token to deposit for
-     * @param _value Amount to add to user's lock
-     * @dev Anyone (even a smart contract) can deposit for someone else, but
-     *      cannot extend their locktime and deposit for a brand new user
-     */
+    /// @inheritdoc IVotingEscrow
     function depositFor(uint256 _tokenId, uint256 _value) external nonreentrant {
         LockedBalance memory _locked = locked[_tokenId];
 
@@ -831,11 +711,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes {
         emit Supply(supplyBefore, supplyBefore - value);
     }
 
-    /**
-     * @notice Starts the cooldown for `_tokenId`
-     * @param _tokenId ID of the token to start cooldown for
-     * @dev If lock is not expired cooldown can only be started by burning FLUX
-     */
+    /// @inheritdoc IVotingEscrow
     function startCooldown(uint256 _tokenId) external {
         require(_isApprovedOrOwner(msg.sender, _tokenId));
 
