@@ -50,4 +50,12 @@ interface IRewardsDistributor {
      * @return uint256 Amount of ALCX that was either claimed or compounded
      */
     function claim(uint256 _tokenId, bool _compound) external payable returns (uint256);
+
+    /**
+     * @notice Get the balancer pool ID, address, and vault address
+     * @return Balancer pool ID
+     * @return Balancer pool address
+     * @return Balancer vault address
+     */
+    function getBalancerInfo() external view returns (bytes32, address, address);
 }

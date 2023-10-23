@@ -83,6 +83,11 @@ contract RewardsDistributor is IRewardsDistributor, ReentrancyGuard {
         View functions
     */
 
+    /// @inheritdoc IRewardsDistributor
+    function getBalancerInfo() external view returns (bytes32, address, address) {
+        return (balancerPoolId, address(balancerPool), address(balancerVault));
+    }
+
     function timestamp() external view returns (uint256) {
         return (block.timestamp / WEEK) * WEEK;
     }
