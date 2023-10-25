@@ -16,12 +16,6 @@ contract FluxTokenTest is BaseTest {
         assertEq(flux.balanceOf(ownerOfPatronNFT), 0, "owner should have no flux");
         assertEq(flux.balanceOf(ownerOfAlchemechNFT), 0, "owner should have no flux");
 
-        // uint256 totalEth = 0;
-        // uint256 totalEth = 5 ether;
-        // for (uint256 i = 0; i < 444; i++) {
-        //     totalEth += IAlEthNFT(patronNFT).tokenData(i);
-        // }
-
         uint256 tokenData1 = IAlEthNFT(patronNFT).tokenData(tokenId);
         uint256 patronTotal = flux.getClaimableFlux(tokenData1, patronNFT);
 
