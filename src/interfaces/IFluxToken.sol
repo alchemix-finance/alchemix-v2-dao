@@ -97,4 +97,11 @@ interface IFluxToken is IERC20 {
      * @param _amount Amount of flux being claimed
      */
     function claimFlux(uint256 _tokenId, uint256 _amount) external;
+
+    /**
+     * @notice Given amount of eth, calculate how much FLUX it would earn in a year if it were deposited into veALCX
+     * @param _amount Amount to calculate claimable flux for
+     * @param _nft Which NFT to calculate claimable flux for
+     */
+    function getClaimableFlux(uint256 _amount, address _nft) external view returns (uint256);
 }

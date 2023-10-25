@@ -29,7 +29,7 @@ contract FluxToken is ERC20("Flux", "FLUX"), IFluxToken {
     address public admin; // the timelock executor
     address public pendingAdmin; // the timelock executor
     uint256 public deployDate;
-    uint256 public nftMultiplier; // nft value multiplier
+    uint256 public alchemechMultiplier = 5; // .05% ratio of flux for alchemechNFT holders
 
     uint256 public immutable oneYear = 365 days;
     uint256 internal immutable BPS = 10_000;
@@ -95,7 +95,7 @@ contract FluxToken is ERC20("Flux", "FLUX"), IFluxToken {
         require(msg.sender == admin, "not admin");
         require(_nftMultiplier != 0, "FluxToken: nftMultiplier cannot be zero");
         require(_nftMultiplier <= BPS, "FluxToken: nftMultiplier cannot be greater than BPS");
-        nftMultiplier = _nftMultiplier;
+        alchemechMultiplier = _nftMultiplier;
     }
 
     /// @inheritdoc IFluxToken
@@ -122,12 +122,12 @@ contract FluxToken is ERC20("Flux", "FLUX"), IFluxToken {
         // determine which nft is being claimed
         if (_nft == alchemechNFT) {
             // require sender to be owner of the NFT
-            require(IAlchemechNFT(_nft).ownerOf(_tokenId) == msg.sender, "not owner of NFT");
+            require(IAlchemechNFT(_nft).ownerOf(_tokenId) == msg.sender, "not owner of Alchemech NFT");
 
             tokenData = IAlchemechNFT(_nft).tokenData(_tokenId);
         } else if (_nft == patronNFT) {
             // require sender to be owner of the NFT
-            require(IAlEthNFT(_nft).ownerOf(_tokenId) == msg.sender, "not owner of NFT");
+            require(IAlEthNFT(_nft).ownerOf(_tokenId) == msg.sender, "not owner of Patron NFT");
 
             tokenData = IAlEthNFT(_nft).tokenData(_tokenId);
         } else {
@@ -137,8 +137,7 @@ contract FluxToken is ERC20("Flux", "FLUX"), IFluxToken {
         // mark the token as claimed
         claimed[_nft][_tokenId] = true;
 
-        // calculate the amount of flux to mint
-        uint256 amount = _claimableFlux(tokenData);
+        uint256 amount = getClaimableFlux(tokenData, _nft);
 
         _mint(msg.sender, amount);
     }
@@ -192,18 +191,24 @@ contract FluxToken is ERC20("Flux", "FLUX"), IFluxToken {
     }
 
     // Given an amount of eth, calculate how much FLUX it would earn in a year if it were deposited into veALCX
-    function _claimableFlux(uint256 _amount) internal view returns (uint256 claimableFlux) {
+    function getClaimableFlux(uint256 _amount, address _nft) public view returns (uint256 claimableFlux) {
         uint256 bpt = _calculateBPT(_amount);
 
         uint256 slope = (bpt * IVotingEscrow(veALCX).MULTIPLIER()) / IVotingEscrow(veALCX).MAXTIME();
 
-        uint256 bias = (slope * (oneYear - block.timestamp));
+        // Calculate as if time is maxtime
+        uint256 bias = (slope * ((block.timestamp + IVotingEscrow(veALCX).MAXTIME()) - block.timestamp));
 
         // Total amount of flux that would be earned from the amount
         uint256 totalFlux = (bias * (IVotingEscrow(veALCX).fluxPerVeALCX() + BPS)) / BPS;
 
         // Amount of flux that would be claimable
         claimableFlux = totalFlux / IVotingEscrow(veALCX).fluxMultiplier();
+
+        // Claimable flux for alchemechNFT is different than patronNFT
+        if (_nft == alchemechNFT) {
+            claimableFlux = (claimableFlux * alchemechMultiplier) / BPS;
+        }
     }
 
     function _calculateBPT(uint256 _amount) internal view returns (uint256 bptOut) {

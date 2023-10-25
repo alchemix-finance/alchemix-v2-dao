@@ -52,6 +52,8 @@ contract BaseTest is DSTestPlus {
     address public dead = address(0xdead);
     address public bpt = 0xf16aEe6a71aF1A9Bc8F56975A4c2705ca7A782Bc;
     address public rewardPool = 0x8B227E3D50117E80a02cd0c67Cd6F89A8b7B46d7;
+    address public alchemechNFT = 0x672CA2e7136c5b5086178740bA649B6132e607c4;
+    address public patronNFT = 0xA797b1C128b314384fC3517d95BE18fa76Ba5835;
 
     // Pool addresses
     address public alUsdPoolAddress = 0x43b4FdFD4Ff969587185cDB6f0BD875c5Fc83f8c;
@@ -166,6 +168,8 @@ contract BaseTest is DSTestPlus {
         flux.setMinter(address(veALCX));
         flux.setVeALCX(address(veALCX));
         flux.setVoter(address(voter));
+        flux.setAlchemechNFT(alchemechNFT);
+        flux.setPatronNFT(patronNFT);
 
         IMinter.InitializationParams memory params = IMinter.InitializationParams(
             address(alcx),
