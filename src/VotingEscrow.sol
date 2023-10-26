@@ -311,7 +311,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
 
     /// @inheritdoc IVotingEscrow
     function amountToRagequit(uint256 _tokenId) public view returns (uint256) {
-        return (_balanceOfTokenAt(_tokenId, block.timestamp) * (fluxPerVeALCX + BPS)) / BPS;
+        return (_balanceOfTokenAt(_tokenId, block.timestamp) * fluxPerVeALCX) / BPS;
     }
 
     /**
