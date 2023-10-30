@@ -9,6 +9,3 @@ gas_reports = ["AlchemixGovernor", "BaseGauge", "Bribe", "FluxToken", "Minter", 
 
 [rpc_endpoints]
 sepolia = "${INFURA_API_KEY}"
-
-[etherscan]
-sepolia = { key = "${ETHERSCAN_API_KEY}" }

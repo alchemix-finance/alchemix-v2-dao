@@ -30,11 +30,11 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
 
     uint256 public constant EPOCH = 1 weeks;
     uint256 public constant MAX_DELEGATES = 1024; // avoid too much gas
+    uint256 public constant MAXTIME = 365 days;
+    uint256 public constant MULTIPLIER = 1 ether;
 
     uint256 internal immutable WEEK = 1 weeks;
     uint256 internal immutable BPS = 10_000;
-    uint256 internal constant MAXTIME = 365 days;
-    uint256 internal constant MULTIPLIER = 1 ether;
 
     int256 internal constant iMAXTIME = 365 days;
     int256 internal constant iMULTIPLIER = 1 ether;
@@ -311,7 +311,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
 
     /// @inheritdoc IVotingEscrow
     function amountToRagequit(uint256 _tokenId) public view returns (uint256) {
-        return (_balanceOfTokenAt(_tokenId, block.timestamp) * (fluxPerVeALCX + BPS)) / BPS;
+        return (_balanceOfTokenAt(_tokenId, block.timestamp) * fluxPerVeALCX) / BPS;
     }
 
     /**

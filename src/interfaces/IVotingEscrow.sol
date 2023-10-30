@@ -68,9 +68,19 @@ interface IVotingEscrow {
 
     function BPT() external view returns (address);
 
+    function MULTIPLIER() external view returns (uint256);
+
+    function MAXTIME() external view returns (uint256);
+
     function ALCX() external view returns (address);
 
+    function distributor() external view returns (address);
+
     function claimFeeBps() external view returns (uint256);
+
+    function fluxPerVeALCX() external view returns (uint256);
+
+    function fluxMultiplier() external view returns (uint256);
 
     function EPOCH() external view returns (uint256);
 
