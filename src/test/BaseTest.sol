@@ -92,7 +92,7 @@ contract BaseTest is DSTestPlus {
     uint256 constant TOKEN_10B = 1e28; // 1e10 = 10B tokens with 18 decimals
 
     uint256 internal constant MAXTIME = 365 days;
-    uint256 internal constant MULTIPLIER = 1 ether;
+    uint256 internal constant MULTIPLIER = 2;
     uint256 internal constant BPS = 10_000;
 
     WeightedPool2TokensFactory poolFactory = WeightedPool2TokensFactory(0xA5bf2ddF098bb0Ef6d120C98217dD6B141c74EE0);
