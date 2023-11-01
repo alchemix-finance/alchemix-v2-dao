@@ -24,8 +24,8 @@ contract FluxToken is ERC20("Flux", "FLUX"), IFluxToken {
     address public minter;
     address public voter;
     address public veALCX;
-    address public alchemechNFT;
-    address public patronNFT;
+    address public alchemechNFT; // TOKE
+    address public patronNFT; // ETH
     address public admin; // the timelock executor
     address public pendingAdmin; // the timelock executor
     uint256 public deployDate;

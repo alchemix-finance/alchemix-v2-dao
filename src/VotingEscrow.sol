@@ -311,7 +311,12 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
 
     /// @inheritdoc IVotingEscrow
     function amountToRagequit(uint256 _tokenId) public view returns (uint256) {
-        return (_balanceOfTokenAt(_tokenId, block.timestamp) * fluxPerVeALCX) / BPS;
+        // amount of flux earned in one epoch
+        uint256 oneEpochFlux = claimableFlux(_tokenId);
+
+        // based on one epoch, calculate the amount of flux earned over epoch * fluxMultiplier
+        uint256 ragequitAmount = oneEpochFlux * fluxMultiplier * EPOCH;
+        return ragequitAmount;
     }
 
     /**
@@ -337,8 +342,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
     function claimableFlux(uint256 _tokenId) public view returns (uint256) {
         // If the lock is expired, no flux is claimable at the current epoch
         if (block.timestamp > locked[_tokenId].end) return 0;
-        uint256 ragequitAmount = amountToRagequit(_tokenId);
-        return ((ragequitAmount / fluxMultiplier) / EPOCH);
+        return (_balanceOfTokenAt(_tokenId, block.timestamp) * fluxPerVeALCX) / BPS;
     }
 
     /// @inheritdoc IVotingEscrow

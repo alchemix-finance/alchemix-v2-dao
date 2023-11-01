@@ -66,4 +66,20 @@ contract FluxTokenTest is BaseTest {
         hevm.expectRevert(abi.encodePacked("claim period has passed"));
         flux.nftClaim(patronNFT, tokenId);
     }
+
+    function testFluxAccrual() external {
+        uint256 tokenId = createVeAlcx(admin, TOKEN_1, 4 weeks, false);
+
+        uint256 balanceOfToken = veALCX.balanceOfToken(tokenId);
+        console2.log("votingPower       :", balanceOfToken);
+
+        uint256 maxVotingPower = voter.maxVotingPower(tokenId);
+        console2.log("maxVotingPower    :", maxVotingPower);
+
+        uint256 oneEpochFlux = veALCX.claimableFlux(tokenId);
+        console2.log("oneEpochFlux      :", oneEpochFlux);
+
+        uint256 fluxOver4Years = veALCX.amountToRagequit(tokenId);
+        console2.log("fluxOver4Years    :", fluxOver4Years);
+    }
 }
