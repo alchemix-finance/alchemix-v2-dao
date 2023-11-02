@@ -68,7 +68,7 @@ contract FluxTokenTest is BaseTest {
     }
 
     function testFluxAccrual() external {
-        uint256 tokenId = createVeAlcx(admin, TOKEN_1, 4 weeks, false);
+        uint256 tokenId = createVeAlcx(admin, TOKEN_1, veALCX.EPOCH(), false);
 
         uint256 balanceOfToken = veALCX.balanceOfToken(tokenId);
         console2.log("votingPower       :", balanceOfToken);

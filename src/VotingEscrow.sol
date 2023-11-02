@@ -1318,7 +1318,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
 
         require(_value > 0, "Cannot lock 0 value");
         require(unlockTime <= block.timestamp + MAXTIME, "Voting lock can be 1 year max");
-        require(unlockTime >= block.timestamp + EPOCH, "Voting lock must be 1 epoch");
+        require(unlockTime >= (((block.timestamp + EPOCH) / WEEK) * WEEK), "Voting lock must be 1 epoch");
 
         ++tokenId;
         uint256 _tokenId = tokenId;
