@@ -68,7 +68,7 @@ contract FluxTokenTest is BaseTest {
     }
 
     function testFluxAccrual() external {
-        uint256 tokenId = createVeAlcx(admin, TOKEN_1, veALCX.EPOCH(), false);
+        uint256 tokenId = createVeAlcx(admin, TOKEN_1, veALCX.MAXTIME(), false);
 
         uint256 balanceOfToken = veALCX.balanceOfToken(tokenId);
         console2.log("votingPower       :", balanceOfToken);
@@ -80,6 +80,6 @@ contract FluxTokenTest is BaseTest {
         console2.log("oneEpochFlux      :", oneEpochFlux);
 
         uint256 fluxOver4Years = veALCX.amountToRagequit(tokenId);
-        console2.log("fluxOver4Years    :", fluxOver4Years);
+        console2.log("fluxOver4Years    :", fluxOver4Years / 1 ether);
     }
 }

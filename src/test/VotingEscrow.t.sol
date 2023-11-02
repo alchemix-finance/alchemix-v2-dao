@@ -659,7 +659,7 @@ contract VotingEscrowTest is BaseTest {
         hevm.stopPrank();
     }
 
-    // It should take MAXTIME * fluxMultiplier to accrue enough flux to ragequit
+    // It should take fluxMultiplier years of epochs to accrue enough flux to ragequit
     function testFluxAccrualOverTime() public {
         hevm.startPrank(admin);
 
@@ -677,7 +677,8 @@ contract VotingEscrowTest is BaseTest {
         unclaimedBalance = flux.getUnclaimedFlux(tokenId);
 
         // Flux accrued over one epoch should align with the fluxMultiplier and epoch length
-        uint256 fluxCalc = unclaimedBalance * veALCX.fluxMultiplier() * veALCX.EPOCH();
+        uint256 totalEpochs = veALCX.fluxMultiplier() * ((veALCX.MAXTIME()) / veALCX.EPOCH());
+        uint256 fluxCalc = unclaimedBalance * totalEpochs;
 
         assertApproxEq(fluxCalc, ragequitAmount, 1e18);
     }

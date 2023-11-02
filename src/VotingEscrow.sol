@@ -28,7 +28,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
     string public constant version = "1.0.0";
     uint8 public immutable decimals = 18;
 
-    uint256 public constant EPOCH = 1 weeks;
+    uint256 public constant EPOCH = 2 weeks;
     uint256 public constant MAX_DELEGATES = 1024; // avoid too much gas
     uint256 public constant MAXTIME = 365 days;
     uint256 public constant MULTIPLIER = 2;
@@ -314,8 +314,11 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
         // amount of flux earned in one epoch
         uint256 oneEpochFlux = claimableFlux(_tokenId);
 
-        // based on one epoch, calculate the amount of flux earned over epoch * fluxMultiplier
-        uint256 ragequitAmount = oneEpochFlux * fluxMultiplier * EPOCH;
+        uint256 totalEpochs = fluxMultiplier * ((MAXTIME) / EPOCH);
+
+        // based on one epoch, calculate total amount of flux over fluxMultiplier amount of years
+        uint256 ragequitAmount = oneEpochFlux * totalEpochs;
+
         return ragequitAmount;
     }
 
