@@ -39,7 +39,7 @@ contract Voter is IVoter {
     bool public initialized;
 
     uint256 public totalWeight; // total voting weight
-    uint256 public boostMultiplier = 5000; // max bps veALCX voting power can be boosted by
+    uint256 public boostMultiplier = 10000; // max bps veALCX voting power can be boosted by
 
     address[] public pools; // all pools viable for incentives
 

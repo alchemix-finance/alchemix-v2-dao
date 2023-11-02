@@ -80,6 +80,6 @@ contract FluxTokenTest is BaseTest {
         console2.log("oneEpochFlux      :", oneEpochFlux);
 
         uint256 fluxOver4Years = veALCX.amountToRagequit(tokenId);
-        console2.log("fluxOver4Years    :", fluxOver4Years / 1 ether);
+        console2.log("fluxOver4Years    :", fluxOver4Years);
     }
 }
