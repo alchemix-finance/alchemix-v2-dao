@@ -508,6 +508,61 @@ contract VotingTest is BaseTest {
     }
 
     // Test impact of voting on bribes earned
+    function testBribeAccounting() public {
+        uint256 tokenId1 = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+        uint256 tokenId2 = createVeAlcx(beef, TOKEN_1, MAXTIME, false);
+
+        address bribeAddress = voter.bribes(address(sushiGauge));
+
+        // Add BAL bribes to sushiGauge
+        createThirdPartyBribe(bribeAddress, bal, TOKEN_100K);
+
+        uint256 balanceStart = IERC20(bal).balanceOf(bribeAddress);
+
+        address[] memory pools = new address[](1);
+        pools[0] = sushiPoolAddress;
+        uint256[] memory weights = new uint256[](1);
+        weights[0] = 5000;
+
+        address[] memory bribes = new address[](1);
+        bribes[0] = address(bribeAddress);
+        address[][] memory tokens = new address[][](2);
+        tokens[0] = new address[](1);
+        tokens[0][0] = bal;
+
+        hevm.prank(admin);
+        voter.vote(tokenId1, pools, weights, 0);
+
+        // Fast forward epochs
+        hevm.warp(block.timestamp + nextEpoch * 5);
+
+        // Simulate other holders voting
+        hevm.prank(beef);
+        voter.vote(tokenId2, pools, weights, 0);
+
+        minter.updatePeriod();
+
+        uint256 earnedBribes1 = IBribe(bribeAddress).earned(bal, tokenId1);
+        uint256 earnedBribes2 = IBribe(bribeAddress).earned(bal, tokenId2);
+
+        assertEq(earnedBribes1, balanceStart, "token1 should earn bribes");
+        assertEq(earnedBribes2, 0, "token2 shouldn't earn bribes");
+
+        hevm.prank(admin);
+        voter.claimBribes(bribes, tokens, tokenId1);
+
+        hevm.prank(beef);
+        hevm.expectRevert(abi.encodePacked("no rewards to claim"));
+        voter.claimBribes(bribes, tokens, tokenId2);
+
+        uint256 balanceEnd = IERC20(bal).balanceOf(bribeAddress);
+
+        assertEq(balanceEnd, 0, "balance should be 0");
+
+        assertEq(IERC20(bal).balanceOf(admin), balanceStart, "should capture all bribes");
+    }
+
+    // Test impact of voting on bribes earned
     function testBribeClaiming() public {
         uint256 tokenId1 = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
         uint256 tokenId2 = createVeAlcx(beef, TOKEN_1, MAXTIME, false);

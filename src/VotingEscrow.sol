@@ -144,7 +144,10 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
     }
 
     // Not supported
-    function supportsInterface(bytes4 _interfaceID) external view returns (bool) {}
+    // solhint-disable-next-line no-unused-vars
+    function supportsInterface(bytes4 _interfaceID) external pure returns (bool) {
+        revert("function not supported");
+    }
 
     /// @inheritdoc IVotingEscrow
     function getLastUserSlope(uint256 _tokenId) external view returns (int256) {
@@ -502,7 +505,16 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
     }
 
     // Not supported
-    function delegateBySig(address delegatee, uint256 nonce, uint256 expiry, uint8 v, bytes32 r, bytes32 s) public {}
+    function delegateBySig(
+        address delegatee,
+        uint256 nonce,
+        uint256 expiry,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) public override {
+        revert("function not supported");
+    }
 
     function setVoter(address _voter) external {
         require(msg.sender == admin, "not admin");
