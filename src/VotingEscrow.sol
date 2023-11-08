@@ -523,13 +523,13 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
     }
 
     function setRewardsDistributor(address _distributor) external {
-        require(msg.sender == distributor, "not admin");
+        require(msg.sender == admin, "not admin");
         distributor = _distributor;
         emit RewardsDistributorUpdated(_distributor);
     }
 
     function setRewardPoolManager(address _rewardPoolManager) external {
-        require(msg.sender == rewardPoolManager, "not admin");
+        require(msg.sender == admin, "not admin");
         rewardPoolManager = _rewardPoolManager;
     }
 

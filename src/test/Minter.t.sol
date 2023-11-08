@@ -201,7 +201,7 @@ contract MinterTest is BaseTest {
     }
 
     // Rewards require an epoch to pass before there is a claimable amount
-    // Rewards are dependent on time epoch in which veALCX was created not time
+    // Rewards are dependent on time in epoch in which veALCX was created
     function testRewardsWithinEpoch() public {
         uint256 period = minter.activePeriod();
 
@@ -230,7 +230,7 @@ contract MinterTest is BaseTest {
         uint256 claimable1 = distributor.claimable(tokenId1);
         uint256 claimable2 = distributor.claimable(tokenId2);
 
-        assertEq(claimable1, claimable2, "claimable amounts should be equal");
+        assertGt(claimable1, claimable2, "token with earlier deposit should have more claimable rewards");
     }
 
     // Compound claiming adds ALCX rewards into their exisiting veALCX position

@@ -735,6 +735,72 @@ contract VotingTest is BaseTest {
         );
     }
 
+    // Test bribes counted redudantly
+    function testBugBribeClaiming() public {
+        // ------------------- Start first epoch i
+
+        uint256 tokenId1 = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+        address bribeAddress = voter.bribes(address(sushiGauge));
+
+        // Add BAL bribes to sushiGauge
+        createThirdPartyBribe(bribeAddress, bal, TOKEN_100K);
+
+        address[] memory pools = new address[](1);
+        pools[0] = sushiPoolAddress;
+        uint256[] memory weights = new uint256[](1);
+        weights[0] = 5000;
+
+        address[] memory bribes = new address[](1);
+        bribes[0] = address(bribeAddress);
+        address[][] memory tokens = new address[][](1);
+        tokens[0] = new address[](1);
+        tokens[0][0] = bal;
+
+        // in epoch i, admin votes
+        hevm.prank(admin);
+        voter.vote(tokenId1, pools, weights, 0);
+
+        // ------------------- Start second epoch i+1
+        hevm.warp(block.timestamp + nextEpoch);
+        minter.updatePeriod();
+
+        uint256 earnedBribes1 = IBribe(bribeAddress).earned(bal, tokenId1);
+        assertEq(earnedBribes1, TOKEN_100K, "bribes from voting should be earned");
+
+        // in epoch i+1, admin claims bribes for epoch i
+        hevm.prank(admin);
+        voter.claimBribes(bribes, tokens, tokenId1);
+
+        assertEq(earnedBribes1, IERC20(bal).balanceOf(admin), "admin should receive bribes");
+
+        uint256 bribeAddressBalance = IERC20(bal).balanceOf(bribeAddress);
+        console.log("bribeAddressBalance:", bribeAddressBalance);
+
+        // ------------------- Start third epoch i+3
+        hevm.warp(block.timestamp + nextEpoch);
+        minter.updatePeriod();
+        hevm.warp(block.timestamp + nextEpoch);
+        minter.updatePeriod();
+        // in epoch i+3, admin votes again
+        hevm.prank(admin);
+        voter.vote(tokenId1, pools, weights, 0);
+
+        // ------------------- Start fourth epoch i+4
+        hevm.warp(block.timestamp + nextEpoch);
+        minter.updatePeriod();
+
+        // INTENDED BEHAVIOUR: since the bribes for epoch i were already claimed in epoch i+1
+        // --and no more bribes were notified after that-- there should be no available earnings at epoch i+4.
+        uint256 earnedBribes1Again = IBribe(bribeAddress).earned(bal, tokenId1);
+        console.log("earnedBribes1Again:", earnedBribes1Again);
+        assertEq(earnedBribes1Again, 0, "there should be no bribes for epoch i+4");
+
+        // INTENDED BEHAVIOUR: since there are no bribes available, the claim function should revert with the message "no rewards to claim".
+        hevm.expectRevert(abi.encodePacked("no rewards to claim"));
+        hevm.prank(admin);
+        voter.claimBribes(bribes, tokens, tokenId1);
+    }
+
     // Voting power should be dependent on epoch at which vote is cast
     function testVotingPower() public {
         uint256 tokenId1 = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
