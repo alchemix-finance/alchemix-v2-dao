@@ -453,7 +453,7 @@ contract VotingTest is BaseTest {
 
         // Prior balance and supply should be zero since this is the first epoch for this voter
         assertEq(IBribe(bribeAddress).getPriorBalanceIndex(tokenId1, initialTimestamp), 0, "prior balance should be 0");
-        assertEq(IBribe(bribeAddress).getPriorSupplyIndex(initialTimestamp), 0, "prior supply should be 0");
+        assertEq(IBribe(bribeAddress).getPriorVotingIndex(initialTimestamp), 0, "prior voting should be 0");
 
         // Earlier voter should earn more bribes
         assertGt(
@@ -735,6 +735,83 @@ contract VotingTest is BaseTest {
         );
     }
 
+    function testBugTotalBribeWeights() public {
+        // epoch i
+        uint256 tokenId1 = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+        uint256 tokenId2 = createVeAlcx(beef, TOKEN_1, MAXTIME, false);
+
+        address bribeAddress = voter.bribes(address(sushiGauge));
+
+        // Add BAL bribes to sushiGauge
+        createThirdPartyBribe(bribeAddress, bal, TOKEN_100K);
+
+        uint256 balanceStart = IERC20(bal).balanceOf(bribeAddress);
+
+        address[] memory pools = new address[](1);
+        pools[0] = sushiPoolAddress;
+        uint256[] memory weights = new uint256[](1);
+        weights[0] = 5000;
+
+        address[] memory bribes = new address[](1);
+        bribes[0] = address(bribeAddress);
+        address[][] memory tokens = new address[][](2);
+        tokens[0] = new address[](1);
+        tokens[0][0] = bal;
+
+        hevm.prank(admin);
+        voter.vote(tokenId1, pools, weights, 0);
+        hevm.prank(beef);
+        voter.vote(tokenId2, pools, weights, 0);
+
+        assertEq(voter.usedWeights(tokenId1), voter.usedWeights(tokenId2), "used weights should be equal");
+
+        // Fast forward i+1
+        hevm.warp(block.timestamp + nextEpoch);
+        voter.distribute();
+
+        uint256 earnedBribes1 = IBribe(bribeAddress).earned(bal, tokenId1);
+        uint256 earnedBribes2 = IBribe(bribeAddress).earned(bal, tokenId2);
+
+        assertEq(earnedBribes1, balanceStart / 2, "token1 should earn bribes");
+        assertEq(earnedBribes2, balanceStart / 2, "token2 should earn bribes");
+        assertEq(earnedBribes1, earnedBribes2, "earnings should be equal");
+
+        // epoch i+1, add bribes
+        createThirdPartyBribe(bribeAddress, bal, TOKEN_100K);
+
+        // epoch i+1, admin votes
+        hevm.prank(admin);
+        voter.vote(tokenId1, pools, weights, 0);
+
+        assertLt(voter.usedWeights(tokenId1), voter.usedWeights(tokenId2), "weight of voter who voted should be less");
+
+        // Fast forward i+2
+        hevm.warp(block.timestamp + nextEpoch);
+        voter.distribute();
+
+        assertGt(
+            IBribe(bribeAddress).earned(bal, tokenId1),
+            IBribe(bribeAddress).earned(bal, tokenId2),
+            "voting should earnings"
+        );
+
+        hevm.prank(admin);
+        voter.claimBribes(bribes, tokens, tokenId1);
+        hevm.prank(beef);
+        voter.claimBribes(bribes, tokens, tokenId2);
+
+        // INTENDED BEHAVIOUR: the balance of the bribe should be 0
+        uint256 balanceEnd = IERC20(bal).balanceOf(bribeAddress);
+        assertEq(balanceEnd, 0, "bribe balance should be 0");
+
+        // INTENDED BEHAVIOUR: the sum of the balances of the users is equal to the total bribes
+        assertEq(
+            IERC20(bal).balanceOf(admin) + IERC20(bal).balanceOf(beef),
+            TOKEN_100K * 2,
+            "balances should sum up to total"
+        );
+    }
+
     // Test bribes counted redudantly
     function testBugBribeClaiming() public {
         // ------------------- Start first epoch i
@@ -773,9 +850,6 @@ contract VotingTest is BaseTest {
 
         assertEq(earnedBribes1, IERC20(bal).balanceOf(admin), "admin should receive bribes");
 
-        uint256 bribeAddressBalance = IERC20(bal).balanceOf(bribeAddress);
-        console.log("bribeAddressBalance:", bribeAddressBalance);
-
         // ------------------- Start third epoch i+3
         hevm.warp(block.timestamp + nextEpoch);
         minter.updatePeriod();
@@ -792,7 +866,6 @@ contract VotingTest is BaseTest {
         // INTENDED BEHAVIOUR: since the bribes for epoch i were already claimed in epoch i+1
         // --and no more bribes were notified after that-- there should be no available earnings at epoch i+4.
         uint256 earnedBribes1Again = IBribe(bribeAddress).earned(bal, tokenId1);
-        console.log("earnedBribes1Again:", earnedBribes1Again);
         assertEq(earnedBribes1Again, 0, "there should be no bribes for epoch i+4");
 
         // INTENDED BEHAVIOUR: since there are no bribes available, the claim function should revert with the message "no rewards to claim".
@@ -820,7 +893,6 @@ contract VotingTest is BaseTest {
         voter.vote(tokenId1, pools, weights, 0);
 
         uint256 usedWeight1 = voter.usedWeights(tokenId1);
-
         hevm.warp(block.timestamp + 6 days);
 
         hevm.prank(beef);
@@ -933,7 +1005,7 @@ contract VotingTest is BaseTest {
         // Mock poking idle tokens to sync voting
         hevm.stopPrank();
         hevm.prank(voter.admin());
-        voter.pokeIdleTokens(tokens);
+        voter.pokeTokens(tokens);
         hevm.startPrank(admin);
 
         minter.updatePeriod();

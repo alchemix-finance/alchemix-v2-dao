@@ -90,7 +90,7 @@ interface IVoter {
      * @param _tokenIds Array of token IDs to poke
      * @dev Resets tokens that have expired
      */
-    function pokeIdleTokens(uint256[] memory _tokenIds) external;
+    function pokeTokens(uint256[] memory _tokenIds) external;
 
     /**
      * @notice Vote on one or multiple pools for a single veALCX

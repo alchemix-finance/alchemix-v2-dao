@@ -197,7 +197,7 @@ contract Voter is IVoter {
     }
 
     /// @inheritdoc IVoter
-    function pokeIdleTokens(uint256[] memory _tokenIds) external {
+    function pokeTokens(uint256[] memory _tokenIds) external {
         require(msg.sender == admin, "not admin");
         for (uint256 i = 0; i < _tokenIds.length; i++) {
             uint256 _tokenId = _tokenIds[i];
@@ -384,6 +384,8 @@ contract Voter is IVoter {
         if (_claimable > 0) {
             IBaseGauge(_gauge).notifyRewardAmount(_claimable);
         }
+
+        IBribe(bribes[_gauge]).resetVoting();
 
         emit DistributeReward(msg.sender, _gauge, _claimable);
     }

@@ -14,6 +14,11 @@ interface IBribe {
         uint256 supply;
     }
 
+    struct VotingCheckpoint {
+        uint256 timestamp;
+        uint256 votes;
+    }
+
     /**
      * @notice Emitted when the bribe amount is calculated for a given token
      * @param from     The address who called the function
@@ -113,11 +118,29 @@ interface IBribe {
      */
     function swapOutRewardToken(uint256 i, address oldToken, address newToken) external;
 
-    function getPriorSupplyIndex(uint256 timestamp) external view returns (uint256);
+    function getPriorVotingIndex(uint256 timestamp) external view returns (uint256);
 
     function earned(address token, uint256 tokenId) external view returns (uint256);
 
     function deposit(uint256 amount, uint256 tokenId) external;
 
     function withdraw(uint256 amount, uint256 tokenId) external;
+
+    /**
+     * @notice Resets the totalVoting count which calculates
+     *         the total amount of votes for an epoch
+     * @dev Each new epoch marks the start of a new totalVoting counter
+     *      in order calculate who is eligible to earn bribes
+     */
+    function resetVoting() external;
+
+    /**
+     * @notice Returns the amount of votes for a single epoch
+     */
+    function totalVoting() external view returns (uint256);
+
+    /**
+     * @notice Returns the total amount of votes from all epochs
+     */
+    function totalSupply() external view returns (uint256);
 }
