@@ -19,7 +19,9 @@ contract Bribe is IBribe {
 
     /// @notice The number of checkpoints
     uint256 public supplyNumCheckpoints;
+    uint256 public votingNumCheckpoints;
     uint256 public totalSupply;
+    uint256 public totalVoting;
 
     address public immutable veALCX;
     address public immutable voter;
@@ -32,6 +34,7 @@ contract Bribe is IBribe {
     mapping(uint256 => uint256) public numCheckpoints;
     /// @notice A record of balance checkpoints for each token, by index
     mapping(uint256 => SupplyCheckpoint) public supplyCheckpoints;
+    mapping(uint256 => VotingCheckpoint) public votingCheckpoints;
     mapping(address => bool) public isReward;
     mapping(address => mapping(uint256 => uint256)) public tokenRewardsPerEpoch;
     mapping(uint256 => uint256) public balanceOf;
@@ -155,19 +158,19 @@ contract Bribe is IBribe {
         return lower;
     }
 
-    function getPriorSupplyIndex(uint256 timestamp) public view returns (uint256) {
-        uint256 nCheckpoints = supplyNumCheckpoints;
+    function getPriorVotingIndex(uint256 timestamp) public view returns (uint256) {
+        uint256 nCheckpoints = votingNumCheckpoints;
         if (nCheckpoints == 0) {
             return 0;
         }
 
         // Check most recent balance
-        if (supplyCheckpoints[nCheckpoints - 1].timestamp <= timestamp) {
+        if (votingCheckpoints[nCheckpoints - 1].timestamp <= timestamp) {
             return (nCheckpoints - 1);
         }
 
         // Check implicit zero balance
-        if (supplyCheckpoints[0].timestamp > timestamp) {
+        if (votingCheckpoints[0].timestamp > timestamp) {
             return 0;
         }
 
@@ -175,7 +178,7 @@ contract Bribe is IBribe {
         uint256 upper = nCheckpoints - 1;
         while (upper > lower) {
             uint256 center = upper - (upper - lower) / 2; // ceil, avoiding overflow
-            SupplyCheckpoint memory cp = supplyCheckpoints[center];
+            VotingCheckpoint memory cp = votingCheckpoints[center];
             if (cp.timestamp == timestamp) {
                 return center;
             } else if (cp.timestamp < timestamp) {
@@ -221,7 +224,8 @@ contract Bribe is IBribe {
                 if (_startIndex == _endIndex) break;
 
                 prevRewards.timestamp = _nextEpochStart;
-                _prevSupply = supplyCheckpoints[getPriorSupplyIndex(_nextEpochStart + DURATION)].supply;
+                _prevSupply = votingCheckpoints[getPriorVotingIndex(_nextEpochStart + DURATION)].votes;
+
                 // Prevent divide by zero
                 if (_prevSupply == 0) {
                     _prevSupply = 1;
@@ -233,7 +237,7 @@ contract Bribe is IBribe {
         Checkpoint memory cp = checkpoints[tokenId][_endIndex];
         uint256 _lastEpochStart = _bribeStart(cp.timestamp);
         uint256 _lastEpochEnd = _lastEpochStart + DURATION;
-        uint256 _priorSupply = supplyCheckpoints[getPriorSupplyIndex(_lastEpochStart + DURATION)].supply;
+        uint256 _priorSupply = votingCheckpoints[getPriorVotingIndex(_lastEpochEnd)].votes;
 
         // Prevent divide by zero
         if (_priorSupply == 0) {
@@ -274,8 +278,11 @@ contract Bribe is IBribe {
         totalSupply += amount;
         balanceOf[tokenId] += amount;
 
+        totalVoting += amount;
+
         _writeCheckpoint(tokenId, balanceOf[tokenId]);
         _writeSupplyCheckpoint();
+        _writeVotingCheckpoint();
 
         emit Deposit(msg.sender, tokenId, amount);
     }
@@ -290,6 +297,12 @@ contract Bribe is IBribe {
         _writeSupplyCheckpoint();
 
         emit Withdraw(msg.sender, tokenId, amount);
+    }
+
+    /// @inheritdoc IBribe
+    function resetVoting() external {
+        require(msg.sender == voter);
+        totalVoting = 0;
     }
 
     /*
@@ -314,6 +327,18 @@ contract Bribe is IBribe {
         } else {
             checkpoints[tokenId][_nCheckPoints] = Checkpoint(_timestamp, balance);
             numCheckpoints[tokenId] = _nCheckPoints + 1;
+        }
+    }
+
+    function _writeVotingCheckpoint() internal {
+        uint256 _nCheckPoints = votingNumCheckpoints;
+        uint256 _timestamp = block.timestamp;
+
+        if (_nCheckPoints > 0 && votingCheckpoints[_nCheckPoints - 1].timestamp == _timestamp) {
+            votingCheckpoints[_nCheckPoints - 1].votes = totalVoting;
+        } else {
+            votingCheckpoints[_nCheckPoints] = VotingCheckpoint(_timestamp, totalVoting);
+            votingNumCheckpoints = _nCheckPoints + 1;
         }
     }
 
