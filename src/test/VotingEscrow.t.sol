@@ -285,7 +285,7 @@ contract VotingEscrowTest is BaseTest {
 
         hevm.warp(block.timestamp + lockEnd2);
 
-        // Should be able to cooldown and withdraw after new lock end has passed
+        // Should be able to cooldown and withdraw after lock end has passed
         veALCX.startCooldown(tokenId);
         hevm.warp(block.timestamp + nextEpoch);
         veALCX.withdraw(tokenId);
