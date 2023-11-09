@@ -341,6 +341,7 @@ contract Voter is IVoter {
 
     function claimBribes(address[] memory _bribes, address[][] memory _tokens, uint256 _tokenId) external {
         require(IVotingEscrow(veALCX).isApprovedOrOwner(msg.sender, _tokenId));
+
         for (uint256 i = 0; i < _bribes.length; i++) {
             IBribe(_bribes[i]).getRewardForOwner(_tokenId, _tokens[i]);
         }
@@ -379,7 +380,10 @@ contract Voter is IVoter {
 
         _updateFor(_gauge);
         uint256 _claimable = claimable[_gauge];
-        IBaseGauge(_gauge).notifyRewardAmount(_claimable);
+
+        if (_claimable > 0) {
+            IBaseGauge(_gauge).notifyRewardAmount(_claimable);
+        }
 
         emit DistributeReward(msg.sender, _gauge, _claimable);
     }

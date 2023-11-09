@@ -232,7 +232,7 @@ contract Bribe is IBribe {
 
         Checkpoint memory cp = checkpoints[tokenId][_endIndex];
         uint256 _lastEpochStart = _bribeStart(cp.timestamp);
-        // uint256 _lastEpochEnd = _lastEpochStart + DURATION;
+        uint256 _lastEpochEnd = _lastEpochStart + DURATION;
         uint256 _priorSupply = supplyCheckpoints[getPriorSupplyIndex(_lastEpochStart + DURATION)].supply;
 
         // Prevent divide by zero
@@ -240,7 +240,7 @@ contract Bribe is IBribe {
             _priorSupply = 1;
         }
 
-        if (block.timestamp > _lastEpochStart + DURATION) {
+        if (block.timestamp > _lastEpochEnd) {
             reward += (cp.balanceOf * tokenRewardsPerEpoch[token][_lastEpochStart]) / _priorSupply;
         }
 
