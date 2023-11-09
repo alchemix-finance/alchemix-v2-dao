@@ -13,7 +13,7 @@ import "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
  * @notice Implementation of bribe contract to be used with gauges
  */
 contract Bribe is IBribe {
-    uint256 internal constant DURATION = 1 weeks; // Rewards released over voting period
+    uint256 internal constant DURATION = 2 weeks; // Rewards released over voting period
     uint256 internal constant BRIBE_LAG = 1 days;
     uint256 internal constant MAX_REWARD_TOKENS = 16;
 
@@ -233,7 +233,8 @@ contract Bribe is IBribe {
         Checkpoint memory cp = checkpoints[tokenId][_endIndex];
         uint256 _lastEpochStart = _bribeStart(cp.timestamp);
         uint256 _lastEpochEnd = _lastEpochStart + DURATION;
-        uint256 _priorSupply = supplyCheckpoints[getPriorSupplyIndex(_lastEpochEnd)].supply;
+        uint256 _priorSupply = supplyCheckpoints[getPriorSupplyIndex(_lastEpochStart + DURATION)].supply;
+
         // Prevent divide by zero
         if (_priorSupply == 0) {
             _priorSupply = 1;
@@ -257,6 +258,10 @@ contract Bribe is IBribe {
             require(_reward > 0, "no rewards to claim");
 
             lastEarn[tokens[i]][tokenId] = block.timestamp;
+
+            _writeCheckpoint(tokenId, balanceOf[tokenId]);
+            _writeSupplyCheckpoint();
+
             _safeTransfer(tokens[i], _owner, _reward);
 
             emit ClaimRewards(_owner, tokens[i], _reward);

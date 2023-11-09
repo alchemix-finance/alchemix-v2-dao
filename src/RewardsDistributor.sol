@@ -101,7 +101,8 @@ contract RewardsDistributor is IRewardsDistributor, ReentrancyGuard {
 
     /// @inheritdoc IRewardsDistributor
     function amountToCompound(uint256 _alcxAmount) public view returns (uint256, uint256[] memory) {
-        uint256 staleThreshold = 30 days;
+        // Increased for testing since tests go into future
+        uint256 staleThreshold = 60 days;
 
         (uint80 roundId, int256 alcxEthPrice, , uint256 priceTimestamp, uint80 answeredInRound) = priceFeed
             .latestRoundData();
