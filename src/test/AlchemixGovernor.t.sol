@@ -335,10 +335,10 @@ contract AlchemixGovernorTest is BaseTest {
     function testTimelockSchedulerRoleSchedule() public {
         (address[] memory t, uint256[] memory v, bytes[] memory c, string memory d) = craftTestProposal();
         hevm.prank(beef);
-        timelockExecutor.schedule(t[0], v[0], c[0], 0, keccak256(bytes(d)), MAINNET, timelockExecutor.executionDelay());
+        timelockExecutor.schedule(t[0], v[0], c[0], 0, keccak256(bytes(d)), MAINNET);
     }
 
-    function testTimelockSchedulerRoleScheduleBatch() public {
+    function testFailTimelockSchedulerRoleScheduleBatch() public {
         (address[] memory t, uint256[] memory v, bytes[] memory c, string memory d) = craftTestProposal();
         hevm.prank(beef);
         timelockExecutor.scheduleBatch(t, v, c, 0, keccak256(bytes(d)), MAINNET, timelockExecutor.executionDelay());

@@ -186,12 +186,12 @@ contract TimelockExecutor is AccessControl, IERC721Receiver, IERC1155Receiver {
         bytes calldata data,
         bytes32 predecessor,
         bytes32 descriptionHash,
-        uint256 chainId,
-        uint256 delay
+        uint256 chainId
     ) public virtual {
         bytes32 id = hashOperation(target, value, data, predecessor, descriptionHash, chainId);
-        _schedule(id, delay);
-        emit CallScheduled(id, 0, target, value, data, predecessor, delay);
+        // Base execution delay to prevent DOS of scheduling proposals
+        _schedule(id, executionDelay);
+        emit CallScheduled(id, 0, target, value, data, predecessor, executionDelay);
     }
 
     /**
@@ -211,14 +211,14 @@ contract TimelockExecutor is AccessControl, IERC721Receiver, IERC1155Receiver {
         bytes32 descriptionHash,
         uint256 chainId,
         uint256 delay
-    ) public virtual {
+    ) public virtual onlyRole(TIMELOCK_ADMIN_ROLE) {
         require(targets.length == values.length, "TimelockExecutor: length mismatch");
         require(targets.length == payloads.length, "TimelockExecutor: length mismatch");
 
         bytes32 id = hashOperationBatch(targets, values, payloads, predecessor, descriptionHash, chainId);
         _schedule(id, delay);
         for (uint256 i = 0; i < targets.length; ++i) {
-            emit CallScheduled(id, i, targets[i], values[i], payloads[i], predecessor, delay);
+            emit CallScheduled(id, i, targets[i], values[i], payloads[i], predecessor, executionDelay);
         }
     }
 
@@ -227,7 +227,6 @@ contract TimelockExecutor is AccessControl, IERC721Receiver, IERC1155Receiver {
      */
     function _schedule(bytes32 id, uint256 delay) private {
         require(!isOperation(id), "TimelockExecutor: operation already scheduled");
-        require(delay >= executionDelay, "TimelockController: insufficient delay");
 
         _timestamps[id] = block.timestamp + delay;
     }
