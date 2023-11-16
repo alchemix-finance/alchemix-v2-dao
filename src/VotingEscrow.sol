@@ -630,6 +630,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
         require(_value > 0); // dev: need non-zero value
         require(_locked.amount > 0, "No existing lock found");
         require(_locked.end > block.timestamp, "Cannot add to expired lock. Withdraw");
+        require(_locked.cooldown == 0, "Cannot add to token that started cooldown");
 
         _depositFor(_tokenId, _value, 0, _locked.maxLockEnabled, _locked, DepositType.DEPOSIT_FOR_TYPE);
     }
@@ -686,6 +687,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
         require(_locked.amount > 0, "Nothing is locked");
         require(unlockTime >= _locked.end, "Can only increase lock duration");
         require(unlockTime <= block.timestamp + MAXTIME, "Voting lock can be 1 year max");
+        require(_locked.cooldown == 0, "Cannot increase lock duration on token that started cooldown");
 
         _depositFor(_tokenId, 0, unlockTime, _maxLockEnabled, _locked, DepositType.INCREASE_UNLOCK_TIME);
     }
@@ -1273,6 +1275,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
         DepositType depositType
     ) internal {
         LockedBalance memory _locked = lockedBalance;
+
         uint256 supplyBefore = supply;
 
         supply = supplyBefore + _value;
