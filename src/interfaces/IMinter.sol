@@ -76,4 +76,8 @@ interface IMinter {
      * @dev Can only be called once per epoch
      */
     function updatePeriod() external returns (uint256);
+
+    function activePeriod() external view returns (uint256);
+
+    function DURATION() external view returns (uint256);
 }

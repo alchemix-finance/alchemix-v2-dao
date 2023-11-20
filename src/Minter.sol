@@ -20,8 +20,8 @@ contract Minter is IMinter {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
 
-    // Allows minting once per epoch (epoch = 1 week, reset every Thursday 00:00 UTC)
-    uint256 public immutable WEEK = 1 weeks;
+    // Allows minting once per epoch (epoch = 2 week, reset every Thursday 00:00 UTC)
+    uint256 public immutable DURATION = 2 weeks;
     uint256 public immutable BPS = 10_000;
     uint256 public constant TAIL_EMISSIONS_RATE = 2194e18; // Tail emissions rate
 
@@ -59,7 +59,7 @@ contract Minter is IMinter {
         revenueHandler = IRevenueHandler(params.revenueHandler);
         timeGauge = IStakingRewards(params.timeGauge);
         treasury = params.treasury;
-        activePeriod = ((block.timestamp + WEEK) / WEEK) * WEEK;
+        activePeriod = ((block.timestamp + DURATION) / DURATION) * DURATION;
         veAlcxEmissionsRate = 2500; // 25%
         timeEmissionsRate = 2000; // 20%
         treasuryEmissionsRate = 1500; // 15%
@@ -124,9 +124,9 @@ contract Minter is IMinter {
     function updatePeriod() external returns (uint256) {
         uint256 period = activePeriod;
 
-        if (block.timestamp >= period + WEEK && initializer == address(0)) {
+        if (block.timestamp >= period + DURATION && initializer == address(0)) {
             // Only trigger if new epoch
-            period = (block.timestamp / WEEK) * WEEK;
+            period = (block.timestamp / DURATION) * DURATION;
             activePeriod = period;
             epochEmissions = epochEmission();
 

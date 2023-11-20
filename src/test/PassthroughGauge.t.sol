@@ -53,6 +53,9 @@ contract PassthroughGaugeTest is BaseTest {
         address[] memory deadGauges = new address[](1);
         deadGauges[0] = address(0);
 
+        // Move forward epoch to distribute bribes
+        hevm.warp(block.timestamp + nextEpoch);
+
         hevm.expectRevert(abi.encodePacked("cannot distribute to a dead gauge"));
         voter.distribute(deadGauges);
 

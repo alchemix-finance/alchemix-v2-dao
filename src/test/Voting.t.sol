@@ -766,7 +766,10 @@ contract VotingTest is BaseTest {
         assertEq(voter.usedWeights(tokenId1), voter.usedWeights(tokenId2), "used weights should be equal");
 
         // Fast forward i+1
-        hevm.warp(block.timestamp + nextEpoch);
+        hevm.warp(IMinter(minter).activePeriod() + nextEpoch);
+        voter.distribute();
+
+        hevm.expectRevert(abi.encodePacked("can only distribute after period end"));
         voter.distribute();
 
         uint256 earnedBribes1 = IBribe(bribeAddress).earned(bal, tokenId1);
@@ -786,7 +789,7 @@ contract VotingTest is BaseTest {
         assertLt(voter.usedWeights(tokenId1), voter.usedWeights(tokenId2), "weight of voter who voted should be less");
 
         // Fast forward i+2
-        hevm.warp(block.timestamp + nextEpoch);
+        hevm.warp(IMinter(minter).activePeriod() + nextEpoch);
         voter.distribute();
 
         assertGt(

@@ -377,6 +377,10 @@ contract Voter is IVoter {
 
     function _distribute(address _gauge) internal {
         require(isAlive[_gauge], "cannot distribute to a dead gauge");
+        require(
+            block.timestamp >= IMinter(minter).activePeriod() + IMinter(minter).DURATION(),
+            "can only distribute after period end"
+        );
 
         _updateFor(_gauge);
         uint256 _claimable = claimable[_gauge];
