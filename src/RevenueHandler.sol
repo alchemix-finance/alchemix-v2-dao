@@ -52,7 +52,7 @@ contract RevenueHandler is IRevenueHandler, Ownable {
 
     address public immutable veALCX;
     address[] public revenueTokens;
-    mapping(address => bool) public alchemicTokens; // token => is alchemic-token (true/false)
+    mapping(address => address) public alchemists; // alchemist => alchemic-token
     mapping(address => RevenueTokenConfig) public revenueTokenConfigs; // token => RevenueTokenConfig
     mapping(uint256 => mapping(address => uint256)) public epochRevenues; // epoch => (debtToken => epoch revenue)
     mapping(uint256 => mapping(address => Claimable)) public userCheckpoints; // tokenId => (debtToken => Claimable)
@@ -108,19 +108,25 @@ contract RevenueHandler is IRevenueHandler, Ownable {
     }
 
     /// @inheritdoc IRevenueHandler
-    function addAlchemicToken(address alchemicToken) external override onlyOwner {
-        require(!alchemicTokens[alchemicToken], "alchemic token already exists");
-        alchemicTokens[alchemicToken] = true;
+    function addAlchemicToken(address alchemist) external override onlyOwner {
+        require(alchemists[alchemist] == address(0), "alchemic token already exists");
 
-        emit AlchemicTokenAdded(alchemicToken);
+        address alchemicToken = IAlchemistV2(alchemist).debtToken();
+
+        alchemists[alchemist] = alchemicToken;
+
+        emit AlchemicTokenAdded(alchemist, alchemicToken);
     }
 
     /// @inheritdoc IRevenueHandler
-    function removeAlchemicToken(address alchemicToken) external override onlyOwner {
-        require(alchemicTokens[alchemicToken], "alchemic token does not exist");
-        alchemicTokens[alchemicToken] = false;
+    function removeAlchemicToken(address alchemist) external override onlyOwner {
+        address alchemicToken = alchemists[alchemist];
 
-        emit AlchemicTokenRemoved(alchemicToken);
+        require(alchemicToken != address(0), "alchemic token does not exist");
+
+        alchemists[alchemist] = address(0);
+
+        emit AlchemicTokenRemoved(alchemist, alchemicToken);
     }
 
     /// @inheritdoc IRevenueHandler
@@ -186,9 +192,8 @@ contract RevenueHandler is IRevenueHandler, Ownable {
         userCheckpoints[tokenId][token].lastClaimEpoch = currentEpoch;
         userCheckpoints[tokenId][token].unclaimed = amountClaimable - amount;
 
-        if (alchemicTokens[token]) {
-            require(alchemist != address(0), "if token is alchemic-token, alchemist must be set");
-
+        // If the alchemist is defined we know it has an alchemic-token
+        if (alchemists[alchemist] != address(0)) {
             (, address[] memory deposits) = IAlchemistV2(alchemist).accounts(recipient);
             IERC20(token).approve(alchemist, amount);
 
