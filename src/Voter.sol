@@ -349,25 +349,16 @@ contract Voter is IVoter {
 
     /// @inheritdoc IVoter
     function distribute() external {
-        distribute(0, pools.length);
-    }
+        uint256 start = 0;
+        uint256 finish = pools.length;
 
-    function distribute(uint256 start, uint256 finish) public {
         for (uint256 x = start; x < finish; x++) {
             // We don't revert if gauge is not alive since pools.length is not reduced
             if (isAlive[gauges[pools[x]]]) {
                 _distribute(gauges[pools[x]]);
             }
         }
-        IMinter(minter).updatePeriod();
-    }
 
-    function distribute(address[] memory _gauges) external {
-        for (uint256 x = 0; x < _gauges.length; x++) {
-            // Only allow distribution to gauges that are alive
-            require(isAlive[_gauges[x]], "cannot distribute to a dead gauge");
-            _distribute(_gauges[x]);
-        }
         IMinter(minter).updatePeriod();
     }
 
@@ -376,7 +367,7 @@ contract Voter is IVoter {
     */
 
     function _distribute(address _gauge) internal {
-        // Distribute only once after epoch has ended
+        // Distribute once after epoch has ended
         require(
             block.timestamp >= IMinter(minter).activePeriod() + IMinter(minter).DURATION(),
             "can only distribute after period end"
