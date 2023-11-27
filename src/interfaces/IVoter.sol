@@ -133,8 +133,7 @@ interface IVoter {
     function notifyRewardAmount(uint256 amount) external;
 
     /**
-     * @notice Distribute rewards and bribes to a given gauge
-     * @param _gauge Address of gauge receiving rewards and bribes
+     * @notice Distribute rewards and bribes to all gauges
      */
-    function distribute(address _gauge) external;
+    function distribute() external;
 }

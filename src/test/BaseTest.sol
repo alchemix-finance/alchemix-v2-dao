@@ -60,6 +60,7 @@ contract BaseTest is DSTestPlus {
     address public alEthPoolAddress = 0xC4C319E2D4d66CcA4464C0c2B32c9Bd23ebe784e;
     address public alUsdFraxBpPoolAddress = 0xB30dA2376F63De30b42dC055C93fa474F31330A5;
     address public sushiPoolAddress = 0x7519C93fC5073E15d89131fD38118D73A72370F8;
+    address public balancerPoolAddress = 0xf16aEe6a71aF1A9Bc8F56975A4c2705ca7A782Bc;
 
     // Votium pool indexes
     // These are subject to change
@@ -118,6 +119,7 @@ contract BaseTest is DSTestPlus {
     CurveGauge public alEthGauge;
     CurveGauge public alUsdFraxBpGauge;
     PassthroughGauge public sushiGauge;
+    PassthroughGauge public balancerGauge;
     StakingRewards public timeGauge;
 
     // Initialize all DAO contracts and their dependencies
@@ -201,16 +203,21 @@ contract BaseTest is DSTestPlus {
         // Create sushi gauge
         voter.createGauge(sushiPoolAddress, IVoter.GaugeType.Passthrough);
 
+        // Create (fake) balancer gague
+        voter.createGauge(balancerPoolAddress, IVoter.GaugeType.Passthrough);
+
         // Get address of new gauges
         address alUsdGaugeAddress = voter.gauges(alUsdPoolAddress);
         address alEthGaugeAddress = voter.gauges(alEthPoolAddress);
         address alUsdFraxBpGaugeAddress = voter.gauges(alUsdFraxBpPoolAddress);
         address sushiGaugeAddress = voter.gauges(sushiPoolAddress);
+        address balancerGaugeAddress = voter.gauges(balancerPoolAddress);
 
         alUsdGauge = CurveGauge(alUsdGaugeAddress);
         alEthGauge = CurveGauge(alEthGaugeAddress);
         alUsdFraxBpGauge = CurveGauge(alUsdFraxBpGaugeAddress);
         sushiGauge = PassthroughGauge(sushiGaugeAddress);
+        balancerGauge = PassthroughGauge(balancerGaugeAddress);
 
         alUsdGauge.initialize(alUsdIndex, votiumReceiver);
         alEthGauge.initialize(alEthIndex, votiumReceiver);

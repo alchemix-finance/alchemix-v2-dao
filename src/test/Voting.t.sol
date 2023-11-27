@@ -747,10 +747,12 @@ contract VotingTest is BaseTest {
 
         uint256 balanceStart = IERC20(bal).balanceOf(bribeAddress);
 
-        address[] memory pools = new address[](1);
+        address[] memory pools = new address[](2);
         pools[0] = sushiPoolAddress;
-        uint256[] memory weights = new uint256[](1);
-        weights[0] = 5000;
+        pools[1] = balancerPoolAddress;
+        uint256[] memory weights = new uint256[](2);
+        weights[0] = 2500;
+        weights[1] = 2500;
 
         address[] memory bribes = new address[](1);
         bribes[0] = address(bribeAddress);
