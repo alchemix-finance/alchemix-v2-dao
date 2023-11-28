@@ -218,6 +218,7 @@ contract Voter is IVoter {
     ) external onlyNewEpoch(_tokenId) {
         require(IVotingEscrow(veALCX).isApprovedOrOwner(msg.sender, _tokenId));
         require(_poolVote.length == _weights.length);
+        require(_poolVote.length > 0, "no pools voted for");
         require(_poolVote.length <= pools.length, "invalid pools");
         require(
             IVotingEscrow(veALCX).claimableFlux(_tokenId) + IFluxToken(FLUX).getUnclaimedFlux(_tokenId) >= _boost,
