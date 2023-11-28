@@ -114,15 +114,32 @@ contract Bribe is IBribe {
     }
 
     /// @inheritdoc IBribe
-    function swapOutRewardToken(uint256 i, address oldToken, address newToken) external {
+    function swapOutRewardToken(uint256 oldTokenIndex, address oldToken, address newToken) external {
         require(msg.sender == voter);
         require(IVoter(voter).isWhitelisted(newToken), "bribe tokens must be whitelisted");
-        require(rewards[i] == oldToken);
+        require(rewards[oldTokenIndex] == oldToken);
         require(newToken != address(0));
 
         isReward[oldToken] = false;
         isReward[newToken] = true;
-        rewards[i] = newToken;
+
+        // Check if the newToken already exists in the rewards list
+        for (uint256 i = 0; i < rewards.length; i++) {
+            if (rewards[i] == newToken) {
+                // If it exists, swap out the old token
+                rewards[oldTokenIndex] = rewards[i];
+
+                // Then remove the duplicate
+                rewards[i] = rewards[rewards.length - 1];
+                rewards.pop();
+                break;
+            }
+        }
+
+        // If the old token wasn't updated, swap it out
+        if (rewards[oldTokenIndex] != newToken) {
+            rewards[oldTokenIndex] = newToken;
+        }
 
         emit RewardTokenSwapped(oldToken, newToken);
     }
