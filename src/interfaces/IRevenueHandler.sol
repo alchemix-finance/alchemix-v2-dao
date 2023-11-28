@@ -47,16 +47,18 @@ interface IRevenueHandler {
     /**
      * @notice Emitted when alchemic-token is added.
      *
-     * @param alchemicToken The alchemic-token to add
+     * @param alchemist The address of the alchemist to add.
+     * @param alchemicToken The alchemic-token to add.
      */
-    event AlchemicTokenAdded(address alchemicToken);
+    event AlchemicTokenAdded(address alchemist, address alchemicToken);
 
     /**
      * @notice Emitted when alchemic-token is removed.
      *
+     * @param alchemist The address of the alchemist to add.
      * @param alchemicToken The alchemic-token to remove.
      */
-    event AlchemicTokenRemoved(address alchemicToken);
+    event AlchemicTokenRemoved(address alchemist, address alchemicToken);
 
     /**
      * @notice Emitted when poolAdapter parameters are set for a revenue token.
@@ -134,17 +136,19 @@ interface IRevenueHandler {
      * @notice Add an alchemic-token to the list of recognized alchemic-tokens.
      * @notice This function is only callable by the contract owner.
      *
-     * @param alchemicToken The address of the alchemic-token to add.
+     * @param alchemist The address of the alchemist to add.
+     * @dev   the alchemic-token will be derived from the alchemist.
      */
-    function addAlchemicToken(address alchemicToken) external;
+    function addAlchemicToken(address alchemist) external;
 
     /**
      * @notice Remove an alchemic-token from the list of recognized alchemic-tokens.
      * @notice This function is only callable by the contract owner.
      *
-     * @param alchemicToken The address of the alchemic-token to remove.
+     * @param alchemist The address of the alchemist to remove.
+     * @dev   the alchemic-token will be derived from the alchemist.
      */
-    function removeAlchemicToken(address alchemicToken) external;
+    function removeAlchemicToken(address alchemist) external;
 
     /**
      * @dev Add an ERC20 token to the list of recognized revenue tokens.

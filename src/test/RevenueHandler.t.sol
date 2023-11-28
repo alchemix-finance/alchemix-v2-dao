@@ -13,6 +13,7 @@ contract RevenueHandlerTest is BaseTest {
     uint256 DELTA = 65;
 
     IAlchemistV2 public alusdAlchemist = IAlchemistV2(0x5C6374a2ac4EBC38DeA0Fc1F8716e5Ea1AdD94dd);
+    IAlchemistV2 public alethAlchemist = IAlchemistV2(0x062Bf725dC4cDF947aa79Ca2aaCCD4F385b13b5c);
     IWhitelist public whitelist = IWhitelist(0x78537a6CeBa16f412E123a90472C6E0e9A8F1132);
 
     // RevenueHandler revenueHandler;
@@ -42,7 +43,7 @@ contract RevenueHandlerTest is BaseTest {
         revenueHandler.setPoolAdapter(usdc, address(cpa));
 
         revenueHandler.addRevenueToken(bal);
-        revenueHandler.addAlchemicToken(alusd);
+        revenueHandler.addAlchemicToken(address(alusdAlchemist));
 
         hevm.prank(devmsig);
         whitelist.disable();
@@ -145,29 +146,29 @@ contract RevenueHandlerTest is BaseTest {
     }
 
     function testAddAlchemicToken() external {
-        revenueHandler.addAlchemicToken(aleth);
-        bool isAlchemicToken = revenueHandler.alchemicTokens(aleth);
-        assertEq(isAlchemicToken, true);
+        revenueHandler.addAlchemicToken(address(alethAlchemist));
+        address alchemicToken = revenueHandler.alchemists(address(alethAlchemist));
+        assertEq(alchemicToken, aleth);
     }
 
     function testAddAlchemicTokenFail() external {
-        revenueHandler.addAlchemicToken(aleth);
+        revenueHandler.addAlchemicToken(address(alethAlchemist));
         expectError("alchemic token already exists");
-        revenueHandler.addAlchemicToken(aleth);
+        revenueHandler.addAlchemicToken(address(alethAlchemist));
     }
 
     function testRemoveAlchemicToken() external {
-        revenueHandler.addAlchemicToken(aleth);
-        revenueHandler.removeAlchemicToken(aleth);
-        bool isAlchemicToken = revenueHandler.alchemicTokens(aleth);
-        assertEq(isAlchemicToken, false);
+        revenueHandler.addAlchemicToken(address(alethAlchemist));
+        revenueHandler.removeAlchemicToken(address(alethAlchemist));
+        address alchemicToken = revenueHandler.alchemists(address(alethAlchemist));
+        assertEq(alchemicToken, address(0));
     }
 
     function testRemoveAlchemicTokenFail() external {
-        revenueHandler.addAlchemicToken(aleth);
-        revenueHandler.removeAlchemicToken(aleth);
+        revenueHandler.addAlchemicToken(address(alethAlchemist));
+        revenueHandler.removeAlchemicToken(address(alethAlchemist));
         expectError("alchemic token does not exist");
-        revenueHandler.removeAlchemicToken(aleth);
+        revenueHandler.removeAlchemicToken(address(alethAlchemist));
     }
 
     function testSetDebtToken() external {
