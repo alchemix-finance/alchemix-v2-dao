@@ -630,6 +630,40 @@ contract VotingEscrowTest is BaseTest {
         hevm.stopPrank();
     }
 
+    function testCircumventLockingPeriod() public {
+        uint256 tokenId = createVeAlcx(admin, TOKEN_1, THREE_WEEKS, false);
+
+        uint256 startBalance = veALCX.balanceOfToken(tokenId);
+        uint256 startSupply = veALCX.totalSupply();
+        console.log("startSupply:", startSupply);
+        console.log("startBalance:", startBalance);
+
+        uint256 ragequitAmount = veALCX.amountToRagequit(tokenId);
+
+        // Mint the necessary amount of flux to ragequit
+        hevm.prank(address(veALCX));
+        flux.mint(admin, ragequitAmount);
+
+        hevm.startPrank(admin);
+        flux.approve(address(veALCX), ragequitAmount);
+        veALCX.startCooldown(tokenId);
+
+        // Get more BPT for the user
+        deal(bpt, address(this), TOKEN_100K);
+        IERC20(bpt).approve(address(veALCX), TOKEN_100K);
+
+        hevm.expectRevert(abi.encodePacked("Cannot add to token that started cooldown"));
+        veALCX.depositFor(tokenId, TOKEN_100K);
+
+        hevm.expectRevert(abi.encodePacked("Cannot increase lock duration on token that started cooldown"));
+        veALCX.updateUnlockTime(tokenId, MAXTIME, false);
+
+        hevm.expectRevert(abi.encodePacked("Cannot increase lock duration on token that started cooldown"));
+        veALCX.updateUnlockTime(tokenId, 0, true);
+
+        hevm.stopPrank();
+    }
+
     // Test that the total supply is updated correctly when a token ragequits
     function testRagequitSupplyImpact() public {
         uint256 tokenId = createVeAlcx(admin, TOKEN_1, THREE_WEEKS, false);
