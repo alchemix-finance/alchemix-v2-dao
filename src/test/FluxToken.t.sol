@@ -82,4 +82,29 @@ contract FluxTokenTest is BaseTest {
         uint256 fluxOver4Years = veALCX.amountToRagequit(tokenId);
         console2.log("fluxOver4Years    :", fluxOver4Years);
     }
+
+    // veALCX should earn enough flux over <fluxMultiplier> years to ragequit
+    function testTotalFluxAccrual() external {
+        uint256 tokenId = createVeAlcx(admin, TOKEN_1, veALCX.MAXTIME(), true);
+
+        uint256 amountToRagequit = veALCX.amountToRagequit(tokenId);
+
+        uint256 totalEpochsToRagequit = veALCX.fluxMultiplier() * ((MAXTIME) / veALCX.EPOCH());
+
+        uint256 unclaimedFluxStart = flux.getUnclaimedFlux(tokenId);
+        assertEq(unclaimedFluxStart, 0, "should start with no unclaimed flux");
+
+        // Mock 4 years of epochs
+        for (uint256 i = 0; i < totalEpochsToRagequit; i++) {
+            hevm.prank(admin);
+            voter.reset(tokenId);
+
+            hevm.warp(block.timestamp + nextEpoch);
+            minter.updatePeriod();
+        }
+
+        uint256 unclaimedFluxEnd = flux.getUnclaimedFlux(tokenId);
+
+        assertEq(unclaimedFluxEnd, amountToRagequit, "should have all unclaimed flux");
+    }
 }

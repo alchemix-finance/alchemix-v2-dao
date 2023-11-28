@@ -408,6 +408,11 @@ contract Voter is IVoter {
         totalWeight -= uint256(_totalWeight);
         usedWeights[_tokenId] = 0;
         delete poolVote[_tokenId];
+
+        // Update lock end if max locked
+        if (IVotingEscrow(veALCX).isMaxLocked(_tokenId)) {
+            IVotingEscrow(veALCX).updateLock(_tokenId);
+        }
     }
 
     function _vote(uint256 _tokenId, address[] memory _poolVote, uint256[] memory _weights, uint256 _boost) internal {

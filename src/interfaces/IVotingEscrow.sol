@@ -94,6 +94,13 @@ interface IVotingEscrow {
     function lockEnd(uint256 tokenId) external view returns (uint256);
 
     /**
+     * @notice Check if token is max locked
+     * @param tokenId ID of the token
+     * @return True if token has max lock enabled
+     */
+    function isMaxLocked(uint256 tokenId) external view returns (bool);
+
+    /**
      * @notice Get amount locked for `_tokenId`
      * @param _tokenId ID of the token
      * @return Amount locked
@@ -192,6 +199,14 @@ interface IVotingEscrow {
      * @notice Record global data to checkpoint
      */
     function checkpoint() external;
+
+    /**
+     * @notice Update lock end for max locked tokens
+     * @param tokenId ID of the token
+     *
+     * @dev This ensures token will continue to accrue flux
+     */
+    function updateLock(uint256 tokenId) external;
 
     /**
      * @notice Deposit `_value` tokens for `_tokenId` and add to the lock

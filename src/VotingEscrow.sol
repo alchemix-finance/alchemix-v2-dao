@@ -170,6 +170,10 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
         return locked[_tokenId].end;
     }
 
+    function isMaxLocked(uint256 _tokenId) public view returns (bool) {
+        return locked[_tokenId].maxLockEnabled;
+    }
+
     /// @inheritdoc IVotingEscrow
     function lockedAmount(uint256 _tokenId) external view returns (uint256) {
         return uint256(locked[_tokenId].amount);
@@ -317,6 +321,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
         // amount of flux earned in one epoch
         uint256 oneEpochFlux = claimableFlux(_tokenId);
 
+        // total amount of epochs in fluxMultiplier amount of years
         uint256 totalEpochs = fluxMultiplier * ((MAXTIME) / EPOCH);
 
         // based on one epoch, calculate total amount of flux over fluxMultiplier amount of years
@@ -347,7 +352,10 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
     /// @inheritdoc IVotingEscrow
     function claimableFlux(uint256 _tokenId) public view returns (uint256) {
         // If the lock is expired, no flux is claimable at the current epoch
-        if (block.timestamp > locked[_tokenId].end) return 0;
+        if (block.timestamp > locked[_tokenId].end) {
+            return 0;
+        }
+
         return (_balanceOfTokenAt(_tokenId, block.timestamp) * fluxPerVeALCX) / BPS;
     }
 
@@ -621,6 +629,14 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
     /// @inheritdoc IVotingEscrow
     function checkpoint() external {
         _checkpoint(0, LockedBalance(0, 0, false, 0), LockedBalance(0, 0, false, 0));
+    }
+
+    /// @inheritdoc IVotingEscrow
+    function updateLock(uint256 _tokenId) external {
+        require(isMaxLocked(_tokenId), "not max locked");
+        require(msg.sender == voter, "not voter");
+
+        locked[_tokenId].end = ((block.timestamp + MAXTIME) / WEEK) * WEEK;
     }
 
     /// @inheritdoc IVotingEscrow
