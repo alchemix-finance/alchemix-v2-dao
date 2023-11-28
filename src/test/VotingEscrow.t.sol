@@ -521,6 +521,22 @@ contract VotingEscrowTest is BaseTest {
         hevm.stopPrank();
     }
 
+    // Merging should have no impact on deposited supply count
+    function testMergeSupplyImpact() public {
+        uint256 tokenId1 = createVeAlcx(admin, TOKEN_100K, FIVE_WEEKS, false);
+        uint256 tokenId2 = createVeAlcx(admin, TOKEN_100K, FIVE_WEEKS, false);
+
+        uint256 supplyBeforeMerge = veALCX.supply();
+
+        hevm.prank(admin);
+        veALCX.merge(tokenId1, tokenId2);
+
+        uint256 supplyAfterMerge = veALCX.supply();
+
+        assertEq(supplyAfterMerge, supplyBeforeMerge, "supply should not change after merge");
+        assertEq(supplyAfterMerge, TOKEN_100K * 2, "supply should be sum of all tokens");
+    }
+
     // A user should not be able to withdraw BPT early
     function testManipulateEarlyUnlock() public {
         uint256 tokenId1 = createVeAlcx(admin, TOKEN_100K, MAXTIME, false);

@@ -623,7 +623,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
 
         locked[_from] = LockedBalance(0, 0, false, 0);
         _checkpoint(_from, _locked0, LockedBalance(0, 0, false, 0));
-        _burn(_from);
+        _burn(_from, value0);
         _depositFor(_to, value0, end, _locked1.maxLockEnabled, _locked1, DepositType.MERGE_TYPE);
     }
 
@@ -727,8 +727,6 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
         uint256 value = _locked.amount;
 
         locked[_tokenId] = LockedBalance(0, 0, false, 0);
-        uint256 supplyBefore = supply;
-        supply = supplyBefore - value;
 
         // oldLocked can have either expired <= timestamp or zero end
         // _locked has only 0 end
@@ -745,10 +743,9 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
         IFluxToken(FLUX).claimFlux(_tokenId, IFluxToken(FLUX).getUnclaimedFlux(_tokenId));
 
         // Burn the token
-        _burn(_tokenId);
+        _burn(_tokenId, value);
 
         emit Withdraw(msg.sender, _tokenId, value, block.timestamp);
-        emit Supply(supplyBefore, supplyBefore - value);
     }
 
     /// @inheritdoc IVotingEscrow
@@ -1532,8 +1529,13 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
         return string(buffer);
     }
 
-    function _burn(uint256 _tokenId) internal {
+    function _burn(uint256 _tokenId, uint256 _value) internal {
         address owner = ownerOf(_tokenId);
+
+        // Update the total supply of deposited tokens
+        uint256 supplyBefore = supply;
+        uint256 supplyAfter = supplyBefore - _value;
+        supply = supplyAfter;
 
         // Clear approval
         approve(address(0), _tokenId);
@@ -1542,5 +1544,6 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
         // Remove token
         _removeTokenFrom(owner, _tokenId);
         emit Transfer(owner, address(0), _tokenId);
+        emit Supply(supplyBefore, supplyAfter);
     }
 }
