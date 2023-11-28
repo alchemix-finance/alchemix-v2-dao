@@ -356,6 +356,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
             return 0;
         }
 
+        // Amount of flux claimable is <fluxPerVeALCX> percent of the balance
         return (_balanceOfTokenAt(_tokenId, block.timestamp) * fluxPerVeALCX) / BPS;
     }
 
