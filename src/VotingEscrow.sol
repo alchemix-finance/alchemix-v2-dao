@@ -1294,7 +1294,6 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
 
         uint256 supplyBefore = supply;
 
-        supply = supplyBefore + _value;
         LockedBalance memory oldLocked;
         (oldLocked.amount, oldLocked.end, oldLocked.maxLockEnabled) = (
             _locked.amount,
@@ -1326,6 +1325,8 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
                 IRewardPoolManager(rewardPoolManager).depositIntoRewardPool(_value),
                 "Deposit into reward pool failed"
             );
+
+            supply = supplyBefore + _value;
         }
 
         emit Deposit(from, _tokenId, _value, _locked.end, _locked.maxLockEnabled, depositType, block.timestamp);
