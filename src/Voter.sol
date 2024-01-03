@@ -374,8 +374,12 @@ contract Voter is IVoter {
             "can only distribute after period end"
         );
 
-        _updateFor(_gauge);
         uint256 _claimable = claimable[_gauge];
+
+        // Reset claimable amount
+        claimable[_gauge] = 0;
+
+        _updateFor(_gauge);
 
         if (_claimable > 0) {
             IBaseGauge(_gauge).notifyRewardAmount(_claimable);

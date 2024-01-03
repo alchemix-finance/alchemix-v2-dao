@@ -49,8 +49,13 @@ contract PassthroughGaugeTest is BaseTest {
 
         // Claimable rewards of each gauge
         uint256 sushiGaugeClaimable = voter.claimable(address(sushiGauge));
+        console2.log("sushiGauge:", address(sushiGauge));
 
         // Move forward epoch to distribute bribes
+        hevm.warp(block.timestamp + nextEpoch);
+        voter.distribute();
+
+        // Second distribution should not change claimed rewards
         hevm.warp(block.timestamp + nextEpoch);
         voter.distribute();
 

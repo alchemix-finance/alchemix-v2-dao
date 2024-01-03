@@ -211,7 +211,7 @@ contract FluxToken is ERC20("Flux", "FLUX"), IFluxToken {
         }
     }
 
-    function _calculateBPT(uint256 _amount) internal view returns (uint256 bptOut) {
+    function _calculateBPT(uint256 _amount) public view returns (uint256 bptOut) {
         address distributor = IVotingEscrow(veALCX).distributor();
 
         (bytes32 balancerPoolId, address balancerPool, address balancerVault) = IRewardsDistributor(distributor)
