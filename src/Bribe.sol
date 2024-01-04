@@ -182,7 +182,7 @@ contract Bribe is IBribe {
         }
 
         // Check most recent balance
-        if (votingCheckpoints[nCheckpoints - 1].timestamp <= timestamp) {
+        if (votingCheckpoints[nCheckpoints - 1].timestamp < timestamp) {
             return (nCheckpoints - 1);
         }
 
