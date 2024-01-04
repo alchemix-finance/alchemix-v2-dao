@@ -367,7 +367,10 @@ contract RewardsDistributor is IRewardsDistributor, ReentrancyGuard {
                 }
             } else {
                 int256 dt = int256(weekCursor - oldUserPoint.ts);
-                uint256 balanceOf = Math.max(uint256(oldUserPoint.bias - dt * oldUserPoint.slope), 0);
+                int256 calc = oldUserPoint.bias - dt * oldUserPoint.slope > int256(0)
+                    ? oldUserPoint.bias - dt * oldUserPoint.slope
+                    : int256(0);
+                uint256 balanceOf = uint256(calc);
                 if (balanceOf == 0 && userEpoch > maxUserEpoch) break;
                 if (balanceOf != 0) {
                     toDistribute += (balanceOf * tokensPerWeek[weekCursor]) / veSupply[weekCursor];
