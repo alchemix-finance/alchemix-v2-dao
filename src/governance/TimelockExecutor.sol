@@ -176,9 +176,6 @@ contract TimelockExecutor is AccessControl, IERC721Receiver, IERC1155Receiver {
      *
      * Emits a {CallScheduled} event.
      *
-     * Requirements:
-     *
-     * - the caller must be the 'scheduler'.
      */
     function schedule(
         address target,
@@ -201,7 +198,7 @@ contract TimelockExecutor is AccessControl, IERC721Receiver, IERC1155Receiver {
      *
      * Requirements:
      *
-     * - the caller must be the 'scheduler'.
+     * - the caller must be the 'admin'.
      */
     function scheduleBatch(
         address[] calldata targets,
