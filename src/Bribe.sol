@@ -215,7 +215,7 @@ contract Bribe is IBribe {
         uint256 _startTimestamp = lastEarn[token][tokenId];
 
         // Prevent earning twice within an epoch
-        if (block.timestamp - _startTimestamp < DURATION) {
+        if (block.timestamp - _bribeStart(_startTimestamp) < DURATION) {
             return 0;
         }
 
