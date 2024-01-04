@@ -1043,10 +1043,8 @@ contract VotingTest is BaseTest {
     }
 
     function testAdminFunctions() public {
-        assertEq(voter.initialized(), true, "voter not initialized");
-
-        hevm.expectRevert(abi.encodePacked("already initialized"));
-        voter.initialize(dai, admin);
+        hevm.expectRevert(abi.encodePacked("not admin"));
+        voter.setMinter(admin);
 
         hevm.expectRevert(abi.encodePacked("not admin"));
         voter.setAdmin(devmsig);

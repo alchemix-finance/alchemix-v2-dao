@@ -36,8 +36,6 @@ contract Voter is IVoter {
     address public pendingAdmin;
     address public emergencyCouncil; // credibly neutral party similar to Curve's Emergency DAO
 
-    bool public initialized;
-
     uint256 public totalWeight; // total voting weight
     uint256 public boostMultiplier = 10000; // max bps veALCX voting power can be boosted by
 
@@ -57,7 +55,7 @@ contract Voter is IVoter {
     mapping(address => uint256) internal supplyIndex;
     mapping(address => uint256) public claimable;
 
-    constructor(address _ve, address _gauges, address _bribes, address _flux) {
+    constructor(address _ve, address _gauges, address _bribes, address _flux, address _token) {
         veALCX = _ve;
         FLUX = _flux;
         base = IVotingEscrow(_ve).ALCX();
@@ -66,6 +64,7 @@ contract Voter is IVoter {
         minter = msg.sender;
         admin = msg.sender;
         emergencyCouncil = msg.sender;
+        _whitelist(_token);
     }
 
     /*
@@ -115,12 +114,10 @@ contract Voter is IVoter {
         External functions
     */
 
-    function initialize(address _token, address _minter) external {
-        require(initialized == false, "already initialized");
+    function setMinter(address _minter) external {
         require(msg.sender == admin, "not admin");
-        _whitelist(_token);
+        require(_minter != address(0), "FluxToken: minter cannot be zero address");
         minter = _minter;
-        initialized = true;
     }
 
     function setAdmin(address _admin) external {

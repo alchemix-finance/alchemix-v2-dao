@@ -151,7 +151,7 @@ contract BaseTest is DSTestPlus {
         revenueHandler = new RevenueHandler(address(veALCX), admin, 0);
         gaugeFactory = new GaugeFactory();
         bribeFactory = new BribeFactory();
-        voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory), address(flux));
+        voter = new Voter(address(veALCX), address(gaugeFactory), address(bribeFactory), address(flux), address(alcx));
         distributor = new RewardsDistributor(address(veALCX), address(weth), address(balancerVault), priceFeed);
         address[] memory cancellerArray = new address[](1);
         cancellerArray[0] = admin;
@@ -190,7 +190,7 @@ contract BaseTest is DSTestPlus {
         minter = new Minter(params);
 
         distributor.setDepositor(address(minter));
-        voter.initialize(address(alcx), address(minter));
+        voter.setMinter(address(minter));
         alcx.grantRole(keccak256("MINTER"), address(minter));
 
         minter.initialize();
