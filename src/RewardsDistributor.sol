@@ -233,11 +233,7 @@ contract RewardsDistributor is IRewardsDistributor, ReentrancyGuard {
                 }
                 break;
             } else {
-                if (sinceLast == 0) {
-                    tokensPerWeek[thisWeek] += toDistribute;
-                } else {
-                    tokensPerWeek[thisWeek] += (toDistribute * (nextWeek - t)) / sinceLast;
-                }
+                tokensPerWeek[thisWeek] += (toDistribute * (nextWeek - t)) / sinceLast;
             }
             t = nextWeek;
             thisWeek = nextWeek;
