@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3
 pragma solidity ^0.8.15;
 
+import "lib/forge-std/src/console2.sol";
+
 import "src/interfaces/IFluxToken.sol";
 import "src/interfaces/IVotingEscrow.sol";
 import "src/interfaces/IAlchemechNFT.sol";
@@ -194,16 +196,13 @@ contract FluxToken is ERC20("Flux", "FLUX"), IFluxToken {
     function getClaimableFlux(uint256 _amount, address _nft) public view returns (uint256 claimableFlux) {
         uint256 bpt = _calculateBPT(_amount);
 
-        uint256 slope = (bpt * IVotingEscrow(veALCX).MULTIPLIER()) / IVotingEscrow(veALCX).MAXTIME();
+        uint256 veMul = IVotingEscrow(veALCX).MULTIPLIER();
+        uint256 veMax = IVotingEscrow(veALCX).MAXTIME();
+        uint256 fluxPerVe = IVotingEscrow(veALCX).fluxPerVeALCX();
+        uint256 fluxMul = IVotingEscrow(veALCX).fluxMultiplier();
 
-        // Calculate as if time is maxtime
-        uint256 bias = (slope * ((block.timestamp + IVotingEscrow(veALCX).MAXTIME()) - block.timestamp));
-
-        // Total amount of flux that would be earned from the amount
-        uint256 totalFlux = (bias * (IVotingEscrow(veALCX).fluxPerVeALCX() + BPS)) / BPS;
-
-        // Amount of flux that would be claimable
-        claimableFlux = totalFlux / IVotingEscrow(veALCX).fluxMultiplier();
+        // Amount of flux earned in 1 yr from _amount assuming it was deposited for maxtime
+        claimableFlux = (((bpt * veMul) / veMax) * veMax * (fluxPerVe + BPS)) / BPS / fluxMul;
 
         // Claimable flux for alchemechNFT is different than patronNFT
         if (_nft == alchemechNFT) {
