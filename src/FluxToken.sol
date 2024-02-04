@@ -32,6 +32,7 @@ contract FluxToken is ERC20("Flux", "FLUX"), IFluxToken {
     address public pendingAdmin; // the timelock executor
     uint256 public deployDate;
     uint256 public alchemechMultiplier = 5; // .05% ratio of flux for alchemechNFT holders
+    uint256 public bptMultiplier = 40;
 
     uint256 public immutable oneYear = 365 days;
     uint256 internal immutable BPS = 10_000;
@@ -98,6 +99,13 @@ contract FluxToken is ERC20("Flux", "FLUX"), IFluxToken {
         require(_nftMultiplier != 0, "FluxToken: nftMultiplier cannot be zero");
         require(_nftMultiplier <= BPS, "FluxToken: nftMultiplier cannot be greater than BPS");
         alchemechMultiplier = _nftMultiplier;
+    }
+
+    function setBptMultiplier(uint256 _bptMultiplier) external {
+        require(msg.sender == admin, "not admin");
+        require(_bptMultiplier != 0, "FluxToken: bptMultiplier cannot be zero");
+        require(_bptMultiplier <= BPS, "FluxToken: bptMultiplier cannot be greater than BPS");
+        bptMultiplier = _bptMultiplier;
     }
 
     /// @inheritdoc IFluxToken
@@ -211,24 +219,6 @@ contract FluxToken is ERC20("Flux", "FLUX"), IFluxToken {
     }
 
     function _calculateBPT(uint256 _amount) public view returns (uint256 bptOut) {
-        address distributor = IVotingEscrow(veALCX).distributor();
-
-        (bytes32 balancerPoolId, address balancerPool, address balancerVault) = IRewardsDistributor(distributor)
-            .getBalancerInfo();
-
-        (, uint256[] memory balances, ) = IVault(balancerVault).getPoolTokens(balancerPoolId);
-        uint256[] memory normalizedWeights = IManagedPool(balancerPool).getNormalizedWeights();
-
-        uint256[] memory amountsIn = new uint256[](2);
-        amountsIn[0] = _amount;
-        amountsIn[1] = 0; // 0 ALCX in
-
-        bptOut = WeightedMath._calcBptOutGivenExactTokensIn(
-            balances,
-            normalizedWeights,
-            amountsIn,
-            IERC20(balancerPool).totalSupply(),
-            IBasePool(balancerPool).getSwapFeePercentage()
-        );
+        bptOut = _amount * bptMultiplier;
     }
 }
