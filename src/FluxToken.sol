@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-3
 pragma solidity ^0.8.15;
 
-import "lib/forge-std/src/console2.sol";
-
 import "src/interfaces/IFluxToken.sol";
 import "src/interfaces/IVotingEscrow.sol";
 import "src/interfaces/IAlchemechNFT.sol";
@@ -112,34 +110,21 @@ contract FluxToken is ERC20("Flux", "FLUX"), IFluxToken {
     }
 
     /// @inheritdoc IFluxToken
-    function nftClaim(address _nft, uint256 _tokenId) external {
+    function nftClaim(address _nft, uint256 _tokenId, uint256 _minAmount) external {
         // require claim to be within a year of deploy date
         require(block.timestamp < deployDate + oneYear, "claim period has passed");
 
         require(!claimed[_nft][_tokenId], "already claimed");
 
         // value of the NFT
-        uint256 tokenData = 0;
-
-        // determine which nft is being claimed
-        if (_nft == alchemechNFT) {
-            // require sender to be owner of the NFT
-            require(IAlchemechNFT(_nft).ownerOf(_tokenId) == msg.sender, "not owner of Alchemech NFT");
-
-            tokenData = IAlchemechNFT(_nft).tokenData(_tokenId);
-        } else if (_nft == patronNFT) {
-            // require sender to be owner of the NFT
-            require(IAlEthNFT(_nft).ownerOf(_tokenId) == msg.sender, "not owner of Patron NFT");
-
-            tokenData = IAlEthNFT(_nft).tokenData(_tokenId);
-        } else {
-            revert("invalid NFT");
-        }
+        uint256 tokenData = getNFTValue(_nft, _tokenId);
 
         // mark the token as claimed
         claimed[_nft][_tokenId] = true;
 
         uint256 amount = getClaimableFlux(tokenData, _nft);
+
+        require(amount >= _minAmount, "Slippage Exceeded");
 
         _mint(msg.sender, amount);
     }
@@ -196,13 +181,16 @@ contract FluxToken is ERC20("Flux", "FLUX"), IFluxToken {
     function getClaimableFlux(uint256 _amount, address _nft) public view returns (uint256 claimableFlux) {
         uint256 bpt = _calculateBPT(_amount);
 
-        uint256 veMul = IVotingEscrow(veALCX).MULTIPLIER();
-        uint256 veMax = IVotingEscrow(veALCX).MAXTIME();
-        uint256 fluxPerVe = IVotingEscrow(veALCX).fluxPerVeALCX();
-        uint256 fluxMul = IVotingEscrow(veALCX).fluxMultiplier();
+        uint256 slope = (bpt * IVotingEscrow(veALCX).MULTIPLIER()) / IVotingEscrow(veALCX).MAXTIME();
 
-        // Amount of flux earned in 1 yr from _amount assuming it was deposited for maxtime
-        claimableFlux = (((bpt * veMul) / veMax) * veMax * (fluxPerVe + BPS)) / BPS / fluxMul;
+        // Calculate as if time is maxtime
+        uint256 bias = (slope * ((block.timestamp + IVotingEscrow(veALCX).MAXTIME()) - block.timestamp));
+
+        // Total amount of flux that would be earned from the amount
+        uint256 totalFlux = (bias * (IVotingEscrow(veALCX).fluxPerVeALCX() + BPS)) / BPS;
+
+        // Amount of flux that would be claimable
+        claimableFlux = totalFlux / IVotingEscrow(veALCX).fluxMultiplier();
 
         // Claimable flux for alchemechNFT is different than patronNFT
         if (_nft == alchemechNFT) {
@@ -210,7 +198,30 @@ contract FluxToken is ERC20("Flux", "FLUX"), IFluxToken {
         }
     }
 
-    function _calculateBPT(uint256 _amount) public view returns (uint256 bptOut) {
+    // Retrieves tokenData from the specified nft
+    function getNFTValue(address _nft, uint256 _tokenId) public view returns (uint256) {
+        // value of the NFT
+        uint256 tokenData = 0;
+
+        // determine which nft is being claimed
+        if (_nft == alchemechNFT) {
+            // require sender to be owner of the NFT
+            require(IAlchemechNFT(_nft).ownerOf(_tokenId) == msg.sender, "not owner of Alchemech NFT");
+
+            tokenData = IAlchemechNFT(_nft).tokenData(_tokenId);
+        } else if (_nft == patronNFT) {
+            // require sender to be owner of the NFT
+            require(IAlEthNFT(_nft).ownerOf(_tokenId) == msg.sender, "not owner of Patron NFT");
+
+            tokenData = IAlEthNFT(_nft).tokenData(_tokenId);
+        } else {
+            revert("invalid NFT");
+        }
+
+        return tokenData;
+    }
+
+    function _calculateBPT(uint256 _amount) internal view returns (uint256 bptOut) {
         address distributor = IVotingEscrow(veALCX).distributor();
 
         (bytes32 balancerPoolId, address balancerPool, address balancerVault) = IRewardsDistributor(distributor)

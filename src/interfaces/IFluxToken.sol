@@ -52,10 +52,11 @@ interface IFluxToken is IERC20 {
      * @notice Mints tokens to a recipient.
      * @param _nft NFT contract address to claim from.
      * @param _tokenId NFT tokenId to claim from.
+     * @param _minAmount Minimum tokens to accept from the claim.
      * @dev This will revert after set claim period, if the NFT has already been claimed, or if the caller is not the owner of the NFT
      * @dev Amount of FLUX minted is one year of potential FLUX rewards given the NFTs value.
      */
-    function nftClaim(address _nft, uint256 _tokenId) external;
+    function nftClaim(address _nft, uint256 _tokenId, uint256 _minAmount) external;
 
     /**
      * @dev Burns `amount` tokens from `account`, deducting from the caller's allowance.
