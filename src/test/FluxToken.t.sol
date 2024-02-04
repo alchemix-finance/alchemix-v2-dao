@@ -25,12 +25,16 @@ contract FluxTokenTest is BaseTest {
         uint256 alchemechTotalNoMultiplier = flux.getClaimableFlux(tokenData2, patronNFT);
 
         assertGt(alchemechTotalNoMultiplier, alchemechTotal, "non multiplier calc should be higher");
+    
+        uint256 expectedAmount = flux.getClaimableFlux(flux.getNFTValue(patronNFT, tokenId), patronNFT);
 
         hevm.prank(ownerOfPatronNFT);
-        flux.nftClaim(patronNFT, tokenId);
+        flux.nftClaim(patronNFT, tokenId, expectedAmount * 9_900 / 10_000);
+
+        expectedAmount = flux.getClaimableFlux(flux.getNFTValue(alchemechNFT, tokenId), alchemechNFT);
 
         hevm.prank(ownerOfAlchemechNFT);
-        flux.nftClaim(alchemechNFT, tokenId);
+        flux.nftClaim(alchemechNFT, tokenId, expectedAmount * 9_900 / 10_000);
 
         assertEq(flux.balanceOf(ownerOfPatronNFT), patronTotal, "owner should have patron flux");
         assertEq(flux.balanceOf(ownerOfAlchemechNFT), alchemechTotal, "owner should have alchemech flux");
@@ -43,28 +47,28 @@ contract FluxTokenTest is BaseTest {
 
         hevm.expectRevert(abi.encodePacked("invalid NFT"));
         hevm.prank(ownerOfPatronNFT);
-        flux.nftClaim(address(0), tokenId);
+        flux.nftClaim(address(0), tokenId, 0);
 
         hevm.expectRevert(abi.encodePacked("not owner of Patron NFT"));
         hevm.prank(ownerOfAlchemechNFT);
-        flux.nftClaim(patronNFT, tokenId);
+        flux.nftClaim(patronNFT, tokenId, 0);
 
         hevm.expectRevert(abi.encodePacked("not owner of Alchemech NFT"));
         hevm.prank(ownerOfPatronNFT);
-        flux.nftClaim(alchemechNFT, tokenId);
+        flux.nftClaim(alchemechNFT, tokenId, 0);
 
         // Attempt to claim twice
         hevm.startPrank(ownerOfPatronNFT);
-        flux.nftClaim(patronNFT, tokenId);
+        flux.nftClaim(patronNFT, tokenId, 0);
 
         hevm.expectRevert(abi.encodePacked("already claimed"));
-        flux.nftClaim(patronNFT, tokenId);
+        flux.nftClaim(patronNFT, tokenId, 0);
         hevm.stopPrank();
 
         // Attempt to claim after claim period (1 year)
         hevm.warp(block.timestamp + 366 days);
         hevm.expectRevert(abi.encodePacked("claim period has passed"));
-        flux.nftClaim(patronNFT, tokenId);
+        flux.nftClaim(patronNFT, tokenId, 0);
     }
 
     function testFluxAccrual() external {
