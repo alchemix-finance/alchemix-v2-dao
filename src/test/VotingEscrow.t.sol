@@ -649,11 +649,6 @@ contract VotingEscrowTest is BaseTest {
     function testCircumventLockingPeriod() public {
         uint256 tokenId = createVeAlcx(admin, TOKEN_1, THREE_WEEKS, false);
 
-        uint256 startBalance = veALCX.balanceOfToken(tokenId);
-        uint256 startSupply = veALCX.totalSupply();
-        console.log("startSupply:", startSupply);
-        console.log("startBalance:", startBalance);
-
         uint256 ragequitAmount = veALCX.amountToRagequit(tokenId);
 
         // Mint the necessary amount of flux to ragequit
