@@ -425,18 +425,18 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
     }
 
     /**
-     * @dev Internal cancel mechanism: locks up the proposal timer, preventing it from being re-submitted. Marks it as
+     * @dev Governance cancel mechanism: locks up the proposal timer, preventing it from being re-submitted. Marks it as
      * canceled to allow distinguishing it from executed proposals.
      *
      * Emits a {IGovernor-ProposalCanceled} event.
      */
-    function _cancel(
+    function cancel(
         address[] memory targets,
         uint256[] memory values,
         bytes[] memory calldatas,
         bytes32 descriptionHash,
         uint256 chainId
-    ) internal virtual returns (uint256) {
+    ) internal virtual onlyGovernance returns (uint256) {
         uint256 proposalId = hashProposal(targets, values, calldatas, descriptionHash, chainId);
         ProposalState status = state(proposalId);
 
