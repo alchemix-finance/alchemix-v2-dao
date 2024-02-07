@@ -47,7 +47,7 @@ contract RevenueHandler is IRevenueHandler, Ownable {
         uint256 lastClaimEpoch;
     }
 
-    uint256 internal constant WEEK = 1 weeks;
+    uint256 internal constant WEEK = 1 days;
     uint256 internal constant BPS = 10_000;
 
     address public immutable veALCX;

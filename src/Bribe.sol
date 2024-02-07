@@ -13,8 +13,8 @@ import "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
  * @notice Implementation of bribe contract to be used with gauges
  */
 contract Bribe is IBribe {
-    uint256 internal constant DURATION = 2 weeks; // Rewards released over voting period
-    uint256 internal constant BRIBE_LAG = 1 days;
+    uint256 internal constant DURATION = 1 days; // Rewards released over voting period
+    uint256 internal constant BRIBE_LAG = 1 days / 10;
     uint256 internal constant MAX_REWARD_TOKENS = 16;
 
     /// @notice The number of checkpoints

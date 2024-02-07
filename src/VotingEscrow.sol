@@ -28,12 +28,12 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
     string public constant version = "1.0.0";
     uint8 public immutable decimals = 18;
 
-    uint256 public constant EPOCH = 2 weeks;
+    uint256 public constant EPOCH = 1 days;
     uint256 public constant MAX_DELEGATES = 1024; // avoid too much gas
     uint256 public constant MAXTIME = 365 days;
     uint256 public constant MULTIPLIER = 2;
 
-    uint256 internal immutable WEEK = 1 weeks;
+    uint256 internal immutable WEEK = 1 days;
     uint256 internal immutable BPS = 10_000;
 
     int256 internal constant iMAXTIME = 365 days;
@@ -734,7 +734,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
         _checkpoint(_tokenId, _locked, LockedBalance(0, 0, false, 0));
 
         // Withdraws BPT from reward pool
-        require(IRewardPoolManager(rewardPoolManager).withdrawFromRewardPool(value));
+        // require(IRewardPoolManager(rewardPoolManager).withdrawFromRewardPool(value));
 
         require(IERC20(BPT).transfer(ownerOf(_tokenId), value));
 
@@ -1320,12 +1320,12 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
 
         address from = msg.sender;
         if (_value != 0 && depositType != DepositType.MERGE_TYPE) {
-            require(IERC20(BPT).transferFrom(from, rewardPoolManager, _value));
+            require(IERC20(BPT).transferFrom(from, address(this), _value));
             // Deposits BPT into reward pool
-            require(
-                IRewardPoolManager(rewardPoolManager).depositIntoRewardPool(_value),
-                "Deposit into reward pool failed"
-            );
+            // require(
+            //     IRewardPoolManager(rewardPoolManager).depositIntoRewardPool(_value),
+            //     "Deposit into reward pool failed"
+            // );
         }
 
         emit Deposit(from, _tokenId, _value, _locked.end, _locked.maxLockEnabled, depositType, block.timestamp);

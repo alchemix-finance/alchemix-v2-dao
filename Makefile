@@ -75,3 +75,35 @@ test_file_debug_test :; FOUNDRY_PROFILE=$(PROFILE) forge test $(FORK_URL) $(MATC
 
 # runs single test within file with added verbosity for failing test from a given block: "make test_file_block_debug_test FILE=Minter TEST=testUnwrap"
 test_file_block_debug_test :; FOUNDRY_PROFILE=$(PROFILE) forge test $(FORK_URL) $(MATCH_PATH) $(MATCH_TEST) $(FORK_BLOCK) -vvv
+
+# shortcuts for deploying contracts
+
+# Mainnet rpc url
+RPC=https://eth-mainnet.alchemyapi.io/v2/$(ALCHEMY_API_MAINNET_KEY)
+
+# Sepolia rpc url 
+TESTNET_RPC=https://sepolia.infura.io/v3/$(INFURA_API_KEY)
+
+# add constructor args as needed (weth, balancer vault, sushi router)
+ARGS=--constructor-args 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
+
+# etherscan verification
+VERIFY=--etherscan-api-key $(ETHERSCAN_API_KEY) --verify
+
+# private key for deployment
+KEY=--private-key $(PRIVATE_KEY)
+
+# Mainnet deployment command
+DEPLOY_MAINNET=--rpc-url $(RPC) $(ARGS) $(KEY) $(VERIFY) src/$(FILE).sol:$(FILE)
+
+# Sepolia deployment command
+DEPLOY_SEPOLIA=--rpc-url $(TESTNET_RPC) $(ARGS) $(KEY) $(VERIFY) src/$(FILE).sol:$(FILE)
+
+# Deploy a contract to mainnet (assumes file and contract name match) "make deploy_mainnet FILE=<filename>"
+deploy_mainnet :; forge create $(DEPLOY_MAINNET)
+
+# Deploy a contract to sepolia (assumes file and contract name match) "make deploy_sepolia FILE=<filename>"
+deploy_sepolia :; forge create $(DEPLOY_SEPOLIA)
+
+forge_script :; forge script script/VeAlcxTest.s.sol:VeAlcxScript --rpc-url $(TESTNET_RPC) $(KEY) --broadcast --verify -vvvv 
+

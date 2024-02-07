@@ -23,7 +23,7 @@ import { WeightedMath } from "src/interfaces/balancer/WeightedMath.sol";
 contract RewardsDistributor is IRewardsDistributor, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
-    uint256 public immutable WEEK = 1 weeks;
+    uint256 public immutable WEEK = 1 days;
     address public immutable BURN_ADDRESS = address(0);
     uint256 public immutable BPS = 10_000;
 
@@ -159,6 +159,7 @@ contract RewardsDistributor is IRewardsDistributor, ReentrancyGuard {
 
         tokenLastBalance -= alcxAmount;
 
+        // This will fail on testnet
         if (_compound) {
             (uint256 wethAmount, uint256[] memory normalizedWeights) = amountToCompound(alcxAmount);
 

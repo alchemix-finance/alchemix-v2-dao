@@ -21,7 +21,7 @@ contract Minter is IMinter {
     using SafeMath for uint256;
 
     // Allows minting once per epoch (epoch = 2 week, reset every Thursday 00:00 UTC)
-    uint256 public immutable DURATION = 2 weeks;
+    uint256 public immutable DURATION = 1 days;
     uint256 public immutable BPS = 10_000;
     uint256 public constant TAIL_EMISSIONS_RATE = 2194e18; // Tail emissions rate
 
