@@ -27,7 +27,7 @@ contract RewardsDistributor is IRewardsDistributor, ReentrancyGuard {
     address public immutable BURN_ADDRESS = address(0);
     uint256 public immutable BPS = 10_000;
 
-    bytes32 public balancerPoolId;
+    // bytes32 public balancerPoolId;
 
     uint256 public startTime;
     uint256 public timeCursor;
@@ -62,12 +62,12 @@ contract RewardsDistributor is IRewardsDistributor, ReentrancyGuard {
         WETH = IWETH9(_weth);
         balancerVault = IVault(_balancerVault);
         balancerPool = IBasePool(address(lockedToken));
-        balancerPoolId = balancerPool.getPoolId();
+        // balancerPoolId = balancerPool.getPoolId();
         priceFeed = AggregatorV3Interface(_priceFeed);
         depositor = msg.sender;
         IERC20(lockedToken).approve(_votingEscrow, type(uint256).max);
         IERC20(rewardsToken).approve(address(balancerVault), type(uint256).max);
-        WETH.approve(address(balancerVault), type(uint256).max);
+        // WETH.approve(address(balancerVault), type(uint256).max);
         poolAssets[0] = IAsset(address(WETH));
         poolAssets[1] = IAsset(rewardsToken);
     }
@@ -85,7 +85,7 @@ contract RewardsDistributor is IRewardsDistributor, ReentrancyGuard {
 
     /// @inheritdoc IRewardsDistributor
     function getBalancerInfo() external view returns (bytes32, address, address) {
-        return (balancerPoolId, address(balancerPool), address(balancerVault));
+        return (bytes32(0), address(balancerPool), address(balancerVault));
     }
 
     function timestamp() external view returns (uint256) {
@@ -161,27 +161,27 @@ contract RewardsDistributor is IRewardsDistributor, ReentrancyGuard {
 
         // This will fail on testnet
         if (_compound) {
-            (uint256 wethAmount, uint256[] memory normalizedWeights) = amountToCompound(alcxAmount);
+            // (uint256 wethAmount, uint256[] memory normalizedWeights) = amountToCompound(alcxAmount);
 
-            require(
-                msg.value >= wethAmount || WETH.balanceOf(msg.sender) >= wethAmount,
-                "insufficient balance to compound"
-            );
+            // require(
+            //     msg.value >= wethAmount || WETH.balanceOf(msg.sender) >= wethAmount,
+            //     "insufficient balance to compound"
+            // );
 
-            // Wrap eth if necessary
-            if (msg.value > 0) {
-                WETH.deposit{ value: wethAmount }();
-            } else IERC20(address(WETH)).safeTransferFrom(msg.sender, address(this), wethAmount);
+            // // Wrap eth if necessary
+            // if (msg.value > 0) {
+            //     WETH.deposit{ value: wethAmount }();
+            // } else IERC20(address(WETH)).safeTransferFrom(msg.sender, address(this), wethAmount);
 
-            _depositIntoBalancerPool(wethAmount, alcxAmount, normalizedWeights);
+            // _depositIntoBalancerPool(wethAmount, alcxAmount, normalizedWeights);
 
-            IVotingEscrow(votingEscrow).depositFor(_tokenId, IERC20(lockedToken).balanceOf(address(this)));
+            // IVotingEscrow(votingEscrow).depositFor(_tokenId, IERC20(lockedToken).balanceOf(address(this)));
 
-            // Return excess ETH if necessary
-            if (msg.value > wethAmount) {
-                (bool sent, ) = payable(msg.sender).call{ value: msg.value - wethAmount }("");
-                require(sent, "Failed to send Ether");
-            }
+            // // Return excess ETH if necessary
+            // if (msg.value > wethAmount) {
+            //     (bool sent, ) = payable(msg.sender).call{ value: msg.value - wethAmount }("");
+            //     require(sent, "Failed to send Ether");
+            // }
 
             return alcxAmount;
         } else {
@@ -379,44 +379,44 @@ contract RewardsDistributor is IRewardsDistributor, ReentrancyGuard {
         return (toDistribute, userEpoch, maxUserEpoch, weekCursor);
     }
 
-    /**
-     * @notice Claim ALCX rewards for a given veALCX position
-     * @param _wethAmount Amount of WETH to deposit into pool
-     * @param _alcxAmount Amount of ALCX to deposit into pool
-     * @param _normalizedWeights Weight of ALCX and WETH
-     */
-    function _depositIntoBalancerPool(
-        uint256 _wethAmount,
-        uint256 _alcxAmount,
-        uint256[] memory _normalizedWeights
-    ) internal {
-        (, uint256[] memory balances, ) = balancerVault.getPoolTokens(balancerPoolId);
+    // /**
+    //  * @notice Claim ALCX rewards for a given veALCX position
+    //  * @param _wethAmount Amount of WETH to deposit into pool
+    //  * @param _alcxAmount Amount of ALCX to deposit into pool
+    //  * @param _normalizedWeights Weight of ALCX and WETH
+    //  */
+    // function _depositIntoBalancerPool(
+    //     uint256 _wethAmount,
+    //     uint256 _alcxAmount,
+    //     uint256[] memory _normalizedWeights
+    // ) internal {
+    //     (, uint256[] memory balances, ) = balancerVault.getPoolTokens(balancerPoolId);
 
-        uint256[] memory amountsIn = new uint256[](2);
-        amountsIn[0] = _wethAmount;
-        amountsIn[1] = _alcxAmount;
+    //     uint256[] memory amountsIn = new uint256[](2);
+    //     amountsIn[0] = _wethAmount;
+    //     amountsIn[1] = _alcxAmount;
 
-        uint256 bptAmountOut = WeightedMath._calcBptOutGivenExactTokensIn(
-            balances,
-            _normalizedWeights,
-            amountsIn,
-            IERC20(address(balancerPool)).totalSupply(),
-            balancerPool.getSwapFeePercentage()
-        );
+    //     uint256 bptAmountOut = WeightedMath._calcBptOutGivenExactTokensIn(
+    //         balances,
+    //         _normalizedWeights,
+    //         amountsIn,
+    //         IERC20(address(balancerPool)).totalSupply(),
+    //         balancerPool.getSwapFeePercentage()
+    //     );
 
-        bytes memory _userData = abi.encode(
-            WeightedPoolUserData.JoinKind.EXACT_TOKENS_IN_FOR_BPT_OUT,
-            amountsIn,
-            bptAmountOut
-        );
+    //     bytes memory _userData = abi.encode(
+    //         WeightedPoolUserData.JoinKind.EXACT_TOKENS_IN_FOR_BPT_OUT,
+    //         amountsIn,
+    //         bptAmountOut
+    //     );
 
-        IVault.JoinPoolRequest memory request = IVault.JoinPoolRequest({
-            assets: poolAssets,
-            maxAmountsIn: amountsIn,
-            userData: _userData,
-            fromInternalBalance: false
-        });
+    //     IVault.JoinPoolRequest memory request = IVault.JoinPoolRequest({
+    //         assets: poolAssets,
+    //         maxAmountsIn: amountsIn,
+    //         userData: _userData,
+    //         fromInternalBalance: false
+    //     });
 
-        balancerVault.joinPool(balancerPoolId, address(this), address(this), request);
-    }
+    //     balancerVault.joinPool(balancerPoolId, address(this), address(this), request);
+    // }
 }

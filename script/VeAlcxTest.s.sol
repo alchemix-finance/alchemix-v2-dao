@@ -63,7 +63,6 @@ contract VeAlcxScript is Script {
         veALCX.setRewardPoolManager(dead);
 
         FluxToken(flux).mint(deployer, TOKEN_1M);
-        FluxToken(flux).setMinter(address(veALCX));
 
         timeGauge = admin;
         revenueHandler = new RevenueHandler(address(veALCX), admin, 0);
@@ -80,8 +79,8 @@ contract VeAlcxScript is Script {
         flux.setVeALCX(address(veALCX));
         flux.setVoter(address(voter));
 
-        timelockExecutor = dead;
-        governor = dead;
+        // timelockExecutor = dead;
+        // governor = dead;
 
         // veALCX.setVoter(address(voter));
         veALCX.setRewardsDistributor(address(distributor));

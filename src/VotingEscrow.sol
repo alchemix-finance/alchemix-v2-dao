@@ -397,17 +397,15 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
         External Functions 
     */
 
-    /**
-     * @notice Set the treasury address
-     * @param _treasury Address of the new treasury
-     */
+    // /**
+    //  * @notice Set the treasury address
+    //  * @param _treasury Address of the new treasury
+    //  */
     function setTreasury(address _treasury) external {
-        require(msg.sender == admin, "not admin");
-        require(_treasury != address(0), "treasury cannot be 0x0");
-
-        treasury = _treasury;
-
-        emit TreasuryUpdated(_treasury);
+        //     require(msg.sender == admin, "not admin");
+        //     require(_treasury != address(0), "treasury cannot be 0x0");
+        //     treasury = _treasury;
+        //     emit TreasuryUpdated(_treasury);
     }
 
     /// @inheritdoc IVotingEscrow
@@ -449,21 +447,21 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
         }
     }
 
-    /**
-     * @notice Transfers the ownership of an token from one address to another address.
-     * @dev Throws unless `msg.sender` is the current owner, an authorized operator, or the
-     *      approved address for this token.
-     *      Throws if `_from` is not the current owner.
-     *      Throws if `_to` is the zero address.
-     *      Throws if `_tokenId` is not a valid token.
-     *      If `_to` is a smart contract, it calls `onERC721Received` on `_to` and throws if
-     *      the return value is not `bytes4(keccak256("onERC721Received(address,address,uint256,bytes)"))`.
-     * @param _from The current owner of the token.
-     * @param _to The new owner.
-     * @param _tokenId ID of the token to transfer.
-     */
+    // /**
+    //  * @notice Transfers the ownership of an token from one address to another address.
+    //  * @dev Throws unless `msg.sender` is the current owner, an authorized operator, or the
+    //  *      approved address for this token.
+    //  *      Throws if `_from` is not the current owner.
+    //  *      Throws if `_to` is the zero address.
+    //  *      Throws if `_tokenId` is not a valid token.
+    //  *      If `_to` is a smart contract, it calls `onERC721Received` on `_to` and throws if
+    //  *      the return value is not `bytes4(keccak256("onERC721Received(address,address,uint256,bytes)"))`.
+    //  * @param _from The current owner of the token.
+    //  * @param _to The new owner.
+    //  * @param _tokenId ID of the token to transfer.
+    //  */
     function safeTransferFrom(address _from, address _to, uint256 _tokenId) external {
-        safeTransferFrom(_from, _to, _tokenId, "");
+        //     safeTransferFrom(_from, _to, _tokenId, "");
     }
 
     /**
@@ -509,8 +507,8 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
      * @param delegatee The address to delegate votes to
      */
     function delegate(address delegatee) public {
-        if (delegatee == address(0)) delegatee = msg.sender;
-        return _delegate(msg.sender, delegatee);
+        // if (delegatee == address(0)) delegatee = msg.sender;
+        // return _delegate(msg.sender, delegatee);
     }
 
     // Not supported
@@ -522,7 +520,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
         bytes32 r,
         bytes32 s
     ) public override {
-        revert("function not supported");
+        // revert("function not supported");
     }
 
     function setVoter(address _voter) external {
@@ -563,10 +561,10 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
     }
 
     function setfluxMultiplier(uint256 _fluxMultiplier) external {
-        require(msg.sender == admin, "not admin");
-        require(_fluxMultiplier > 0, "fluxMultiplier must be greater than 0");
-        fluxMultiplier = _fluxMultiplier;
-        emit FluxMultiplierUpdated(_fluxMultiplier);
+        //     require(msg.sender == admin, "not admin");
+        //     require(_fluxMultiplier > 0, "fluxMultiplier must be greater than 0");
+        //     fluxMultiplier = _fluxMultiplier;
+        //     emit FluxMultiplierUpdated(_fluxMultiplier);
     }
 
     function setAdmin(address _admin) external {
@@ -581,15 +579,15 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
     }
 
     function setfluxPerVeALCX(uint256 _fluxPerVeALCX) external {
-        require(msg.sender == admin, "not admin");
-        fluxPerVeALCX = _fluxPerVeALCX;
-        emit FluxPerVeALCXUpdated(_fluxPerVeALCX);
+        //     require(msg.sender == admin, "not admin");
+        //     fluxPerVeALCX = _fluxPerVeALCX;
+        //     emit FluxPerVeALCXUpdated(_fluxPerVeALCX);
     }
 
     function setClaimFee(uint256 _claimFeeBps) external {
-        require(msg.sender == admin, "not admin");
-        claimFeeBps = _claimFeeBps;
-        emit ClaimFeeUpdated(_claimFeeBps);
+        //     require(msg.sender == admin, "not admin");
+        //     claimFeeBps = _claimFeeBps;
+        //     emit ClaimFeeUpdated(_claimFeeBps);
     }
 
     function merge(uint256 _from, uint256 _to) external {
@@ -1034,91 +1032,76 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
     }
 
     function _moveAllDelegates(address owner, address src, address dst) internal {
-        // You can only redelegate what you own
-        if (src != dst) {
-            if (src != address(0)) {
-                uint32 srcCheckpoints = numCheckpoints[src];
-                // If there are no checkpoints there is nothing to move
-                if (srcCheckpoints > 0) {
-                    // Get the old array of tokenIds
-                    uint256[] memory srcTokensOld = checkpoints[src][srcCheckpoints - 1].tokenIds;
-                    // Determine the new array's length leaving out tokenIds owned by owner
-                    uint256 count = 0;
-                    for (uint256 i = 0; i < srcTokensOld.length; i++) {
-                        if (idToOwner[srcTokensOld[i]] != owner) {
-                            count++;
-                        }
-                    }
-
-                    uint256[] memory srcTokensNew = new uint256[](count);
-                    uint256 index = 0;
-
-                    // Copy array of tokenIds except what owner owns
-                    for (uint256 i = 0; i < srcTokensOld.length; i++) {
-                        uint256 tId = srcTokensOld[i];
-                        if (idToOwner[tId] != owner) {
-                            srcTokensNew[index++] = tId;
-                        }
-                    }
-
-                    // Find the index of the checkpoint to create or update
-                    uint32 srcIndex = _findWhatCheckpointToWrite(src);
-
-                    // src has a new or updated checkpoint with the tokenId removed
-                    checkpoints[src][srcIndex] = Checkpoint({ timestamp: block.timestamp, tokenIds: srcTokensNew });
-
-                    // Add to numCheckpoints if the last checkpoint is different from the current block timestamp
-                    if (srcCheckpoints == 0 || checkpoints[src][srcCheckpoints - 1].timestamp != block.timestamp) {
-                        numCheckpoints[src] = srcCheckpoints + 1;
-                    }
-                }
-            }
-
-            if (dst != address(0)) {
-                uint32 dstCheckpoints = numCheckpoints[dst];
-                uint256[] memory dstTokensOld = dstCheckpoints > 0
-                    ? checkpoints[dst][dstCheckpoints - 1].tokenIds
-                    : checkpoints[dst][0].tokenIds;
-
-                uint256 ownerTokenCount = ownerToTokenCount[owner];
-                require(dstTokensOld.length + ownerTokenCount <= MAX_DELEGATES, "dst would have too many tokenIds");
-
-                // Create a new array of tokenIds, with the owner's tokens added
-                uint256[] memory dstTokensNew = new uint256[](dstTokensOld.length + ownerTokenCount);
-
-                // Copy array
-                for (uint256 i = 0; i < dstTokensOld.length; i++) {
-                    dstTokensNew[i] = dstTokensOld[i];
-                }
-
-                // Plus all that's owned
-                for (uint256 i = 0; i < ownerTokenCount; i++) {
-                    uint256 tId = ownerToTokenIdList[owner][i];
-                    dstTokensNew[dstTokensOld.length + i] = tId;
-                }
-
-                // Find the index of the checkpoint to create or update
-                uint32 dstIndex = _findWhatCheckpointToWrite(dst);
-
-                // dst has a new or updated checkpoint with the _tokenId added
-                checkpoints[dst][dstIndex] = Checkpoint({ timestamp: block.timestamp, tokenIds: dstTokensNew });
-
-                // Add to numCheckpoints if the last checkpoint is different from the current block timestamp
-                if (dstCheckpoints == 0 || checkpoints[dst][dstCheckpoints - 1].timestamp != block.timestamp) {
-                    numCheckpoints[dst] = dstCheckpoints + 1;
-                }
-            }
-        }
+        // // You can only redelegate what you own
+        // if (src != dst) {
+        //     if (src != address(0)) {
+        //         uint32 srcCheckpoints = numCheckpoints[src];
+        //         // If there are no checkpoints there is nothing to move
+        //         if (srcCheckpoints > 0) {
+        //             // Get the old array of tokenIds
+        //             uint256[] memory srcTokensOld = checkpoints[src][srcCheckpoints - 1].tokenIds;
+        //             // Determine the new array's length leaving out tokenIds owned by owner
+        //             uint256 count = 0;
+        //             for (uint256 i = 0; i < srcTokensOld.length; i++) {
+        //                 if (idToOwner[srcTokensOld[i]] != owner) {
+        //                     count++;
+        //                 }
+        //             }
+        //             uint256[] memory srcTokensNew = new uint256[](count);
+        //             uint256 index = 0;
+        //             // Copy array of tokenIds except what owner owns
+        //             for (uint256 i = 0; i < srcTokensOld.length; i++) {
+        //                 uint256 tId = srcTokensOld[i];
+        //                 if (idToOwner[tId] != owner) {
+        //                     srcTokensNew[index++] = tId;
+        //                 }
+        //             }
+        //             // Find the index of the checkpoint to create or update
+        //             uint32 srcIndex = _findWhatCheckpointToWrite(src);
+        //             // src has a new or updated checkpoint with the tokenId removed
+        //             checkpoints[src][srcIndex] = Checkpoint({ timestamp: block.timestamp, tokenIds: srcTokensNew });
+        //             // Add to numCheckpoints if the last checkpoint is different from the current block timestamp
+        //             if (srcCheckpoints == 0 || checkpoints[src][srcCheckpoints - 1].timestamp != block.timestamp) {
+        //                 numCheckpoints[src] = srcCheckpoints + 1;
+        //             }
+        //         }
+        //     }
+        //     if (dst != address(0)) {
+        //         uint32 dstCheckpoints = numCheckpoints[dst];
+        //         uint256[] memory dstTokensOld = dstCheckpoints > 0
+        //             ? checkpoints[dst][dstCheckpoints - 1].tokenIds
+        //             : checkpoints[dst][0].tokenIds;
+        //         uint256 ownerTokenCount = ownerToTokenCount[owner];
+        //         require(dstTokensOld.length + ownerTokenCount <= MAX_DELEGATES, "dst would have too many tokenIds");
+        //         // Create a new array of tokenIds, with the owner's tokens added
+        //         uint256[] memory dstTokensNew = new uint256[](dstTokensOld.length + ownerTokenCount);
+        //         // Copy array
+        //         for (uint256 i = 0; i < dstTokensOld.length; i++) {
+        //             dstTokensNew[i] = dstTokensOld[i];
+        //         }
+        //         // Plus all that's owned
+        //         for (uint256 i = 0; i < ownerTokenCount; i++) {
+        //             uint256 tId = ownerToTokenIdList[owner][i];
+        //             dstTokensNew[dstTokensOld.length + i] = tId;
+        //         }
+        //         // Find the index of the checkpoint to create or update
+        //         uint32 dstIndex = _findWhatCheckpointToWrite(dst);
+        //         // dst has a new or updated checkpoint with the _tokenId added
+        //         checkpoints[dst][dstIndex] = Checkpoint({ timestamp: block.timestamp, tokenIds: dstTokensNew });
+        //         // Add to numCheckpoints if the last checkpoint is different from the current block timestamp
+        //         if (dstCheckpoints == 0 || checkpoints[dst][dstCheckpoints - 1].timestamp != block.timestamp) {
+        //             numCheckpoints[dst] = dstCheckpoints + 1;
+        //         }
+        //     }
+        // }
     }
 
     function _delegate(address delegator, address delegatee) internal {
-        /// @notice differs from `_delegate()` in `Comp.sol` to use `delegates` override method to simulate auto-delegation
-        address currentDelegate = delegates(delegator);
-
-        _delegates[delegator] = delegatee;
-
-        emit DelegateChanged(delegator, currentDelegate, delegatee);
-        _moveAllDelegates(delegator, currentDelegate, delegatee);
+        // /// @notice differs from `_delegate()` in `Comp.sol` to use `delegates` override method to simulate auto-delegation
+        // address currentDelegate = delegates(delegator);
+        // _delegates[delegator] = delegatee;
+        // emit DelegateChanged(delegator, currentDelegate, delegatee);
+        // _moveAllDelegates(delegator, currentDelegate, delegatee);
     }
 
     /**

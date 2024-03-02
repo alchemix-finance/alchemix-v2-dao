@@ -82,7 +82,7 @@ test_file_block_debug_test :; FOUNDRY_PROFILE=$(PROFILE) forge test $(FORK_URL) 
 RPC=https://eth-mainnet.alchemyapi.io/v2/$(ALCHEMY_API_MAINNET_KEY)
 
 # Sepolia rpc url 
-TESTNET_RPC=https://sepolia.infura.io/v3/$(INFURA_API_KEY)
+TESTNET_RPC=https://eth-sepolia.g.alchemy.com/v2/$(ALCHEMY_API_KEY_SEPOLIA)
 
 # add constructor args as needed (weth, balancer vault, sushi router)
 ARGS=--constructor-args 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
@@ -107,3 +107,18 @@ deploy_sepolia :; forge create $(DEPLOY_SEPOLIA)
 
 forge_script :; forge script script/VeAlcxTest.s.sol:VeAlcxScript --rpc-url $(TESTNET_RPC) $(KEY) --broadcast --verify -vvvv 
 
+
+
+VotingEscrow 		0x6aA3223F4D250065C5194ee243d1D2C29D594033
+AlcxBpt 			0x4dEDC07770A50F1a702C5C8b2AFD38Da46bE6072
+Alcx 				0xdd9457fC996596b10aA01e4FFB4F65Ada2A63C3e
+FluxToken 			0x2eEFEdce52f4C4dC5f89bFc8c4A6602E0fE6c19F
+RewardPoolManager 	0xaAF0fc4fE1CDA6da8A1B076E532498940f6f0A11
+RevenueHandler 		0xEf2539ad4BF8752809006E2e22A32ED80348a40d
+GaugeFactory 		0x6ceCDfbA15ef61Cb67198E710AFDa69ECE074191
+BribeFactory 		0x03a53bcA6E1CDcBA666960Fd98bac1536Ac5f696
+Voter 				0x269d2c7275140fd466008Ec2aA4d1FDfF0c2EAe3
+RewardsDistributor 	0xc304CbC791aa2dF8D6d1F6e79cC3fd68d1E3b48f
+Minter 				0xc5eF0072f821afa016e33fD8D8476BF202735749
+Bribe 				0x24fEaDDaf29162528455c7bf3D8bE1449e6152ba
+PassthroughGauge 	0x157EE60B60D7ccfDF814A4366909099370D919f5
