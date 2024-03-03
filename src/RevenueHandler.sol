@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3
 pragma solidity ^0.8.15;
 
+import "lib/forge-std/src/console2.sol";
+
 import "src/interfaces/IRevenueHandler.sol";
 import "src/interfaces/IPoolAdapter.sol";
 import "src/interfaces/IVotingEscrow.sol";
@@ -194,6 +196,8 @@ contract RevenueHandler is IRevenueHandler, Ownable {
 
         // If the alchemist is defined we know it has an alchemic-token
         if (alchemists[alchemist] != address(0)) {
+            require(token == IAlchemistV2(alchemist).debtToken(), "Invalid alchemist/alchemic-token pair");
+
             (, address[] memory deposits) = IAlchemistV2(alchemist).accounts(recipient);
             IERC20(token).approve(alchemist, amount);
 

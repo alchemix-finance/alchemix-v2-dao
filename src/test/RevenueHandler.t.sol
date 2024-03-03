@@ -275,6 +275,8 @@ contract RevenueHandlerTest is BaseTest {
     }
 
     function testClaimRevenueOneEpoch() external {
+        revenueHandler.addAlchemicToken(address(alethAlchemist));
+
         uint256 revAmt = 1000e18;
         uint256 tokenId = _setupClaimableRevenue(revAmt);
 
@@ -285,7 +287,11 @@ contract RevenueHandlerTest is BaseTest {
         uint256 debtAmt = 5000e18;
         _takeDebt(debtAmt);
 
+        hevm.expectRevert(abi.encodePacked("Invalid alchemist/alchemic-token pair"));
+        revenueHandler.claim(tokenId, alusd, address(alethAlchemist), claimable, address(this));
+
         revenueHandler.claim(tokenId, alusd, address(alusdAlchemist), claimable, address(this));
+
         (int256 finalDebt, ) = alusdAlchemist.accounts(address(this));
         assertApproxEq(debtAmt - claimable, uint256(finalDebt), uint256(finalDebt) / DELTA);
     }
