@@ -21,7 +21,7 @@ contract VotingTest is BaseTest {
         hevm.warp(period + nextEpoch);
         hevm.roll(block.number + 1);
 
-        minter.updatePeriod();
+        voter.distribute();
 
         uint256 distributorBal2 = alcx.balanceOf(address(distributor));
         uint256 voterBal2 = alcx.balanceOf(address(voter));
@@ -44,7 +44,7 @@ contract VotingTest is BaseTest {
         hevm.prank(admin);
         voter.vote(tokenId, pools, weights, 0);
 
-        minter.updatePeriod();
+        voter.distribute();
 
         uint256 distributorBal3 = alcx.balanceOf(address(distributor));
         uint256 voterBal3 = alcx.balanceOf(address(voter));
@@ -95,7 +95,7 @@ contract VotingTest is BaseTest {
 
         // Move forward a week relative to period
         hevm.warp(period + nextEpoch);
-        minter.updatePeriod();
+        voter.distribute();
 
         hevm.startPrank(admin);
         voter.claimBribes(bribes, tokens, tokenId);
@@ -410,7 +410,7 @@ contract VotingTest is BaseTest {
         assertEq(TOKEN_100K, IERC20(bal).balanceOf(bribeAddress), "bribe contract missing bribes");
 
         // Epoch start should equal the current block.timestamp rounded to a week
-        assertEq(block.timestamp - (block.timestamp % (7 days)), IBribe(bribeAddress).getEpochStart(block.timestamp));
+        assertEq(block.timestamp - (block.timestamp % (2 weeks)), IBribe(bribeAddress).getEpochStart(block.timestamp));
 
         // Rewards list should increase after adding bribe
         assertEq(IBribe(bribeAddress).rewardsListLength(), rewardsLength + 1);
@@ -540,7 +540,7 @@ contract VotingTest is BaseTest {
         hevm.prank(beef);
         voter.vote(tokenId2, pools, weights, 0);
 
-        minter.updatePeriod();
+        voter.distribute();
 
         uint256 earnedBribes1 = IBribe(bribeAddress).earned(bal, tokenId1);
         uint256 earnedBribes2 = IBribe(bribeAddress).earned(bal, tokenId2);
@@ -615,7 +615,7 @@ contract VotingTest is BaseTest {
         hevm.prank(holder);
         voter.poke(tokenId3);
 
-        minter.updatePeriod();
+        voter.distribute();
 
         hevm.warp(block.timestamp + nextEpoch);
 
@@ -665,8 +665,8 @@ contract VotingTest is BaseTest {
         assertEq(earnedBribes0, 0, "no bribes should be earned yet");
 
         // Start second epoch
-        hevm.warp(block.timestamp + nextEpoch);
-        minter.updatePeriod();
+        hevm.warp(newEpoch());
+        voter.distribute();
 
         uint256 earnedBribes1 = IBribe(bribeAddress).earned(bal, tokenId1);
 
@@ -688,8 +688,8 @@ contract VotingTest is BaseTest {
         assertEq(earnedBribes1, IERC20(bal).balanceOf(admin), "admin should receive bribes");
 
         // Start third epoch
-        hevm.warp(block.timestamp + nextEpoch);
-        minter.updatePeriod();
+        hevm.warp(newEpoch());
+        voter.distribute();
 
         uint256 earnedBribes2 = IBribe(bribeAddress).earned(bal, tokenId2);
         assertEq(earnedBribes2, earnedBribes1, "earned bribes from previous epoch should remain");
@@ -700,8 +700,8 @@ contract VotingTest is BaseTest {
         assertEq(earnedBribes1 + earnedBribes2, IERC20(bal).balanceOf(admin), "admin should receive both bribes");
 
         // Start fourth epoch
-        hevm.warp(block.timestamp + nextEpoch);
-        minter.updatePeriod();
+        hevm.warp(newEpoch());
+        voter.distribute();
 
         // Add more bribes
         createThirdPartyBribe(bribeAddress, bal, TOKEN_100K);
@@ -720,8 +720,8 @@ contract VotingTest is BaseTest {
         voter.vote(tokenId1, pools, weights, 0);
 
         // Start fifth epoch
-        hevm.warp(block.timestamp + nextEpoch);
-        minter.updatePeriod();
+        hevm.warp(newEpoch());
+        voter.distribute();
 
         uint256 earnedBribes4 = IBribe(bribeAddress).earned(bal, tokenId1);
 
@@ -843,8 +843,8 @@ contract VotingTest is BaseTest {
         voter.vote(tokenId1, pools, weights, 0);
 
         // ------------------- Start second epoch i+1
-        hevm.warp(block.timestamp + nextEpoch);
-        minter.updatePeriod();
+        hevm.warp(newEpoch());
+        voter.distribute();
 
         uint256 earnedBribes1 = IBribe(bribeAddress).earned(bal, tokenId1);
         assertEq(earnedBribes1, TOKEN_100K, "bribes from voting should be earned");
@@ -856,17 +856,17 @@ contract VotingTest is BaseTest {
         assertEq(earnedBribes1, IERC20(bal).balanceOf(admin), "admin should receive bribes");
 
         // ------------------- Start third epoch i+3
-        hevm.warp(block.timestamp + nextEpoch);
-        minter.updatePeriod();
-        hevm.warp(block.timestamp + nextEpoch);
-        minter.updatePeriod();
+        hevm.warp(newEpoch());
+        voter.distribute();
+        hevm.warp(newEpoch());
+        voter.distribute();
         // in epoch i+3, admin votes again
         hevm.prank(admin);
         voter.vote(tokenId1, pools, weights, 0);
 
         // ------------------- Start fourth epoch i+4
-        hevm.warp(block.timestamp + nextEpoch);
-        minter.updatePeriod();
+        hevm.warp(newEpoch());
+        voter.distribute();
 
         // INTENDED BEHAVIOUR: since the bribes for epoch i were already claimed in epoch i+1
         // --and no more bribes were notified after that-- there should be no available earnings at epoch i+4.
@@ -907,8 +907,8 @@ contract VotingTest is BaseTest {
 
         assertEq(usedWeight1, usedWeight2, "used weight should be equal");
 
-        hevm.warp(block.timestamp + 6 days);
-        minter.updatePeriod();
+        hevm.warp(newEpoch());
+        voter.distribute();
 
         hevm.prank(dead);
         voter.vote(tokenId3, pools, weights, 0);
@@ -954,7 +954,7 @@ contract VotingTest is BaseTest {
 
         hevm.warp(block.timestamp + 5 weeks);
 
-        minter.updatePeriod();
+        voter.distribute();
 
         uint256 votingPower2 = veALCX.balanceOfToken(tokenId);
 
@@ -977,8 +977,8 @@ contract VotingTest is BaseTest {
     // veALCX voting power should decay to 0
     function testVotingPowerDecay() public {
         // Kick off epoch cycle
-        hevm.warp(block.timestamp + nextEpoch);
-        minter.updatePeriod();
+        hevm.warp(newEpoch());
+        voter.distribute();
 
         uint256 tokenId1 = createVeAlcx(admin, TOKEN_1, 3 weeks, false);
         uint256 tokenId2 = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
@@ -988,7 +988,7 @@ contract VotingTest is BaseTest {
         tokens[1] = tokenId2;
 
         address[] memory pools = new address[](1);
-        pools[0] = alETHPool;
+        pools[0] = sushiPoolAddress;
         uint256[] memory weights = new uint256[](1);
         weights[0] = 5000;
 
@@ -1001,8 +1001,8 @@ contract VotingTest is BaseTest {
         uint256 totalWeight1 = voter.totalWeight();
 
         // Move to the next epoch
-        hevm.warp(block.timestamp + nextEpoch);
-        minter.updatePeriod();
+        hevm.warp(newEpoch());
+        voter.distribute();
 
         // Move to when token1 expires
         hevm.warp(block.timestamp + 3 weeks);
@@ -1013,7 +1013,7 @@ contract VotingTest is BaseTest {
         voter.pokeTokens(tokens);
         hevm.startPrank(admin);
 
-        minter.updatePeriod();
+        voter.distribute();
 
         // tokenId1 represents user who voted once and expired
         uint256 usedWeight = voter.usedWeights(tokenId1);
@@ -1025,8 +1025,8 @@ contract VotingTest is BaseTest {
         assertGt(usedWeight1, usedWeight2, "used weight should decrease");
         assertGt(totalWeight1, totalWeight2, "total weight should decrease");
 
-        hevm.warp(block.timestamp + nextEpoch);
-        minter.updatePeriod();
+        hevm.warp(newEpoch());
+        voter.distribute();
 
         uint256 balance = veALCX.balanceOfToken(tokenId1);
 

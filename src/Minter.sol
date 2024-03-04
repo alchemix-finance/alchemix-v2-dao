@@ -122,6 +122,8 @@ contract Minter is IMinter {
 
     /// @inheritdoc IMinter
     function updatePeriod() external returns (uint256) {
+        require(msg.sender == address(voter), "not voter");
+
         uint256 period = activePeriod;
 
         if (block.timestamp >= period + DURATION && initializer == address(0)) {

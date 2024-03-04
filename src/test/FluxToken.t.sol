@@ -99,8 +99,8 @@ contract FluxTokenTest is BaseTest {
             hevm.prank(admin);
             voter.reset(tokenId);
 
-            hevm.warp(block.timestamp + nextEpoch);
-            minter.updatePeriod();
+            hevm.warp(newEpoch());
+            voter.distribute();
         }
 
         uint256 unclaimedFluxEnd = flux.getUnclaimedFlux(tokenId);

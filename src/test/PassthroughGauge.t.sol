@@ -44,7 +44,7 @@ contract PassthroughGaugeTest is BaseTest {
         hevm.warp(block.timestamp + nextEpoch);
 
         // Update gauges to get claimable rewards value
-        minter.updatePeriod();
+        voter.distribute();
         voter.updateFor(gauges);
 
         // Claimable rewards of each gauge

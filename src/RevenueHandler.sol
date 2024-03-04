@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-3
 pragma solidity ^0.8.15;
 
-import "lib/forge-std/src/console2.sol";
-
 import "src/interfaces/IRevenueHandler.sol";
 import "src/interfaces/IPoolAdapter.sol";
 import "src/interfaces/IVotingEscrow.sol";
@@ -49,7 +47,7 @@ contract RevenueHandler is IRevenueHandler, Ownable {
         uint256 lastClaimEpoch;
     }
 
-    uint256 internal constant WEEK = 1 weeks;
+    uint256 internal constant WEEK = 2 weeks;
     uint256 internal constant BPS = 10_000;
 
     address public immutable veALCX;

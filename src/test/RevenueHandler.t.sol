@@ -8,8 +8,8 @@ import "lib/v2-foundry/src/interfaces/IAlchemistV2.sol";
 import "lib/v2-foundry/src/interfaces/IWhitelist.sol";
 
 contract RevenueHandlerTest is BaseTest {
-    uint256 ONE_EPOCH_TIME = 1 weeks;
-    uint256 ONE_EPOCH_BLOCKS = (1 weeks) / 12;
+    uint256 ONE_EPOCH_TIME = 2 weeks;
+    uint256 ONE_EPOCH_BLOCKS = (2 weeks) / 12;
     uint256 DELTA = 65;
 
     IAlchemistV2 public alusdAlchemist = IAlchemistV2(0x5C6374a2ac4EBC38DeA0Fc1F8716e5Ea1AdD94dd);
@@ -262,7 +262,7 @@ contract RevenueHandlerTest is BaseTest {
         revenueHandler.claim(tokenId1, alusd, address(alusdAlchemist), claimable, address(this));
 
         hevm.warp(period + nextEpoch);
-        minter.updatePeriod();
+        voter.distribute();
 
         claimable = revenueHandler.claimable(tokenId1, alusd);
         uint256 claimable2 = revenueHandler.claimable(tokenId2, alusd);
