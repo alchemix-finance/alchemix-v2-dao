@@ -935,6 +935,61 @@ contract VotingTest is BaseTest {
         assertEq(IERC20(bal).balanceOf(admin), IERC20(bal).balanceOf(beef), "earned bribes are not equal");
     }
 
+    function testBugExtraCheckpoint() public {
+        uint256 tokenId1 = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+        uint256 tokenId2 = createVeAlcx(beef, TOKEN_1, MAXTIME, false);
+        address bribeAddress = voter.bribes(address(sushiGauge));
+
+        // Add BAL bribes to sushiGauge
+        createThirdPartyBribe(bribeAddress, bal, TOKEN_100K);
+
+        address[] memory pools = new address[](1);
+        pools[0] = sushiPoolAddress;
+        uint256[] memory weights = new uint256[](1);
+        weights[0] = 5000;
+
+        address[] memory bribes = new address[](1);
+        bribes[0] = address(bribeAddress);
+        address[][] memory tokens = new address[][](1);
+        tokens[0] = new address[](1);
+        tokens[0][0] = bal;
+
+        hevm.prank(admin);
+        voter.vote(tokenId1, pools, weights, 0);
+
+        hevm.prank(beef);
+        voter.vote(tokenId2, pools, weights, 0);
+
+        // Start second epoch i+1
+        hevm.warp(newEpoch());
+        voter.distribute();
+        createThirdPartyBribe(bribeAddress, bal, TOKEN_100K);
+
+        // When claiming a reward in contract Bribe a new checkpoint is added for the tokenId
+        hevm.prank(admin);
+        voter.claimBribes(bribes, tokens, tokenId1);
+
+        // A checkpoint in an epoch might exist even if the user did not actively vote.
+        // The user can therefore claim rewards for this epoch in the future,
+        // causing solvency issues as the users that voted cannot receive their share of bribes.
+
+        // If this is the case beef wouldn't be able to claim all of the bribes from epoch i + 1
+        hevm.prank(beef);
+        voter.vote(tokenId2, pools, weights, 0);
+
+        hevm.warp(newEpoch());
+        voter.distribute();
+
+        // Beef should earn all of the bribes from epoch i + 1 in addition to their bribes from epoch i
+        assertEq(IBribe(bribeAddress).earned(bal, tokenId2), (TOKEN_100K / 2) + TOKEN_100K, "earned bribes incorrect");
+
+        hevm.prank(beef);
+        voter.claimBribes(bribes, tokens, tokenId2);
+
+        // This test failing indicates that the attack was successful
+        assertGt(IERC20(bal).balanceOf(beef), IERC20(bal).balanceOf(admin), "beef should capture more bribes");
+    }
+
     // Voting power should be dependent on epoch at which vote is cast
     function testVotingPower() public {
         uint256 tokenId1 = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
