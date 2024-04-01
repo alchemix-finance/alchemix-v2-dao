@@ -74,6 +74,7 @@ contract Bribe is IBribe {
 
     /// @inheritdoc IBribe
     function lastTimeRewardApplicable(address token) public view returns (uint256) {
+        // Return the current period if it's still active, otherwise return the next period
         return Math.min(block.timestamp, periodFinish[token]);
     }
 

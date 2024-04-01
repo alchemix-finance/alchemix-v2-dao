@@ -227,6 +227,8 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
      */
     function proposalEta(uint256 proposalId) external view virtual returns (uint256) {
         uint256 eta = _timelock.getTimestamp(_timelockIds[proposalId]);
+        // Returns the timestamp at which an operation becomes ready (0 for
+        //  * unset operations, 1 for done operations)
         return eta == 1 ? 0 : eta; // _DONE_TIMESTAMP (1) should be replaced with a 0 value
     }
 
