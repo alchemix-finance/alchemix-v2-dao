@@ -278,21 +278,6 @@ contract Voter is IVoter {
     }
 
     /// @inheritdoc IVoter
-    function attachTokenToGauge(uint256 tokenId, address account) external {
-        require(isGauge[msg.sender]);
-        require(isAlive[msg.sender]); // killed gauges cannot attach tokens to themselves
-        if (tokenId > 0) IVotingEscrow(veALCX).attach(tokenId);
-        emit Attach(account, msg.sender, tokenId);
-    }
-
-    /// @inheritdoc IVoter
-    function detachTokenFromGauge(uint256 tokenId, address account) external {
-        require(isGauge[msg.sender]);
-        if (tokenId > 0) IVotingEscrow(veALCX).detach(tokenId);
-        emit Detach(account, msg.sender, tokenId);
-    }
-
-    /// @inheritdoc IVoter
     function notifyRewardAmount(uint256 amount) external {
         require(msg.sender == minter, "only minter can send rewards");
         require(totalWeight > 0, "no votes");

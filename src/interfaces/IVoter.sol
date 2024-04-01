@@ -111,22 +111,6 @@ interface IVoter {
     function createGauge(address _pool, GaugeType _gaugeType) external returns (address);
 
     /**
-     * @notice Attach veALCX token to a gauge
-     * @param _tokenId ID of the token being attached
-     * @param account  Address of owner
-     * @dev Can only be called by an active gauge
-     */
-    function attachTokenToGauge(uint256 _tokenId, address account) external;
-
-    /**
-     * @notice Detach veALCX token to a gauge
-     * @param _tokenId ID of the token being detached
-     * @param account  Address of owner
-     * @dev Can only be called by a gauge
-     */
-    function detachTokenFromGauge(uint256 _tokenId, address account) external;
-
-    /**
      * @notice Send the distribution of emissions to the Voter contract
      * @param amount Amount of rewards being distributed
      */

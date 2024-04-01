@@ -552,16 +552,6 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
         voted[_tokenId] = false;
     }
 
-    function attach(uint256 _tokenId) external {
-        require(msg.sender == voter);
-        attachments[_tokenId] = attachments[_tokenId] + 1;
-    }
-
-    function detach(uint256 _tokenId) external {
-        require(msg.sender == voter);
-        attachments[_tokenId] = attachments[_tokenId] - 1;
-    }
-
     function setfluxMultiplier(uint256 _fluxMultiplier) external {
         require(msg.sender == admin, "not admin");
         require(_fluxMultiplier > 0, "fluxMultiplier must be greater than 0");

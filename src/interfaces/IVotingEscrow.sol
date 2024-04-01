@@ -191,10 +191,6 @@ interface IVotingEscrow {
 
     function abstain(uint256 tokenId) external;
 
-    function attach(uint256 tokenId) external;
-
-    function detach(uint256 tokenId) external;
-
     /**
      * @notice Record global data to checkpoint
      */
