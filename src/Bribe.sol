@@ -115,31 +115,21 @@ contract Bribe is IBribe {
 
     /// @inheritdoc IBribe
     function swapOutRewardToken(uint256 oldTokenIndex, address oldToken, address newToken) external {
-        require(msg.sender == voter);
-        require(IVoter(voter).isWhitelisted(newToken), "bribe tokens must be whitelisted");
-        require(rewards[oldTokenIndex] == oldToken);
-        require(newToken != address(0));
+        require(msg.sender == voter, "Only voter can execute");
+        require(IVoter(voter).isWhitelisted(newToken), "New token must be whitelisted");
+        require(rewards[oldTokenIndex] == oldToken, "Old token mismatch");
+        require(newToken != address(0), "New token cannot be zero address");
+
+        // Check that the newToken does not already exist in the rewards array
+        for (uint256 i = 0; i < rewards.length; i++) {
+            require(rewards[i] != newToken, "New token already exists");
+        }
 
         isReward[oldToken] = false;
         isReward[newToken] = true;
 
-        // Check if the newToken already exists in the rewards list
-        for (uint256 i = 0; i < rewards.length; i++) {
-            if (rewards[i] == newToken) {
-                // If it exists, swap out the old token
-                rewards[oldTokenIndex] = rewards[i];
-
-                // Then remove the duplicate
-                rewards[i] = rewards[rewards.length - 1];
-                rewards.pop();
-                break;
-            }
-        }
-
-        // If the old token wasn't updated, swap it out
-        if (rewards[oldTokenIndex] != newToken) {
-            rewards[oldTokenIndex] = newToken;
-        }
+        // Since we've now ensured the new token doesn't exist, we can safely update
+        rewards[oldTokenIndex] = newToken;
 
         emit RewardTokenSwapped(oldToken, newToken);
     }
