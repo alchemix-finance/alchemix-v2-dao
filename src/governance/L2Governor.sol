@@ -438,7 +438,7 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
         bytes[] memory calldatas,
         bytes32 descriptionHash,
         uint256 chainId
-    ) internal virtual onlyGovernance returns (uint256) {
+    ) public virtual onlyGovernance returns (uint256) {
         uint256 proposalId = hashProposal(targets, values, calldatas, descriptionHash, chainId);
         ProposalState status = state(proposalId);
 
