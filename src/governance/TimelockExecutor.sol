@@ -279,7 +279,7 @@ contract TimelockExecutor is AccessControl, IERC721Receiver, IERC1155Receiver {
         bytes32 predecessor,
         bytes32 descriptionHash,
         uint256 chainId
-    ) public payable virtual onlyRole(EXECUTOR_ROLE) {
+    ) public virtual onlyRole(EXECUTOR_ROLE) {
         require(targets.length == values.length, "TimelockExecutor: length mismatch");
         require(targets.length == payloads.length, "TimelockExecutor: length mismatch");
 
