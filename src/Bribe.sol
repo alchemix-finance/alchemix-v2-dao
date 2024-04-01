@@ -281,7 +281,6 @@ contract Bribe is IBribe {
             lastEarn[tokens[i]][tokenId] = block.timestamp;
 
             _writeCheckpoint(tokenId, balanceOf[tokenId]);
-            _writeSupplyCheckpoint();
 
             _safeTransfer(tokens[i], _owner, _reward);
 

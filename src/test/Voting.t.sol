@@ -735,6 +735,43 @@ contract VotingTest is BaseTest {
         );
     }
 
+    function testGetRewardForOwner() public {
+        uint256 tokenId1 = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+
+        address bribeAddress = voter.bribes(address(sushiGauge));
+
+        // Add BAL bribes to sushiGauge
+        createThirdPartyBribe(bribeAddress, bal, TOKEN_100K);
+
+        address[] memory pools = new address[](1);
+        pools[0] = sushiPoolAddress;
+        uint256[] memory weights = new uint256[](1);
+        weights[0] = 5000;
+
+        address[] memory bribes = new address[](1);
+        bribes[0] = address(bribeAddress);
+        address[][] memory tokens = new address[][](1);
+        tokens[0] = new address[](1);
+        tokens[0][0] = bal;
+
+        // in epoch i, user votes with balance x
+        hevm.prank(admin);
+        voter.vote(tokenId1, pools, weights, 0);
+
+        // Start second epoch i+1
+        hevm.warp(newEpoch());
+        createThirdPartyBribe(bribeAddress, bal, TOKEN_100K);
+
+        // Claim bribes from epoch i
+        hevm.prank(admin);
+        voter.claimBribes(bribes, tokens, tokenId1);
+
+        hevm.warp(newEpoch());
+        hevm.prank(admin);
+        hevm.expectRevert(abi.encodePacked("no rewards to claim"));
+        voter.claimBribes(bribes, tokens, tokenId1);
+    }
+
     function testBugTotalBribeWeights() public {
         // epoch i
         uint256 tokenId1 = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
