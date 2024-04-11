@@ -77,7 +77,9 @@ interface IMinter {
      */
     function updatePeriod() external returns (uint256);
 
+    //please describe what this function does and format it so it appears in the documentation
     function activePeriod() external view returns (uint256);
 
+    //please describe what this function does and format it so it appears in the documentation
     function DURATION() external view returns (uint256);
 }

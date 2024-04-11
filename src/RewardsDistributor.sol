@@ -28,7 +28,7 @@ contract RewardsDistributor is IRewardsDistributor, ReentrancyGuard {
     uint256 public immutable BPS = 10_000;
 
     bytes32 public balancerPoolId;
-
+    // please complete the descriptions for these state variables and format them for docs
     uint256 public startTime;
     uint256 public timeCursor;
     uint256 public lastTokenTime;
@@ -130,7 +130,7 @@ contract RewardsDistributor is IRewardsDistributor, ReentrancyGuard {
         assert(msg.sender == depositor);
         _checkpointToken();
     }
-
+    // please describe this function and format for docs
     function checkpointTotalSupply() external {
         _checkpointTotalSupply();
     }

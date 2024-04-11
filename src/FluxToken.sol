@@ -21,7 +21,7 @@ import "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
  */
 contract FluxToken is ERC20("Flux", "FLUX"), IFluxToken {
     using SafeERC20 for ERC20;
-
+    //for all the variables with comments, please format them to be in the docs
     /// @dev The address which enables the minting of tokens.
     address public minter;
     address public voter;
@@ -32,7 +32,7 @@ contract FluxToken is ERC20("Flux", "FLUX"), IFluxToken {
     address public pendingAdmin; // the timelock executor
     uint256 public deployDate;
     uint256 public alchemechMultiplier = 5; // .05% ratio of flux for alchemechNFT holders
-    uint256 public bptMultiplier = 40;
+    uint256 public bptMultiplier = 40; // describe this
 
     uint256 public immutable oneYear = 365 days;
     uint256 internal immutable BPS = 10_000;
@@ -94,6 +94,7 @@ contract FluxToken is ERC20("Flux", "FLUX"), IFluxToken {
         patronNFT = _patronNFT;
     }
 
+    //please describe this function and format for the documentation
     function setNftMultiplier(uint256 _nftMultiplier) external {
         require(msg.sender == admin, "not admin");
         require(_nftMultiplier != 0, "FluxToken: nftMultiplier cannot be zero");
@@ -101,6 +102,7 @@ contract FluxToken is ERC20("Flux", "FLUX"), IFluxToken {
         alchemechMultiplier = _nftMultiplier;
     }
 
+    //please describe this function and format for the documentation
     function setBptMultiplier(uint256 _bptMultiplier) external {
         require(msg.sender == admin, "not admin");
         require(_bptMultiplier != 0, "FluxToken: bptMultiplier cannot be zero");

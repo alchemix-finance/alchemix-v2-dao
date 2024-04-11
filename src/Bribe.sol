@@ -14,19 +14,19 @@ import "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
  */
 contract Bribe is IBribe {
     uint256 internal constant DURATION = 2 weeks; // Rewards released over voting period
-    uint256 internal constant BRIBE_LAG = 1 days;
-    uint256 internal constant MAX_REWARD_TOKENS = 16;
+    uint256 internal constant BRIBE_LAG = 1 days; // describe this
+    uint256 internal constant MAX_REWARD_TOKENS = 16; // describe this
 
     /// @notice The number of checkpoints
     uint256 public supplyNumCheckpoints;
-    uint256 public votingNumCheckpoints;
-    uint256 public totalSupply;
-    uint256 public totalVoting;
+    uint256 public votingNumCheckpoints; // describe this
+    uint256 public totalSupply; // describe this
+    uint256 public totalVoting; // describe this
 
     address public immutable veALCX;
     address public immutable voter;
     address public gauge; // Address of the gauge that the bribes are for
-    address[] public rewards;
+    address[] public rewards; // describe this
 
     /// @notice A record of balance checkpoints for each account, by index
     mapping(uint256 => mapping(uint256 => Checkpoint)) public checkpoints;
@@ -34,12 +34,12 @@ contract Bribe is IBribe {
     mapping(uint256 => uint256) public numCheckpoints;
     /// @notice A record of balance checkpoints for each token, by index
     mapping(uint256 => SupplyCheckpoint) public supplyCheckpoints;
-    mapping(uint256 => VotingCheckpoint) public votingCheckpoints;
-    mapping(address => bool) public isReward;
-    mapping(address => mapping(uint256 => uint256)) public tokenRewardsPerEpoch;
-    mapping(uint256 => uint256) public balanceOf;
-    mapping(address => uint256) public periodFinish;
-    mapping(address => mapping(uint256 => uint256)) public lastEarn;
+    mapping(uint256 => VotingCheckpoint) public votingCheckpoints; // describe this
+    mapping(address => bool) public isReward; // describe this
+    mapping(address => mapping(uint256 => uint256)) public tokenRewardsPerEpoch; // describe this
+    mapping(uint256 => uint256) public balanceOf; // describe this
+    mapping(address => uint256) public periodFinish; // describe this
+    mapping(address => mapping(uint256 => uint256)) public lastEarn; // describe this
 
     // Re-entrancy check
     uint256 internal _unlocked = 1;
@@ -174,7 +174,7 @@ contract Bribe is IBribe {
         }
         return lower;
     }
-
+    // please describe this function and format for the documentation
     function getPriorVotingIndex(uint256 timestamp) public view returns (uint256) {
         uint256 nCheckpoints = votingNumCheckpoints;
         if (nCheckpoints == 0) {
@@ -207,6 +207,7 @@ contract Bribe is IBribe {
         return lower;
     }
 
+    // please describe this function and format for the documentation
     function earned(address token, uint256 tokenId) public view returns (uint256) {
         if (numCheckpoints[tokenId] == 0) {
             return 0;
@@ -289,6 +290,7 @@ contract Bribe is IBribe {
         }
     }
 
+    // please describe this function and format for the documentation
     function deposit(uint256 amount, uint256 tokenId) external {
         require(msg.sender == voter);
 
@@ -304,6 +306,7 @@ contract Bribe is IBribe {
         emit Deposit(msg.sender, tokenId, amount);
     }
 
+    // please describe this function and format for the documentation
     function withdraw(uint256 amount, uint256 tokenId) external {
         require(msg.sender == voter);
 
@@ -326,6 +329,7 @@ contract Bribe is IBribe {
         Internal functions
     */
 
+    // please describe this function and format for the documentation
     function _addRewardToken(address token) internal {
         if (!isReward[token] && token != address(0)) {
             require(rewards.length < MAX_REWARD_TOKENS, "too many rewards tokens");
@@ -336,6 +340,7 @@ contract Bribe is IBribe {
         }
     }
 
+    // please describe this function and format for the documentation
     function _writeCheckpoint(uint256 tokenId, uint256 balance) internal {
         uint256 _timestamp = block.timestamp;
         uint256 _nCheckPoints = numCheckpoints[tokenId];
@@ -359,6 +364,7 @@ contract Bribe is IBribe {
         }
     }
 
+    // please describe this function and format for the documentation
     function _writeSupplyCheckpoint() internal {
         uint256 _nCheckPoints = supplyNumCheckpoints;
         uint256 _timestamp = block.timestamp;
@@ -371,6 +377,7 @@ contract Bribe is IBribe {
         }
     }
 
+    // please describe this function and format for the documentation
     function _bribeStart(uint256 timestamp) internal pure returns (uint256) {
         return timestamp - (timestamp % (DURATION));
     }

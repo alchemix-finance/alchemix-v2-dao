@@ -24,7 +24,7 @@ contract Minter is IMinter {
     uint256 public immutable DURATION = 2 weeks;
     uint256 public immutable BPS = 10_000;
     uint256 public constant TAIL_EMISSIONS_RATE = 2194e18; // Tail emissions rate
-
+    // please describe all these state variables and format them to be in the docs
     uint256 public epochEmissions;
     uint256 public activePeriod;
     uint256 public stepdown;
@@ -104,7 +104,7 @@ contract Minter is IMinter {
         admin = pendingAdmin;
         emit AdminUpdated(pendingAdmin);
     }
-
+    //please describe this function and format for the documentation
     function setTreasury(address _treasury) external {
         require(msg.sender == admin, "not admin");
         require(_treasury != address(0), "treasury cannot be 0x0");

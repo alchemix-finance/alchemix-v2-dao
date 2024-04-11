@@ -3,6 +3,7 @@ pragma solidity ^0.8.15;
 
 import "src/gauges/PassthroughGauge.sol";
 import "src/gauges/CurveGauge.sol";
+//please indicate which contract calls this and what is the purpose of this contract
 
 contract GaugeFactory {
     function createCurveGauge(address _bribe, address _ve) external returns (address) {

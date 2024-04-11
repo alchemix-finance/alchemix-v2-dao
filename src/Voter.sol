@@ -18,7 +18,7 @@ import "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
  */
 contract Voter is IVoter {
     address internal immutable base; // Base token, ALCX
-
+    //please format these to appear in the docs, no additional descriptions needed
     address public immutable veALCX; // veALCX that governs these contracts
     address public immutable FLUX; // FLUX token distributed to veALCX holders
     address public immutable gaugefactory;
@@ -102,10 +102,12 @@ contract Voter is IVoter {
         return (IVotingEscrow(veALCX).balanceOfToken(_tokenId) * boostMultiplier) / BPS;
     }
 
+    //please describe this function and format for docs
     function length() external view returns (uint256) {
         return pools.length;
     }
 
+    //please describe this function and format for docs
     function getPoolVote(uint256 _tokenId) external view returns (address[] memory) {
         return poolVote[_tokenId];
     }
@@ -114,6 +116,7 @@ contract Voter is IVoter {
         External functions
     */
 
+    //please describe this function and format for docs
     function setMinter(address _minter) external {
         require(msg.sender == admin, "not admin");
         require(_minter != address(0), "FluxToken: minter cannot be zero address");
@@ -132,6 +135,7 @@ contract Voter is IVoter {
         emit AdminUpdated(pendingAdmin);
     }
 
+    //please describe this function and format for docs
     function setEmergencyCouncil(address _council) public {
         require(msg.sender == emergencyCouncil, "not emergency council");
         require(_council != address(0), "cannot be zero address");
@@ -139,6 +143,7 @@ contract Voter is IVoter {
         emit EmergencyCouncilUpdated(_council);
     }
 
+    //please describe this function and format for docs
     function swapReward(address gaugeAddress, uint256 tokenIndex, address oldToken, address newToken) external {
         require(msg.sender == admin);
         IBribe(bribes[gaugeAddress]).swapOutRewardToken(tokenIndex, oldToken, newToken);
@@ -308,26 +313,31 @@ contract Voter is IVoter {
         emit NotifyReward(msg.sender, base, amount);
     }
 
+    //please describe this function and format for docs
     function updateFor(address[] memory _gauges) external {
         for (uint256 i = 0; i < _gauges.length; i++) {
             _updateFor(_gauges[i]);
         }
     }
 
+    //please describe this function and format for docs
     function updateForRange(uint256 start, uint256 end) public {
         for (uint256 i = start; i < end; i++) {
             _updateFor(gauges[pools[i]]);
         }
     }
 
+    //please describe this function and format for docs
     function updateAll() external {
         updateForRange(0, pools.length);
     }
 
+    //please describe this function and format for docs
     function updateGauge(address _gauge) external {
         _updateFor(_gauge);
     }
 
+    //please describe this function and format for docs
     function claimBribes(address[] memory _bribes, address[][] memory _tokens, uint256 _tokenId) external {
         require(IVotingEscrow(veALCX).isApprovedOrOwner(msg.sender, _tokenId));
 

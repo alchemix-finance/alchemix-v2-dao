@@ -66,6 +66,10 @@ interface IVotingEscrow {
      */
     function tokenOfOwnerByIndex(address _owner, uint256 _tokenIndex) external view returns (uint256);
 
+
+    //please have a description for all these state variable and format it so it's in the documentation
+
+
     function BPT() external view returns (address);
 
     function MULTIPLIER() external view returns (uint256);
@@ -114,8 +118,10 @@ interface IVotingEscrow {
      */
     function cooldownEnd(uint256 tokenId) external view returns (uint256);
 
+    //please describe what this function does and format it so it appears in the documentation
     function getPointHistory(uint256 loc) external view returns (Point memory);
 
+    //please describe what this function does and format it so it appears in the documentation
     function getUserPointHistory(uint256 tokenId, uint256 loc) external view returns (Point memory);
 
     /**

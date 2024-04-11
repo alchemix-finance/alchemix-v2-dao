@@ -14,7 +14,7 @@ contract StakingRewards is IStakingRewards, ReentrancyGuard, Pausable {
     using SafeERC20 for IERC20;
 
     /* ========== STATE VARIABLES ========== */
-
+    //for all of these state variables, please describe what they do and format them so they appear in the documentation
     address public rewardsDistribution;
     address public rewardsToken;
     address public stakingToken;
@@ -31,7 +31,7 @@ contract StakingRewards is IStakingRewards, ReentrancyGuard, Pausable {
     mapping(address => uint256) private _balances;
 
     /* ========== CONSTRUCTOR ========== */
-
+    //please describe what this constructor does and format it so it appears in the documentation
     constructor(address _owner, address _rewardsToken, address _stakingToken) Owned(_owner) {
         rewardsToken = _rewardsToken;
         stakingToken = _stakingToken;
@@ -43,7 +43,7 @@ contract StakingRewards is IStakingRewards, ReentrancyGuard, Pausable {
     }
 
     /* ========== VIEWS ========== */
-
+    //please describe what these view functions do and format it so it appears in the documentation
     function totalSupply() external view returns (uint256) {
         return _totalSupply;
     }
@@ -78,7 +78,7 @@ contract StakingRewards is IStakingRewards, ReentrancyGuard, Pausable {
     }
 
     /* ========== MUTATIVE FUNCTIONS ========== */
-
+    //please describe what these write functions do and format it so it appears in the documentation
     function stake(uint256 amount) external nonReentrant notPaused updateReward(msg.sender) {
         require(amount > 0, "Cannot stake 0");
         _totalSupply = _totalSupply.add(amount);
@@ -110,7 +110,7 @@ contract StakingRewards is IStakingRewards, ReentrancyGuard, Pausable {
     }
 
     /* ========== RESTRICTED FUNCTIONS ========== */
-
+    //please give additional context to these
     function setRewardsDistribution(address _rewardsDistribution) external onlyOwner {
         rewardsDistribution = _rewardsDistribution;
     }
@@ -153,7 +153,7 @@ contract StakingRewards is IStakingRewards, ReentrancyGuard, Pausable {
     }
 
     /* ========== MODIFIERS ========== */
-
+    //please describe what this modifier does and format it so it appears in the documentation
     modifier updateReward(address account) {
         rewardPerTokenStored = rewardPerToken();
         lastUpdateTime = lastTimeRewardApplicable();

@@ -24,8 +24,10 @@ interface IRewardsDistributor {
      */
     event Claimed(uint256 tokenId, uint256 amount, uint256 claimEpoch, uint256 maxEpoch);
 
+    //please describe what this function does and format it so it appears in the documentation
     function checkpointToken() external;
 
+    //please describe what this function does and format it so it appears in the documentation
     function checkpointTotalSupply() external;
 
     /**

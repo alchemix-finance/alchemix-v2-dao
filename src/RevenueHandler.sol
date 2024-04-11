@@ -49,7 +49,7 @@ contract RevenueHandler is IRevenueHandler, Ownable {
 
     uint256 internal constant WEEK = 1 weeks;
     uint256 internal constant BPS = 10_000;
-
+    //please complete the descriptions for these and format them for documentation
     address public immutable veALCX;
     address[] public revenueTokens;
     mapping(address => address) public alchemists; // alchemist => alchemic-token
@@ -268,7 +268,7 @@ contract RevenueHandler is IRevenueHandler, Ownable {
             return 0;
         }
         IERC20(revenueToken).safeTransfer(poolAdapter, revenueTokenBalance);
-        /*  
+        /*
             minimumAmountOut == inputAmount
             Here we are making the assumption that the price of the alAsset will always be at or below the price of the revenue token.
             This is currently a safe assumption since this imbalance has always held true for alUSD and alETH since their inceptions.

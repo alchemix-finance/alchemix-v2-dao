@@ -118,8 +118,10 @@ interface IBribe {
      */
     function swapOutRewardToken(uint256 i, address oldToken, address newToken) external;
 
+    //please describe what this function does and format it so it appears in the documentation
     function getPriorVotingIndex(uint256 timestamp) external view returns (uint256);
 
+    //please describe what this function does and format it so it appears in the documentation
     function earned(address token, uint256 tokenId) external view returns (uint256);
 
     function deposit(uint256 amount, uint256 tokenId) external;

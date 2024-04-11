@@ -23,6 +23,7 @@ contract CurveEthPoolAdapter is IPoolAdapter {
         }
     }
 
+    // please describe this function and format for the documentation
     function getDy(
         address inputToken,
         address outputToken,
@@ -31,6 +32,7 @@ contract CurveEthPoolAdapter is IPoolAdapter {
         return ICurveStableSwap(pool).get_dy(tokenIds[inputToken], tokenIds[outputToken], inputAmount);
     }
 
+    // please describe this function and format for the documentation
     function melt(
         address inputToken,
         address outputToken,

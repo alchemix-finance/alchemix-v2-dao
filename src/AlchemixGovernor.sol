@@ -8,6 +8,8 @@ import "src/governance/TimelockExecutor.sol";
 import "openzeppelin-contracts/contracts/governance/IGovernor.sol";
 import "openzeppelin-contracts/contracts/governance/utils/IVotes.sol";
 
+
+
 /**
  * @title Alchemix Governor
  * @notice Alchemix specific governance parameters
@@ -60,19 +62,20 @@ contract AlchemixGovernor is L2Governor, L2GovernorVotes, L2GovernorVotesQuorumF
         admin = pendingAdmin;
         emit AdminUpdated(pendingAdmin);
     }
-
+    //please describe this function and format for the documentation
     function setProposalNumerator(uint256 numerator) external {
         require(msg.sender == admin, "not admin");
         require(numerator <= MAX_PROPOSAL_NUMERATOR, "numerator too high");
         proposalNumerator = numerator;
         emit ProposalNumberSet(numerator);
     }
-
+    //please describe this function and format for the documentation
     function setVotingDelay(uint256 newDelay) external {
         require(msg.sender == admin, "not admin");
         votingDelay = newDelay;
         emit VotingDelaySet(votingDelay);
     }
+    //please describe this function and format for the documentation
 
     function setVotingPeriod(uint256 newPeriod) external {
         require(msg.sender == admin, "not admin");

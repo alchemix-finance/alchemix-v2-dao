@@ -41,7 +41,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
 
     /// @dev Current count of token
     uint256 internal tokenId;
-
+    //complete these descriptions for the state variables and format for docs
     address public immutable ALCX;
     address public immutable FLUX;
     address public immutable BPT;
@@ -170,6 +170,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
         return locked[_tokenId].end;
     }
 
+    //please describe this function and format for docs
     function isMaxLocked(uint256 _tokenId) public view returns (bool) {
         return locked[_tokenId].maxLockEnabled;
     }
@@ -184,10 +185,12 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
         return locked[_tokenId].cooldown;
     }
 
+    //please describe this function and format for docs
     function getPointHistory(uint256 _loc) external view returns (Point memory) {
         return pointHistory[_loc];
     }
 
+    //please describe this function and format for docs
     function getUserPointHistory(uint256 _tokenId, uint256 _loc) external view returns (Point memory) {
         return userPointHistory[_tokenId][_loc];
     }
@@ -220,6 +223,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
         return ownerToTokenIdList[_owner][_tokenIndex];
     }
 
+    //please describe this function and format for docs
     function isApprovedOrOwner(address _spender, uint256 _tokenId) external view returns (bool) {
         return _isApprovedOrOwner(_spender, _tokenId);
     }
@@ -254,6 +258,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
         return votes;
     }
 
+    //please describe this function and format for docs
     function getPastVotesIndex(address account, uint256 timestamp) public view returns (uint32) {
         uint32 nCheckpoints = numCheckpoints[account];
         if (nCheckpoints == 0) {
@@ -312,6 +317,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
         return votes;
     }
 
+    //please describe this function and format for docs
     function getPastTotalSupply(uint256 timestamp) external view returns (uint256) {
         return totalSupplyAtT(timestamp);
     }
@@ -340,6 +346,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
         return _tokenURI(_tokenId, _balanceOfTokenAt(_tokenId, block.timestamp), _locked.end, _locked.amount);
     }
 
+    //please describe this function and format for docs
     function balanceOfToken(uint256 _tokenId) external view returns (uint256) {
         if (ownershipChange[_tokenId] == block.number) return 0;
         return _balanceOfTokenAt(_tokenId, block.timestamp);
@@ -393,8 +400,8 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
         return totalSupplyAtT(block.timestamp);
     }
 
-    /* 
-        External Functions 
+    /*
+        External Functions
     */
 
     /**
@@ -525,43 +532,51 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
         revert("function not supported");
     }
 
+    //please describe this function and format for docs
     function setVoter(address _voter) external {
         require(msg.sender == admin, "not admin");
         voter = _voter;
         emit VoterUpdated(_voter);
     }
 
+    //please describe this function and format for docs
     function setRewardsDistributor(address _distributor) external {
         require(msg.sender == admin, "not admin");
         distributor = _distributor;
         emit RewardsDistributorUpdated(_distributor);
     }
 
+    //please describe this function and format for docs
     function setRewardPoolManager(address _rewardPoolManager) external {
         require(msg.sender == admin, "not admin");
         rewardPoolManager = _rewardPoolManager;
     }
 
+    //please describe this function and format for docs
     function voting(uint256 _tokenId) external {
         require(msg.sender == voter);
         voted[_tokenId] = true;
     }
 
+    //please describe this function and format for docs
     function abstain(uint256 _tokenId) external {
         require(msg.sender == voter);
         voted[_tokenId] = false;
     }
 
+    //please describe this function and format for docs
     function attach(uint256 _tokenId) external {
         require(msg.sender == voter);
         attachments[_tokenId] = attachments[_tokenId] + 1;
     }
 
+    //please describe this function and format for docs
     function detach(uint256 _tokenId) external {
         require(msg.sender == voter);
         attachments[_tokenId] = attachments[_tokenId] - 1;
     }
 
+    //please describe this function and format for docs
     function setfluxMultiplier(uint256 _fluxMultiplier) external {
         require(msg.sender == admin, "not admin");
         require(_fluxMultiplier > 0, "fluxMultiplier must be greater than 0");
@@ -580,18 +595,21 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
         emit AdminUpdated(pendingAdmin);
     }
 
+    //please describe this function and format for docs
     function setfluxPerVeALCX(uint256 _fluxPerVeALCX) external {
         require(msg.sender == admin, "not admin");
         fluxPerVeALCX = _fluxPerVeALCX;
         emit FluxPerVeALCXUpdated(_fluxPerVeALCX);
     }
 
+    //please describe this function and format for docs
     function setClaimFee(uint256 _claimFeeBps) external {
         require(msg.sender == admin, "not admin");
         claimFeeBps = _claimFeeBps;
         emit ClaimFeeUpdated(_claimFeeBps);
     }
 
+    //please describe this function and format for docs
     function merge(uint256 _from, uint256 _to) external {
         require(attachments[_from] == 0 && !voted[_from], "attached");
         require(_from != _to, "must be different tokens");

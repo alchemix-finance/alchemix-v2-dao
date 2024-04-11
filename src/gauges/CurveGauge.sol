@@ -17,6 +17,8 @@ import "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 contract CurveGauge is BaseGauge {
     using SafeERC20 for IERC20;
 
+    //for all of these state variables, please format them so they appear in the documentation
+
     // Votium pool index (subject to change)
     uint256 poolIndex;
 

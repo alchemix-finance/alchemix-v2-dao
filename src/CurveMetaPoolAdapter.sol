@@ -19,6 +19,7 @@ contract CurveMetaPoolAdapter is IPoolAdapter {
         }
     }
 
+    // please describe this function and format for the documentation
     function getDy(
         address inputToken,
         address outputToken,
@@ -27,6 +28,7 @@ contract CurveMetaPoolAdapter is IPoolAdapter {
         return ICurveMetaSwap(pool).get_dy_underlying(tokenIds[inputToken], tokenIds[outputToken], inputAmount);
     }
 
+    // please describe this function and format for the documentation
     function melt(
         address inputToken,
         address outputToken,

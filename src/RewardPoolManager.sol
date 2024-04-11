@@ -11,7 +11,7 @@ contract RewardPoolManager is IRewardPoolManager {
     using SafeERC20 for IERC20;
 
     uint256 internal constant MAX_REWARD_POOL_TOKENS = 10;
-
+    // please complete these state variable descriptions and format them for docs
     address public admin;
     address public pendingAdmin;
     address public veALCX;

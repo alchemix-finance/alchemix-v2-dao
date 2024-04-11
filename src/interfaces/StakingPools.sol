@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.15;
-
+//needs documentation
 interface StakingPools {
     function acceptGovernance() external;
     function claim(uint256 _poolId) external;
