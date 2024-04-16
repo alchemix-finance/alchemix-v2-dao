@@ -8,3 +8,4 @@ report/
 lcov.info
 notes.md
 .gas-snapshot
+/docs
