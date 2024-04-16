@@ -24,8 +24,14 @@ interface IRewardsDistributor {
      */
     event Claimed(uint256 tokenId, uint256 amount, uint256 claimEpoch, uint256 maxEpoch);
 
+    /**
+     * @notice Checkpoint token balance minted in rewards distributor
+     */
     function checkpointToken() external;
 
+    /**
+     * @notice Checkpoint supply
+     */
     function checkpointTotalSupply() external;
 
     /**

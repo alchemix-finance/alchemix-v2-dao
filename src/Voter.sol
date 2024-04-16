@@ -19,40 +19,62 @@ import "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 contract Voter is IVoter {
     address internal immutable base; // Base token, ALCX
 
-    address public immutable veALCX; // veALCX that governs these contracts
-    address public immutable FLUX; // FLUX token distributed to veALCX holders
+    address public immutable veALCX;
+    /// @notice FLUX contract address
+    address public immutable FLUX;
+    /// @notice Gauge factory contract address
     address public immutable gaugefactory;
+    /// @notice Bribe factory contract address
     address public immutable bribefactory;
 
     uint256 internal constant BPS = 10_000;
     uint256 internal constant MAX_BOOST = 10000;
     uint256 internal constant MIN_BOOST = 0;
-    uint256 internal constant DURATION = 2 weeks; // rewards are released over 2 weeks
+    /// @notice Rewards are released over this duration (2 weeks)
+    uint256 internal constant DURATION = 2 weeks;
     uint256 internal constant BRIBE_LAG = 1 days;
     uint256 internal index;
 
+    /// @notice Minter contract address
     address public minter;
     address public admin; // should be set to the timelock admin
     address public pendingAdmin;
-    address public emergencyCouncil; // credibly neutral party similar to Curve's Emergency DAO
+    /// @notice Address of credibly neutral party similar to Curve's Emergency DAO
+    address public emergencyCouncil;
 
-    uint256 public totalWeight; // total voting weight
-    uint256 public boostMultiplier = 10000; // max bps veALCX voting power can be boosted by
+    /// @notice Total voting weight
+    uint256 public totalWeight;
+    /// @notice Max bps veALCX voting power can be boosted by
+    uint256 public boostMultiplier = 10000;
 
-    address[] public pools; // all pools viable for incentives
+    /// @notice All pools viable for incentives
+    address[] public pools;
 
-    mapping(address => address) public gauges; // pool => gauge
-    mapping(address => address) public poolForGauge; // gauge => pool
-    mapping(address => address) public bribes; // gauge => bribe
-    mapping(address => uint256) public weights; // pool => weight
-    mapping(uint256 => mapping(address => uint256)) public votes; // token => pool => votes
-    mapping(uint256 => address[]) public poolVote; // token => pools
-    mapping(uint256 => uint256) public usedWeights; // token => total voting weight of user
-    mapping(uint256 => uint256) public lastVoted; // token => timestamp of last vote, to ensure one vote per epoch
+    /// @notice pool => gauge
+    mapping(address => address) public gauges;
+    /// @notice gauge => pool
+    mapping(address => address) public poolForGauge;
+    /// @notice gauge => bribe
+    mapping(address => address) public bribes;
+    /// @notice pool => weight
+    mapping(address => uint256) public weights;
+    /// @notice token => pool => votes
+    mapping(uint256 => mapping(address => uint256)) public votes;
+    /// @notice token => pools
+    mapping(uint256 => address[]) public poolVote;
+    /// @notice token => total voting weight of user
+    mapping(uint256 => uint256) public usedWeights;
+    /// @notice token => timestamp of last vote, to ensure one vote per epoch
+    mapping(uint256 => uint256) public lastVoted;
+    /// @notice return if address is a gauge
     mapping(address => bool) public isGauge;
+    /// @notice return if address is whitelisted
     mapping(address => bool) public isWhitelisted;
+    /// @notice return if gauge is alive
     mapping(address => bool) public isAlive;
+    /// @notice return the supply index of a gauge
     mapping(address => uint256) internal supplyIndex;
+    /// @notice reutrn the claimable amount for a gauge
     mapping(address => uint256) public claimable;
 
     constructor(address _ve, address _gauges, address _bribes, address _flux, address _token) {
@@ -102,10 +124,12 @@ contract Voter is IVoter {
         return (IVotingEscrow(veALCX).balanceOfToken(_tokenId) * boostMultiplier) / BPS;
     }
 
+    /// @inheritdoc IVoter
     function length() external view returns (uint256) {
         return pools.length;
     }
 
+    /// @inheritdoc IVoter
     function getPoolVote(uint256 _tokenId) external view returns (address[] memory) {
         return poolVote[_tokenId];
     }
@@ -114,6 +138,7 @@ contract Voter is IVoter {
         External functions
     */
 
+    /// @inheritdoc IVoter
     function setMinter(address _minter) external {
         require(msg.sender == admin, "not admin");
         require(_minter != address(0), "FluxToken: minter cannot be zero address");
@@ -132,6 +157,7 @@ contract Voter is IVoter {
         emit AdminUpdated(pendingAdmin);
     }
 
+    /// @inheritdoc IVoter
     function setEmergencyCouncil(address _council) public {
         require(msg.sender == emergencyCouncil, "not emergency council");
         require(_council != address(0), "cannot be zero address");
@@ -139,6 +165,7 @@ contract Voter is IVoter {
         emit EmergencyCouncilUpdated(_council);
     }
 
+    /// @inheritdoc IVoter
     function swapReward(address gaugeAddress, uint256 tokenIndex, address oldToken, address newToken) external {
         require(msg.sender == admin);
         IBribe(bribes[gaugeAddress]).swapOutRewardToken(tokenIndex, oldToken, newToken);
@@ -293,26 +320,31 @@ contract Voter is IVoter {
         emit NotifyReward(msg.sender, base, amount);
     }
 
+    /// @inheritdoc IVoter
     function updateFor(address[] memory _gauges) external {
         for (uint256 i = 0; i < _gauges.length; i++) {
             _updateFor(_gauges[i]);
         }
     }
 
+    /// @inheritdoc IVoter
     function updateForRange(uint256 start, uint256 end) public {
         for (uint256 i = start; i < end; i++) {
             _updateFor(gauges[pools[i]]);
         }
     }
 
+    /// @inheritdoc IVoter
     function updateAll() external {
         updateForRange(0, pools.length);
     }
 
+    /// @inheritdoc IVoter
     function updateGauge(address _gauge) external {
         _updateFor(_gauge);
     }
 
+    /// @inheritdoc IVoter
     function claimBribes(address[] memory _bribes, address[][] memory _tokens, uint256 _tokenId) external {
         require(IVotingEscrow(veALCX).isApprovedOrOwner(msg.sender, _tokenId));
 

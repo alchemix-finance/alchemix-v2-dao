@@ -17,13 +17,13 @@ abstract contract BaseGauge is IBaseGauge {
     uint256 internal constant BRIBE_LAG = 1 days;
     uint256 internal constant MAX_REWARD_TOKENS = 16;
 
-    address public ve; // Ve token used for gauges
+    address public ve; // veALCX token used for gauges
     address public bribe; // Address of bribe contract
     address public voter; // Address of voter contract
     address public admin;
     address public pendingAdmin;
-    address public receiver;
-    address public rewardToken;
+    address public receiver; // Address that receives the ALCX rewards
+    address public rewardToken; // Address of the reward token
 
     // Re-entrancy check
     uint256 internal _unlocked = 1;
@@ -38,6 +38,7 @@ abstract contract BaseGauge is IBaseGauge {
         View functions
     */
 
+    /// @inheritdoc IBaseGauge
     function getVotingStage(uint256 timestamp) external pure returns (VotingStage) {
         uint256 modTime = timestamp % (1 weeks);
         if (modTime < BRIBE_LAG) {
@@ -63,6 +64,7 @@ abstract contract BaseGauge is IBaseGauge {
         admin = pendingAdmin;
     }
 
+    /// @inheritdoc IBaseGauge
     function updateReceiver(address _receiver) external {
         require(msg.sender == admin, "not admin");
         require(_receiver != address(0), "cannot be zero address");

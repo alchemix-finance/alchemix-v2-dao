@@ -104,4 +104,16 @@ interface IFluxToken is IERC20 {
      * @param _nft Which NFT to calculate claimable flux for
      */
     function getClaimableFlux(uint256 _amount, address _nft) external view returns (uint256);
+
+    /**
+     * @notice Set the multiplier of FLUX alchemech NFT holders receive
+     * @param _nftMultiplier Multiplier to set
+     */
+    function setNftMultiplier(uint256 _nftMultiplier) external;
+
+    /**
+     * @notice Set the multiplier of FLUX patron NFT holders receive
+     * @param _bptMultiplier Multiplier to set
+     */
+    function setBptMultiplier(uint256 _bptMultiplier) external;
 }

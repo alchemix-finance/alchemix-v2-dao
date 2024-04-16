@@ -45,6 +45,12 @@ interface IMinter {
     event TreasuryUpdated(address treasury);
 
     /**
+     * @notice Set the treasury address
+     * @param _treasury Address of the treasury
+     */
+    function setTreasury(address _treasury) external;
+
+    /**
      * @notice Sets the emissions rate of rewards sent to veALCX stakers
      * @param _veAlcxEmissionsRate The rate in BPS
      */

@@ -12,15 +12,23 @@ contract RewardPoolManager is IRewardPoolManager {
 
     uint256 internal constant MAX_REWARD_POOL_TOKENS = 10;
 
+    /// @notice The address of the admin
     address public admin;
+    /// @notice The address of the pending admin
     address public pendingAdmin;
+    /// @notice The address of the veALCX contract
     address public veALCX;
-    address public rewardPool; // destination for poolToken
+    /// @notice The address of the reward pool (Aura)
+    address public rewardPool;
+    /// @notice The address of the treasury
     address public treasury;
-    address public poolToken; // BPT
+    /// @notice The address of the pool token to send to the reward pool (ALCXBPT)
+    address public poolToken;
 
+    /// @notice The reward pool tokens (ex: AURA, BAL)
     address[] public rewardPoolTokens;
 
+    /// @notice Mapping of reward pool tokens
     mapping(address => bool) public isRewardPoolToken;
 
     constructor(address _admin, address _veALCX, address _poolToken, address _rewardPool, address _treasury) {

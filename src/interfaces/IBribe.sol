@@ -118,12 +118,32 @@ interface IBribe {
      */
     function swapOutRewardToken(uint256 i, address oldToken, address newToken) external;
 
+    /**
+     * @notice Get the total amount of votes for a given epoch
+     * @param timestamp The timestamp to check the votes
+     * @return uint256  The total amount of votes
+     */
     function getPriorVotingIndex(uint256 timestamp) external view returns (uint256);
 
+    /**
+     * @notice Amount of bribes earned by an account for a given reward token
+     * @param token Address of the reward token
+     * @return uint256 veALCX tokenId
+     */
     function earned(address token, uint256 tokenId) external view returns (uint256);
 
+    /**
+     * @notice Called by voter to allocate votes to a given gauge
+     * @param amount Amount of votes to allocate
+     * @param tokenId veALCX tokenId
+     */
     function deposit(uint256 amount, uint256 tokenId) external;
 
+    /**
+     * @notice Called by voter to withdraw votes from a gauge
+     * @param amount Amount of votes to withdraw
+     * @param tokenId veALCX tokenId
+     */
     function withdraw(uint256 amount, uint256 tokenId) external;
 
     /**

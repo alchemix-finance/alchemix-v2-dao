@@ -17,16 +17,16 @@ import "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 contract CurveGauge is BaseGauge {
     using SafeERC20 for IERC20;
 
-    // Votium pool index (subject to change)
+    /// @notice Votium pool index (subject to change)
     uint256 poolIndex;
 
-    // Proposal id from snapshot url
+    /// @notice Proposal id from snapshot url
     bytes32 proposal;
 
-    // Flag to determine if proposal has been updated
+    /// @notice Flag to determine if proposal has been updated
     bool proposalUpdated;
 
-    // Flag to determine if gauge has been setup with necessary variables
+    /// @notice Flag to determine if gauge has been setup with necessary variables
     bool initialized;
 
     event ProposalUpdated(bytes32 indexed newProposal, bool proposalUpdated);
@@ -94,7 +94,7 @@ contract CurveGauge is BaseGauge {
     */
 
     /**
-     * @notice Pass rewards to votium contract
+     * @notice Logic to pass rewards to votium contract
      * @param _amount Amount of rewards
      */
     function _passthroughRewards(uint256 _amount) internal override {

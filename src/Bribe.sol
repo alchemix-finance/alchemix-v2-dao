@@ -13,19 +13,29 @@ import "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
  * @notice Implementation of bribe contract to be used with gauges
  */
 contract Bribe is IBribe {
-    uint256 internal constant DURATION = 2 weeks; // Rewards released over voting period
+    /// @notice Rewards released over voting period
+    uint256 internal constant DURATION = 2 weeks;
+    /// @notice Duration of time when bribes are accepted
     uint256 internal constant BRIBE_LAG = 1 days;
+    /// @notice Maximum number of reward tokens a gauge can accept
     uint256 internal constant MAX_REWARD_TOKENS = 16;
 
     /// @notice The number of checkpoints
     uint256 public supplyNumCheckpoints;
+    /// @notice Number of voting period checkpoints
     uint256 public votingNumCheckpoints;
+    /// @notice Total votes allocated to the gauge
     uint256 public totalSupply;
+    /// @notice Total current votes in a voting period (this is reset each period)
     uint256 public totalVoting;
 
+    /// @notice veALCX contract address
     address public immutable veALCX;
+    /// @notice Voter contract address
     address public immutable voter;
-    address public gauge; // Address of the gauge that the bribes are for
+    /// @notice Address of the gauge that the bribes are for
+    address public gauge;
+    /// @notice List of reward tokens
     address[] public rewards;
 
     /// @notice A record of balance checkpoints for each account, by index
@@ -34,11 +44,17 @@ contract Bribe is IBribe {
     mapping(uint256 => uint256) public numCheckpoints;
     /// @notice A record of balance checkpoints for each token, by index
     mapping(uint256 => SupplyCheckpoint) public supplyCheckpoints;
+    /// @notice A record of balance checkpoints for each voting period
     mapping(uint256 => VotingCheckpoint) public votingCheckpoints;
+    /// @notice A record of reward tokens that are accepted
     mapping(address => bool) public isReward;
+    /// @notice A record of token rewards per epoch for each reward token
     mapping(address => mapping(uint256 => uint256)) public tokenRewardsPerEpoch;
+    /// @notice Current votes allocated of a veALCX voter
     mapping(uint256 => uint256) public balanceOf;
+    /// @notice The end of the current voting period
     mapping(address => uint256) public periodFinish;
+    /// @notice The last time rewards were claimed
     mapping(address => mapping(uint256 => uint256)) public lastEarn;
 
     // Re-entrancy check
@@ -166,6 +182,7 @@ contract Bribe is IBribe {
         return lower;
     }
 
+    /// @inheritdoc IBribe
     function getPriorVotingIndex(uint256 timestamp) public view returns (uint256) {
         uint256 nCheckpoints = votingNumCheckpoints;
         if (nCheckpoints == 0) {
@@ -198,6 +215,7 @@ contract Bribe is IBribe {
         return lower;
     }
 
+    /// @inheritdoc IBribe
     function earned(address token, uint256 tokenId) public view returns (uint256) {
         if (numCheckpoints[tokenId] == 0) {
             return 0;
@@ -279,6 +297,7 @@ contract Bribe is IBribe {
         }
     }
 
+    /// @inheritdoc IBribe
     function deposit(uint256 amount, uint256 tokenId) external {
         require(msg.sender == voter);
 
@@ -294,6 +313,7 @@ contract Bribe is IBribe {
         emit Deposit(msg.sender, tokenId, amount);
     }
 
+    /// @inheritdoc IBribe
     function withdraw(uint256 amount, uint256 tokenId) external {
         require(msg.sender == voter);
 
