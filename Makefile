@@ -75,3 +75,23 @@ test_file_debug_test :; FOUNDRY_PROFILE=$(PROFILE) forge test $(FORK_URL) $(MATC
 
 # runs single test within file with added verbosity for failing test from a given block: "make test_file_block_debug_test FILE=Minter TEST=testUnwrap"
 test_file_block_debug_test :; FOUNDRY_PROFILE=$(PROFILE) forge test $(FORK_URL) $(MATCH_PATH) $(MATCH_TEST) $(FORK_BLOCK) -vvv
+
+# | File                       | % Lines            | % Statements       | % Branches       | % Funcs          |
+# |----------------------------|--------------------|--------------------|------------------|------------------|
+# | src/RewardsDistributor.sol | 90.00% (126/140)   | 88.44% (176/199)   | 63.64% (42/66)   | 80.00% (12/15)   |
+# | src/VotingEscrow.sol       | 90.34% (449/497)   | 91.06% (560/615)   | 67.05% (177/264) | 82.50% (66/80)   |
+
+
+# | File                       | % Lines            | % Statements       | % Branches       | % Funcs          |
+# |----------------------------|--------------------|--------------------|------------------|------------------|
+# | src/Bribe.sol              | 94.52% (138/146)   | 95.63% (175/183)   | 78.38% (58/74)   | 100.00% (19/19)  |
+# | src/Minter.sol             | 100.00% (48/48)    | 100.00% (61/61)    | 88.46% (23/26)   | 100.00% (9/9)    |
+# | src/Voter.sol              | 97.14% (170/175)   | 96.53% (195/202)   | 83.02% (88/106)  | 93.33% (28/30)   |
+# | src/FluxToken.sol          | 97.06% (66/68)     | 97.40% (75/77)     | 90.32% (56/62)   | 100.00% (19/19)  |
+# | src/RevenueHandler.sol     | 100.00% (94/94)    | 100.00% (115/115)  | 93.18% (41/44)   | 100.00% (15/15)  |
+# | src/RewardPoolManager.sol  | 100.00% (47/47)    | 100.00% (55/55)    | 94.12% (32/34)   | 100.00% (13/13)  |
+# | src/BaseGauge.sol          | 100.00% (13/13)    | 100.00% (13/13)    | 100.00% (14/14)  | 80.00% (4/5)     |
+# | src/AlchemixGovernor.sol   | 100.00% (16/16)    | 100.00% (17/17)    | 100.00% (12/12)  | 100.00% (6/6)    |
+# | src/BribeFactory.sol       | 100.00% (1/1)      | 100.00% (2/2)      | 100.00% (0/0)    | 100.00% (1/1)    |
+# | src/GaugeFactory.sol       | 100.00% (2/2)      | 100.00% (4/4)      | 100.00% (0/0)    | 100.00% (2/2)    |
+# | src/PassthroughGauge.sol   | 100.00% (2/2)      | 100.00% (2/2)      | 100.00% (0/0)    | 100.00% (1/1)    |

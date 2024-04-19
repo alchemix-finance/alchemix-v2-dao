@@ -381,4 +381,28 @@ contract AlchemixGovernorTest is BaseTest {
 
         assertFalse(voter.isWhitelisted(usdc));
     }
+
+    function testAdminFunctions() public {
+        address admin = governor.admin();
+
+        hevm.expectRevert(abi.encodePacked("not admin"));
+        governor.setAdmin(devmsig);
+
+        hevm.expectRevert(abi.encodePacked("not admin"));
+        governor.setVotingDelay(20);
+
+        hevm.expectRevert(abi.encodePacked("not admin"));
+        governor.setVotingPeriod(20);
+
+        hevm.prank(admin);
+        governor.setAdmin(devmsig);
+
+        hevm.prank(admin);
+        hevm.expectRevert(abi.encodePacked("not pending admin"));
+        governor.acceptAdmin();
+
+        hevm.prank(devmsig);
+        governor.acceptAdmin();
+        assertEq(governor.admin(), devmsig, "admin should be updated");
+    }
 }

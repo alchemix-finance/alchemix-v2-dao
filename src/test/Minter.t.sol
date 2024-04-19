@@ -295,6 +295,11 @@ contract MinterTest is BaseTest {
 
         hevm.expectRevert(abi.encodePacked("insufficient balance to compound"));
         distributor.claim(tokenId, true);
+
+        hevm.stopPrank();
+
+        hevm.expectRevert(abi.encodePacked("not approved"));
+        distributor.claim(tokenId, true);
     }
 
     // Compound claiming should revert if user doesn't provide enough weth
@@ -320,6 +325,9 @@ contract MinterTest is BaseTest {
         hevm.expectRevert(abi.encodePacked("insufficient balance to compound"));
         distributor.claim(tokenId, true);
 
+        hevm.expectRevert(abi.encodePacked("Value must be 0 if not compounding"));
+        distributor.claim{ value: 1 ether }(tokenId, false);
+
         distributor.claim{ value: 100 ether }(tokenId, true);
         assertGt(admin.balance, 0);
         assertGt(100 ether, admin.balance);
@@ -332,11 +340,18 @@ contract MinterTest is BaseTest {
         hevm.expectRevert(abi.encodePacked("not initializer"));
         minter.initialize();
 
+        hevm.prank(address(0));
+        hevm.expectRevert(abi.encodePacked("already initialized"));
+        minter.initialize();
+
         hevm.expectRevert(abi.encodePacked("not admin"));
         minter.setAdmin(devmsig);
 
         hevm.expectRevert(abi.encodePacked("not admin"));
         minter.setVeAlcxEmissionsRate(1000);
+
+        hevm.expectRevert(abi.encodePacked("not voter"));
+        minter.updatePeriod();
 
         hevm.prank(admin);
         minter.setAdmin(devmsig);
@@ -347,6 +362,10 @@ contract MinterTest is BaseTest {
         hevm.startPrank(devmsig);
 
         minter.acceptAdmin();
+
+        hevm.expectRevert(abi.encodePacked("cannot be greater than 100%"));
+        minter.setVeAlcxEmissionsRate(10_000 * 2);
+
         minter.setVeAlcxEmissionsRate(1000);
 
         hevm.stopPrank();

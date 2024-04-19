@@ -1,18 +1,21 @@
 // SPDX-License-Identifier: GPL-3
 pragma solidity ^0.8.15;
-
+import "lib/forge-std/src/console2.sol";
 import "src/interfaces/IBribe.sol";
 import "src/interfaces/IBaseGauge.sol";
 import "src/interfaces/IVoter.sol";
 import "src/interfaces/IVotingEscrow.sol";
 import "src/libraries/Math.sol";
 import "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /**
  * @title  Bribe
  * @notice Implementation of bribe contract to be used with gauges
  */
 contract Bribe is IBribe {
+    using SafeERC20 for IERC20;
+
     /// @notice Rewards released over voting period
     uint256 internal constant DURATION = 2 weeks;
     /// @notice Duration of time when bribes are accepted
@@ -107,7 +110,7 @@ contract Bribe is IBribe {
 
     /// @inheritdoc IBribe
     function notifyRewardAmount(address token, uint256 amount) external lock {
-        require(amount > 0);
+        require(amount > 0, "reward amount must be greater than 0");
 
         // If the token has been whitelisted by the voter contract, add it to the rewards list
         require(IVoter(voter).isWhitelisted(token), "bribe tokens must be whitelisted");
@@ -117,7 +120,8 @@ contract Bribe is IBribe {
         uint256 adjustedTstamp = getEpochStart(block.timestamp);
         uint256 epochRewards = tokenRewardsPerEpoch[token][adjustedTstamp];
 
-        _safeTransferFrom(token, msg.sender, address(this), amount);
+        IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
+
         tokenRewardsPerEpoch[token][adjustedTstamp] = epochRewards + amount;
         periodFinish[token] = adjustedTstamp + DURATION;
 
@@ -126,7 +130,7 @@ contract Bribe is IBribe {
 
     /// @inheritdoc IBribe
     function addRewardToken(address token) external {
-        require(msg.sender == gauge);
+        require(msg.sender == gauge, "not being set by a gauge");
         _addRewardToken(token);
     }
 
@@ -135,7 +139,6 @@ contract Bribe is IBribe {
         require(msg.sender == voter, "Only voter can execute");
         require(IVoter(voter).isWhitelisted(newToken), "New token must be whitelisted");
         require(rewards[oldTokenIndex] == oldToken, "Old token mismatch");
-        require(newToken != address(0), "New token cannot be zero address");
 
         // Check that the newToken does not already exist in the rewards array
         for (uint256 i = 0; i < rewards.length; i++) {
@@ -193,7 +196,6 @@ contract Bribe is IBribe {
         if (votingCheckpoints[nCheckpoints - 1].timestamp < timestamp) {
             return (nCheckpoints - 1);
         }
-
         // Check implicit zero balance
         if (votingCheckpoints[0].timestamp > timestamp) {
             return 0;
@@ -291,7 +293,7 @@ contract Bribe is IBribe {
 
             _writeCheckpoint(tokenId, balanceOf[tokenId]);
 
-            _safeTransfer(tokens[i], _owner, _reward);
+            IERC20(tokens[i]).safeTransfer(_owner, _reward);
 
             emit ClaimRewards(_owner, tokens[i], _reward);
         }
@@ -383,19 +385,5 @@ contract Bribe is IBribe {
 
     function _bribeStart(uint256 timestamp) internal pure returns (uint256) {
         return timestamp - (timestamp % (DURATION));
-    }
-
-    function _safeTransfer(address token, address to, uint256 value) internal {
-        require(token.code.length > 0);
-        (bool success, bytes memory data) = token.call(abi.encodeWithSelector(IERC20.transfer.selector, to, value));
-        require(success && (data.length == 0 || abi.decode(data, (bool))));
-    }
-
-    function _safeTransferFrom(address token, address from, address to, uint256 value) internal {
-        require(token.code.length > 0);
-        (bool success, bytes memory data) = token.call(
-            abi.encodeWithSelector(IERC20.transferFrom.selector, from, to, value)
-        );
-        require(success && (data.length == 0 || abi.decode(data, (bool))));
     }
 }

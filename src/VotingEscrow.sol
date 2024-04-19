@@ -501,13 +501,13 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
     function approve(address _approved, uint256 _tokenId) public {
         address owner = idToOwner[_tokenId];
         // Throws if `_tokenId` is not a valid token
-        require(owner != address(0));
+        require(owner != address(0), "owner not found");
         // Throws if `_approved` is the current owner
         require(_approved != owner, "Approved is already owner");
         // Check requirements
         bool senderIsOwner = (owner == msg.sender);
         bool senderIsApprovedForAll = (ownerToOperators[owner])[msg.sender];
-        require(senderIsOwner || senderIsApprovedForAll);
+        require(senderIsOwner || senderIsApprovedForAll, "sender is not owner or approved");
         // Set the approval
         idToApprovals[_tokenId] = _approved;
         emit Approval(owner, _approved, _tokenId);
@@ -523,7 +523,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
      */
     function setApprovalForAll(address _operator, bool _approved) external {
         // Throws if `_operator` is the `msg.sender`
-        require(_operator != msg.sender);
+        require(_operator != msg.sender, "operator cannot be sender");
         ownerToOperators[msg.sender][_operator] = _approved;
         emit ApprovalForAll(msg.sender, _operator, _approved);
     }
@@ -533,7 +533,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
      * @param delegatee The address to delegate votes to
      */
     function delegate(address delegatee) public {
-        if (delegatee == address(0)) delegatee = msg.sender;
+        require(delegatee != address(0), "cannot delegate to zero address");
         return _delegate(msg.sender, delegatee);
     }
 
@@ -571,13 +571,13 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
 
     /// @inheritdoc IVotingEscrow
     function voting(uint256 _tokenId) external {
-        require(msg.sender == voter);
+        require(msg.sender == voter, "not voter");
         voted[_tokenId] = true;
     }
 
     /// @inheritdoc IVotingEscrow
     function abstain(uint256 _tokenId) external {
-        require(msg.sender == voter);
+        require(msg.sender == voter, "not voter");
         voted[_tokenId] = false;
     }
 
@@ -618,8 +618,8 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
     function merge(uint256 _from, uint256 _to) external {
         require(!voted[_from], "voting in progress for token");
         require(_from != _to, "must be different tokens");
-        require(_isApprovedOrOwner(msg.sender, _from));
-        require(_isApprovedOrOwner(msg.sender, _to));
+        require(_isApprovedOrOwner(msg.sender, _from), "not approved or owner");
+        require(_isApprovedOrOwner(msg.sender, _to), "not approved or owner");
 
         LockedBalance memory _locked0 = locked[_from];
         LockedBalance memory _locked1 = locked[_to];
@@ -657,8 +657,8 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
 
     /// @inheritdoc IVotingEscrow
     function updateLock(uint256 _tokenId) external {
-        require(isMaxLocked(_tokenId), "not max locked");
         require(msg.sender == voter, "not voter");
+        require(isMaxLocked(_tokenId), "not max locked");
 
         locked[_tokenId].end = ((block.timestamp + MAXTIME) / WEEK) * WEEK;
     }
@@ -712,7 +712,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
      * @param _maxLockEnabled Is max lock being enabled
      */
     function updateUnlockTime(uint256 _tokenId, uint256 _lockDuration, bool _maxLockEnabled) external nonreentrant {
-        require(_isApprovedOrOwner(msg.sender, _tokenId));
+        require(_isApprovedOrOwner(msg.sender, _tokenId), "not approved or owner");
 
         LockedBalance memory _locked = locked[_tokenId];
 
@@ -739,7 +739,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
      * @dev Only possible if the lock has expired
      */
     function withdraw(uint256 _tokenId) public nonreentrant {
-        require(_isApprovedOrOwner(msg.sender, _tokenId));
+        require(_isApprovedOrOwner(msg.sender, _tokenId), "not approved or owner");
         require(!voted[_tokenId], "voting in progress for token");
 
         LockedBalance memory _locked = locked[_tokenId];
@@ -757,7 +757,10 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
         _checkpoint(_tokenId, _locked, LockedBalance(0, 0, false, 0));
 
         // Withdraws BPT from reward pool
-        require(IRewardPoolManager(rewardPoolManager).withdrawFromRewardPool(value));
+        require(
+            IRewardPoolManager(rewardPoolManager).withdrawFromRewardPool(value),
+            "withdraw from reward pool failed"
+        );
 
         require(IERC20(BPT).transfer(ownerOf(_tokenId), value));
 
@@ -773,7 +776,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
 
     /// @inheritdoc IVotingEscrow
     function startCooldown(uint256 _tokenId) external {
-        require(_isApprovedOrOwner(msg.sender, _tokenId));
+        require(_isApprovedOrOwner(msg.sender, _tokenId), "not approved or owner");
 
         LockedBalance memory _locked = locked[_tokenId];
 
