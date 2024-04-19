@@ -156,6 +156,10 @@ contract VotingTest is BaseTest {
     function testInvalidGauge() public {
         uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
 
+        hevm.prank(voter.admin());
+        hevm.expectRevert(abi.encodePacked("exists"));
+        voter.createGauge(alUsdPoolAddress, IVoter.GaugeType.Passthrough);
+
         hevm.startPrank(admin);
 
         uint256 period = minter.activePeriod();
@@ -173,9 +177,6 @@ contract VotingTest is BaseTest {
 
         pools[0] = alUsdPoolAddress;
         voter.killGauge(voter.gauges(alUsdPoolAddress));
-
-        hevm.expectRevert(abi.encodePacked("exists"));
-        voter.createGauge(alUsdPoolAddress, IVoter.GaugeType.Passthrough);
 
         hevm.expectRevert(abi.encodePacked("cannot vote for dead gauge"));
         voter.vote(tokenId, pools, weights, 0);
