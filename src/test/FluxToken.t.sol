@@ -8,6 +8,80 @@ contract FluxTokenTest is BaseTest {
         setupContracts(block.timestamp);
     }
 
+    function testAdminFunctionErrors() external {
+        address admin = flux.admin();
+
+        hevm.expectRevert(abi.encodePacked("not admin"));
+        flux.setAdmin(devmsig);
+
+        hevm.prank(admin);
+        hevm.expectRevert(abi.encodePacked("not pending admin"));
+        flux.acceptAdmin();
+
+        hevm.expectRevert(abi.encodePacked("not admin"));
+        flux.setVoter(devmsig);
+
+        hevm.expectRevert(abi.encodePacked("not admin"));
+        flux.setVeALCX(devmsig);
+
+        hevm.expectRevert(abi.encodePacked("not admin"));
+        flux.setAlchemechNFT(devmsig);
+
+        hevm.expectRevert(abi.encodePacked("not admin"));
+        flux.setPatronNFT(devmsig);
+
+        hevm.expectRevert(abi.encodePacked("not admin"));
+        flux.setNftMultiplier(1);
+
+        hevm.expectRevert(abi.encodePacked("not admin"));
+        flux.setBptMultiplier(1);
+    }
+
+    function testUpdateToZero() external {
+        address admin = flux.admin();
+        address minter = flux.minter();
+
+        hevm.prank(admin);
+        flux.setAdmin(devmsig);
+
+        hevm.startPrank(devmsig);
+        flux.acceptAdmin();
+
+        hevm.expectRevert(abi.encodePacked("FluxToken: voter cannot be zero address"));
+        flux.setVoter(address(0));
+
+        hevm.expectRevert(abi.encodePacked("FluxToken: veALCX cannot be zero address"));
+        flux.setVeALCX(address(0));
+
+        hevm.expectRevert(abi.encodePacked("FluxToken: alchemechNFT cannot be zero address"));
+        flux.setAlchemechNFT(address(0));
+
+        hevm.expectRevert(abi.encodePacked("FluxToken: patronNFT cannot be zero address"));
+        flux.setPatronNFT(address(0));
+
+        hevm.expectRevert(abi.encodePacked("FluxToken: nftMultiplier cannot be zero"));
+        flux.setNftMultiplier(0);
+
+        hevm.expectRevert(abi.encodePacked("FluxToken: bptMultiplier cannot be zero"));
+        flux.setBptMultiplier(0);
+
+        hevm.stopPrank();
+
+        hevm.prank(minter);
+        hevm.expectRevert(abi.encodePacked("FluxToken: minter cannot be zero address"));
+        flux.setMinter(address(0));
+    }
+
+    function testSetMultipliersLimit() external {
+        hevm.startPrank(admin);
+
+        hevm.expectRevert(abi.encodePacked("FluxToken: nftMultiplier cannot be greater than BPS"));
+        flux.setNftMultiplier(BPS + 1);
+
+        hevm.expectRevert(abi.encodePacked("FluxToken: bptMultiplier cannot be greater than BPS"));
+        flux.setBptMultiplier(BPS + 1);
+    }
+
     function testMintFluxFromNFT() external {
         uint256 tokenId = 4;
         address ownerOfPatronNFT = IAlEthNFT(patronNFT).ownerOf(tokenId);
@@ -34,6 +108,13 @@ contract FluxTokenTest is BaseTest {
 
         assertEq(flux.balanceOf(ownerOfPatronNFT), patronTotal, "owner should have patron flux");
         assertEq(flux.balanceOf(ownerOfAlchemechNFT), alchemechTotal, "owner should have alchemech flux");
+    }
+
+    function testCalculateBPT() external {
+        uint256 amount = 1000;
+        uint256 bptCalculation = flux.calculateBPT(amount);
+
+        assertEq(amount * flux.bptMultiplier(), bptCalculation, "should calculate BPT correctly");
     }
 
     function testMintFluxFromNFTErrors() external {
@@ -106,5 +187,67 @@ contract FluxTokenTest is BaseTest {
         uint256 unclaimedFluxEnd = flux.getUnclaimedFlux(tokenId);
 
         assertEq(unclaimedFluxEnd, amountToRagequit, "should have all unclaimed flux");
+    }
+
+    function testFluxActions() external {
+        address bribeAddress = voter.bribes(address(sushiGauge));
+
+        uint256 tokenId1 = createVeAlcx(admin, TOKEN_1, veALCX.MAXTIME(), false);
+        uint256 tokenId2 = createVeAlcx(beef, TOKEN_1, veALCX.MAXTIME(), false);
+
+        uint256 amount1 = veALCX.claimableFlux(tokenId1);
+        uint256 amount2 = veALCX.claimableFlux(tokenId2);
+
+        uint256 totalAmount = amount1 + amount2;
+
+        uint256 unclaimedFlux1Start = flux.getUnclaimedFlux(tokenId1);
+        uint256 unclaimedFlux2Start = flux.getUnclaimedFlux(tokenId2);
+
+        assertEq(unclaimedFlux1Start, 0, "should start with no unclaimed flux");
+        assertEq(unclaimedFlux2Start, 0, "should start with no unclaimed flux");
+
+        address[] memory pools = new address[](1);
+        pools[0] = sushiPoolAddress;
+        uint256[] memory weights = new uint256[](1);
+        weights[0] = 5000;
+
+        address[] memory bribes = new address[](1);
+        bribes[0] = address(bribeAddress);
+        address[][] memory tokens = new address[][](2);
+        tokens[0] = new address[](1);
+        tokens[0][0] = bal;
+
+        hevm.prank(admin);
+        voter.vote(tokenId1, pools, weights, 0);
+
+        hevm.prank(beef);
+        voter.vote(tokenId2, pools, weights, 0);
+
+        // Fast forward epochs
+        hevm.warp(newEpoch());
+
+        voter.distribute();
+
+        hevm.expectRevert(abi.encodePacked("not voter"));
+        flux.updateFlux(tokenId1, amount1);
+
+        hevm.expectRevert(abi.encodePacked("not voter"));
+        flux.accrueFlux(tokenId1);
+
+        hevm.prank(address(voter));
+        hevm.expectRevert(abi.encodePacked("not enough flux"));
+        flux.updateFlux(tokenId1, TOKEN_100K);
+
+        hevm.expectRevert(abi.encodePacked("not veALCX"));
+        flux.mergeFlux(tokenId1, tokenId2);
+
+        hevm.prank(address(veALCX));
+        flux.mergeFlux(tokenId1, tokenId2);
+
+        uint256 unclaimedFlux1End = flux.getUnclaimedFlux(tokenId1);
+        uint256 unclaimedFlux2End = flux.getUnclaimedFlux(tokenId2);
+
+        assertEq(unclaimedFlux1End, 0, "should have no unclaimed flux");
+        assertEq(unclaimedFlux2End, totalAmount, "should have all unclaimed flux");
     }
 }

@@ -157,24 +157,6 @@ interface IVoter {
     function updateFor(address[] memory _gauges) external;
 
     /**
-     * @notice Update a list of gauges given a range of pool indexes
-     * @param start start index
-     * @param end end index
-     */
-    function updateForRange(uint256 start, uint256 end) external;
-
-    /**
-     * @notice Update all gauges in the pools array
-     */
-    function updateAll() external;
-
-    /**
-     * @notice Update the gauge for a specific pool
-     * @param _gauge Address of the gauge to update
-     */
-    function updateGauge(address _gauge) external;
-
-    /**
      * @notice Claim the bribes for a given token id
      * @param _bribes Array of bribe addresses to claim from
      * @param _tokens Array of bribe addresses and coenciding token addresses to claim

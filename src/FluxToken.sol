@@ -213,7 +213,7 @@ contract FluxToken is ERC20("Flux", "FLUX"), IFluxToken {
 
     // Given an amount of eth, calculate how much FLUX it would earn in a year if it were deposited into veALCX
     function getClaimableFlux(uint256 _amount, address _nft) public view returns (uint256 claimableFlux) {
-        uint256 bpt = _calculateBPT(_amount);
+        uint256 bpt = calculateBPT(_amount);
 
         uint256 veMul = IVotingEscrow(veALCX).MULTIPLIER();
         uint256 veMax = IVotingEscrow(veALCX).MAXTIME();
@@ -229,7 +229,7 @@ contract FluxToken is ERC20("Flux", "FLUX"), IFluxToken {
         }
     }
 
-    function _calculateBPT(uint256 _amount) public view returns (uint256 bptOut) {
+    function calculateBPT(uint256 _amount) public view returns (uint256 bptOut) {
         bptOut = _amount * bptMultiplier;
     }
 }

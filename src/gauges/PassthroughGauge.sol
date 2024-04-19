@@ -13,6 +13,8 @@ import "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
  * @dev If custom distribution logic is necessary create additional contract
  */
 contract PassthroughGauge is BaseGauge {
+    using SafeERC20 for IERC20;
+
     constructor(address _receiver, address _bribe, address _ve, address _voter) {
         receiver = _receiver;
         bribe = _bribe;
@@ -35,10 +37,9 @@ contract PassthroughGauge is BaseGauge {
      * @param _amount Amount of rewards
      */
     function _passthroughRewards(uint256 _amount) internal override {
-        uint256 rewardBalance = IERC20(rewardToken).balanceOf(address(this));
-        require(rewardBalance >= _amount, "insufficient rewards");
-
-        _safeTransfer(rewardToken, receiver, _amount);
+        // Gauge will always have _amount
+        // It is transfered in BaseGauge.notifyRewardAmount
+        IERC20(rewardToken).safeTransfer(receiver, _amount);
 
         emit Passthrough(msg.sender, rewardToken, _amount, receiver);
     }

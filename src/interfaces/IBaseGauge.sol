@@ -55,12 +55,6 @@ interface IBaseGauge {
     function acceptAdmin() external;
 
     /**
-     * @notice Get the current voting stage
-     * @param timestamp The timestamp to check the voting stage
-     */
-    function getVotingStage(uint256 timestamp) external pure returns (VotingStage);
-
-    /**
      * @notice Distribute the appropriate rewards to a gauge
      * @dev This function may require different implementation depending on destination
      * @param amount The amount of rewards being sent

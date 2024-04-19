@@ -138,7 +138,7 @@ contract RewardsDistributor is IRewardsDistributor, ReentrancyGuard {
 
     /// @inheritdoc IRewardsDistributor
     function checkpointToken() external {
-        assert(msg.sender == depositor);
+        require(msg.sender == depositor, "only depositor");
         _checkpointToken();
     }
 
@@ -211,7 +211,7 @@ contract RewardsDistributor is IRewardsDistributor, ReentrancyGuard {
 
     /// @dev Once off event on contract initialize
     function setDepositor(address _depositor) external {
-        require(msg.sender == depositor);
+        require(msg.sender == depositor, "only depositor");
         depositor = _depositor;
         emit DepositorUpdated(_depositor);
     }

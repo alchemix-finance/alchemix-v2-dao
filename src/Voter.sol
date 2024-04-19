@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3
 pragma solidity ^0.8.15;
-
+import "lib/forge-std/src/console2.sol";
 import "src/interfaces/IBribeFactory.sol";
 import "src/interfaces/IBribe.sol";
 import "src/interfaces/IBaseGauge.sol";
@@ -28,7 +28,7 @@ contract Voter is IVoter {
     address public immutable bribefactory;
 
     uint256 internal constant BPS = 10_000;
-    uint256 internal constant MAX_BOOST = 10000;
+    uint256 internal constant MAX_BOOST = 10_000;
     uint256 internal constant MIN_BOOST = 0;
     /// @notice Rewards are released over this duration (2 weeks)
     uint256 internal constant DURATION = 2 weeks;
@@ -167,7 +167,7 @@ contract Voter is IVoter {
 
     /// @inheritdoc IVoter
     function swapReward(address gaugeAddress, uint256 tokenIndex, address oldToken, address newToken) external {
-        require(msg.sender == admin);
+        require(msg.sender == admin, "only admin can swap reward tokens");
         IBribe(bribes[gaugeAddress]).swapOutRewardToken(tokenIndex, oldToken, newToken);
     }
 
@@ -231,8 +231,8 @@ contract Voter is IVoter {
         uint256[] calldata _weights,
         uint256 _boost
     ) external onlyNewEpoch(_tokenId) {
-        require(IVotingEscrow(veALCX).isApprovedOrOwner(msg.sender, _tokenId));
-        require(_poolVote.length == _weights.length);
+        require(IVotingEscrow(veALCX).isApprovedOrOwner(msg.sender, _tokenId), "not approved or owner");
+        require(_poolVote.length == _weights.length, "pool vote and weights mismatch");
         require(_poolVote.length > 0, "no pools voted for");
         require(_poolVote.length <= pools.length, "invalid pools");
         require(
@@ -251,6 +251,7 @@ contract Voter is IVoter {
     /// @inheritdoc IVoter
     function whitelist(address _token) public {
         require(msg.sender == admin, "not admin");
+        require(_token != address(0), "cannot be zero address");
         _whitelist(_token);
     }
 
@@ -262,8 +263,8 @@ contract Voter is IVoter {
 
     /// @inheritdoc IVoter
     function createGauge(address _pool, GaugeType _gaugeType) external returns (address) {
+        require(msg.sender == admin, "not admin");
         require(gauges[_pool] == address(0x0), "exists");
-        require(msg.sender == admin, "only admin creates gauges");
 
         address _bribe = IBribeFactory(bribefactory).createBribe();
 
@@ -325,23 +326,6 @@ contract Voter is IVoter {
         for (uint256 i = 0; i < _gauges.length; i++) {
             _updateFor(_gauges[i]);
         }
-    }
-
-    /// @inheritdoc IVoter
-    function updateForRange(uint256 start, uint256 end) public {
-        for (uint256 i = start; i < end; i++) {
-            _updateFor(gauges[pools[i]]);
-        }
-    }
-
-    /// @inheritdoc IVoter
-    function updateAll() external {
-        updateForRange(0, pools.length);
-    }
-
-    /// @inheritdoc IVoter
-    function updateGauge(address _gauge) external {
-        _updateFor(_gauge);
     }
 
     /// @inheritdoc IVoter
@@ -446,8 +430,8 @@ contract Voter is IVoter {
             require(isAlive[_gauge], "cannot vote for dead gauge");
 
             uint256 _poolWeight = (_weights[i] * totalPower) / _totalVoteWeight;
-            require(votes[_tokenId][_pool] == 0);
-            require(_poolWeight != 0);
+            require(votes[_tokenId][_pool] == 0, "already voted for pool");
+            require(_poolWeight != 0, "cannot vote with zero weight");
             _updateFor(_gauge);
 
             poolVote[_tokenId].push(_pool);
@@ -471,13 +455,13 @@ contract Voter is IVoter {
     }
 
     function _whitelist(address _token) internal {
-        require(!isWhitelisted[_token]);
+        require(!isWhitelisted[_token], "token already whitelisted");
         isWhitelisted[_token] = true;
         emit Whitelisted(msg.sender, _token);
     }
 
     function _removeFromWhitelist(address _token) internal {
-        require(isWhitelisted[_token]);
+        require(isWhitelisted[_token], "token not whitelisted");
         isWhitelisted[_token] = false;
         emit RemovedFromWhitelist(msg.sender, _token);
     }
