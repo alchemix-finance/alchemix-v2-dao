@@ -273,4 +273,8 @@ contract BaseTest is DSTestPlus {
 
         IBribe(_bribeAddress).notifyRewardAmount(_token, _amount);
     }
+
+    function newEpoch() public view returns (uint256) {
+        return IMinter(minter).activePeriod() + IMinter(minter).DURATION() + 1 seconds;
+    }
 }

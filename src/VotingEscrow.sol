@@ -28,9 +28,13 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
     string public constant version = "1.0.0";
     uint8 public immutable decimals = 18;
 
+    /// @notice Duration of an epoch
     uint256 public constant EPOCH = 2 weeks;
+    /// @notice Maximum number of delegates a token can have
     uint256 public constant MAX_DELEGATES = 1024; // avoid too much gas
+    /// @notice Maximum time a lock can be set for
     uint256 public constant MAXTIME = 365 days;
+    /// @notice Multiplier for the slope of the decay
     uint256 public constant MULTIPLIER = 2;
 
     uint256 internal immutable WEEK = 1 weeks;
@@ -42,31 +46,53 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
     /// @dev Current count of token
     uint256 internal tokenId;
 
+    /// @notice address of ALCX token
     address public immutable ALCX;
+    /// @notice address of FLUX token
     address public immutable FLUX;
+    /// @notice address of BPT token (ALCX-BPT LP token)
     address public immutable BPT;
-    address public rewardPoolManager; // destination for BPT
-    address public admin; // the timelock executor
-    address public pendingAdmin; // the timelock executor
+    /// @notice address of the reward pool manager contract
+    address public rewardPoolManager;
+    /// @notice address of the admin
+    address public admin;
+    /// @notice address of the pending admin
+    address public pendingAdmin;
+    /// @notice address of the voter contract
     address public voter;
+    /// @notice address of the rewards distributor contract
     address public distributor;
+    /// @notice address of the treasury
     address public treasury;
 
+    /// @notice total supply of BPT locked in veALCX
     uint256 public supply;
-    uint256 public claimFeeBps = 5000; // Fee for claiming early in bps
-    uint256 public fluxMultiplier; // Multiplier for flux reward accrual
-    uint256 public fluxPerVeALCX; // Percent of veALCX power needed in flux in order to unlock early
+    /// @notice fee for claiming without compounding
+    uint256 public claimFeeBps = 5000;
+    /// @notice Determines amount of time it will take to accrue the FLUX needed to unlock early for a max locked token
+    uint256 public fluxMultiplier;
+    /// @notice Amount of FLUX a veALCX holder can claim per epoch
+    uint256 public fluxPerVeALCX;
+    /// @notice epoch counter
     uint256 public epoch;
 
+    /// @notice Returns the LockedBalance of a tokenId
     mapping(uint256 => LockedBalance) public locked;
+    /// @notice Sets the block number for a tokenId when there is an ownership change
     mapping(uint256 => uint256) public ownershipChange;
-    mapping(uint256 => Point) public pointHistory; // epoch -> unsigned point
-    mapping(uint256 => Point[1000000000]) public userPointHistory; // user -> Point[userEpoch]
-    mapping(uint256 => uint256) public userFirstEpoch; // user -> epoch
+    /// @notice Mapping of epoch -> unsigned point
+    mapping(uint256 => Point) public pointHistory;
+    /// @notice Mapping of user -> Point[userEpoch]
+    mapping(uint256 => Point[1000000000]) public userPointHistory;
+    /// @notice Mapping of user -> epoch
+    mapping(uint256 => uint256) public userFirstEpoch;
+    /// @notice Mapping of user -> point
     mapping(uint256 => uint256) public userPointEpoch;
-    mapping(uint256 => int256) public slopeChanges; // time -> signed slope change
-    mapping(uint256 => uint256) public attachments;
+    /// @notice Mapping of time -> signed slope change
+    mapping(uint256 => int256) public slopeChanges;
+    /// @notice Mapping of token to whether the token has voted
     mapping(uint256 => bool) public voted;
+    /// @notice Mapping of token to whether the token is a reward pool token
     mapping(address => bool) public isRewardPoolToken;
 
     /// @dev Mapping from token ID to the address that owns it.
@@ -170,6 +196,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
         return locked[_tokenId].end;
     }
 
+    /// @inheritdoc IVotingEscrow
     function isMaxLocked(uint256 _tokenId) public view returns (bool) {
         return locked[_tokenId].maxLockEnabled;
     }
@@ -184,10 +211,12 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
         return locked[_tokenId].cooldown;
     }
 
+    /// @inheritdoc IVotingEscrow
     function getPointHistory(uint256 _loc) external view returns (Point memory) {
         return pointHistory[_loc];
     }
 
+    /// @inheritdoc IVotingEscrow
     function getUserPointHistory(uint256 _tokenId, uint256 _loc) external view returns (Point memory) {
         return userPointHistory[_tokenId][_loc];
     }
@@ -220,26 +249,19 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
         return ownerToTokenIdList[_owner][_tokenIndex];
     }
 
+    /// @inheritdoc IVotingEscrow
     function isApprovedOrOwner(address _spender, uint256 _tokenId) external view returns (bool) {
         return _isApprovedOrOwner(_spender, _tokenId);
     }
 
-    /**
-     * @notice Overrides the standard `Comp.sol` delegates mapping to return
-     * the delegator's own address if they haven't delegated.
-     * This avoids having to delegate to oneself.
-     */
-    function delegates(address delegator) public view returns (address) {
+    /// @inheritdoc IVotingEscrow
+    function delegates(address delegator) public view override(IVotes, IVotingEscrow) returns (address) {
         address current = _delegates[delegator];
         return current == address(0) ? delegator : current;
     }
 
-    /**
-     * @notice Gets the current votes balance for `account`
-     * @param account The address to get votes balance
-     * @return The number of current votes for `account`
-     */
-    function getVotes(address account) external view returns (uint256) {
+    /// @inheritdoc IVotingEscrow
+    function getVotes(address account) external view override(IVotes, IVotingEscrow) returns (uint256) {
         uint32 nCheckpoints = numCheckpoints[account];
         if (nCheckpoints == 0) {
             return 0;
@@ -254,6 +276,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
         return votes;
     }
 
+    /// @inheritdoc IVotingEscrow
     function getPastVotesIndex(address account, uint256 timestamp) public view returns (uint32) {
         uint32 nCheckpoints = numCheckpoints[account];
         if (nCheckpoints == 0) {
@@ -290,10 +313,11 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
         return lower;
     }
 
-    /**
-     * @dev Returns the amount of votes that `account` had at the end of a past `timestamp`.
-     */
-    function getPastVotes(address account, uint256 timestamp) public view returns (uint256) {
+    /// @inheritdoc IVotingEscrow
+    function getPastVotes(
+        address account,
+        uint256 timestamp
+    ) public view override(IVotes, IVotingEscrow) returns (uint256) {
         uint32 _checkIndex = getPastVotesIndex(account, timestamp);
         uint256 votes = 0;
 
@@ -312,7 +336,8 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
         return votes;
     }
 
-    function getPastTotalSupply(uint256 timestamp) external view returns (uint256) {
+    /// @inheritdoc IVotingEscrow
+    function getPastTotalSupply(uint256 timestamp) external view override(IVotes, IVotingEscrow) returns (uint256) {
         return totalSupplyAtT(timestamp);
     }
 
@@ -330,21 +355,20 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
         return ragequitAmount;
     }
 
-    /**
-     * @notice Returns current token URI metadata
-     * @param _tokenId ID of the token to fetch URI for.
-     */
-    function tokenURI(uint256 _tokenId) external view returns (string memory) {
+    /// @inheritdoc IVotingEscrow
+    function tokenURI(uint256 _tokenId) external view override(IERC721Metadata, IVotingEscrow) returns (string memory) {
         require(idToOwner[_tokenId] != address(0), "Query for nonexistent token");
         LockedBalance memory _locked = locked[_tokenId];
         return _tokenURI(_tokenId, _balanceOfTokenAt(_tokenId, block.timestamp), _locked.end, _locked.amount);
     }
 
+    /// @inheritdoc IVotingEscrow
     function balanceOfToken(uint256 _tokenId) external view returns (uint256) {
         if (ownershipChange[_tokenId] == block.number) return 0;
         return _balanceOfTokenAt(_tokenId, block.timestamp);
     }
 
+    /// @inheritdoc IVotingEscrow
     function balanceOfTokenAt(uint256 _tokenId, uint256 _time) external view returns (uint256) {
         return _balanceOfTokenAt(_tokenId, _time);
     }
@@ -477,13 +501,13 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
     function approve(address _approved, uint256 _tokenId) public {
         address owner = idToOwner[_tokenId];
         // Throws if `_tokenId` is not a valid token
-        require(owner != address(0));
+        require(owner != address(0), "owner not found");
         // Throws if `_approved` is the current owner
         require(_approved != owner, "Approved is already owner");
         // Check requirements
         bool senderIsOwner = (owner == msg.sender);
         bool senderIsApprovedForAll = (ownerToOperators[owner])[msg.sender];
-        require(senderIsOwner || senderIsApprovedForAll);
+        require(senderIsOwner || senderIsApprovedForAll, "sender is not owner or approved");
         // Set the approval
         idToApprovals[_tokenId] = _approved;
         emit Approval(owner, _approved, _tokenId);
@@ -499,7 +523,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
      */
     function setApprovalForAll(address _operator, bool _approved) external {
         // Throws if `_operator` is the `msg.sender`
-        require(_operator != msg.sender);
+        require(_operator != msg.sender, "operator cannot be sender");
         ownerToOperators[msg.sender][_operator] = _approved;
         emit ApprovalForAll(msg.sender, _operator, _approved);
     }
@@ -509,7 +533,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
      * @param delegatee The address to delegate votes to
      */
     function delegate(address delegatee) public {
-        if (delegatee == address(0)) delegatee = msg.sender;
+        require(delegatee != address(0), "cannot delegate to zero address");
         return _delegate(msg.sender, delegatee);
     }
 
@@ -525,43 +549,39 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
         revert("function not supported");
     }
 
+    /// @inheritdoc IVotingEscrow
     function setVoter(address _voter) external {
         require(msg.sender == admin, "not admin");
         voter = _voter;
         emit VoterUpdated(_voter);
     }
 
+    /// @inheritdoc IVotingEscrow
     function setRewardsDistributor(address _distributor) external {
         require(msg.sender == admin, "not admin");
         distributor = _distributor;
         emit RewardsDistributorUpdated(_distributor);
     }
 
+    /// @inheritdoc IVotingEscrow
     function setRewardPoolManager(address _rewardPoolManager) external {
         require(msg.sender == admin, "not admin");
         rewardPoolManager = _rewardPoolManager;
     }
 
+    /// @inheritdoc IVotingEscrow
     function voting(uint256 _tokenId) external {
-        require(msg.sender == voter);
+        require(msg.sender == voter, "not voter");
         voted[_tokenId] = true;
     }
 
+    /// @inheritdoc IVotingEscrow
     function abstain(uint256 _tokenId) external {
-        require(msg.sender == voter);
+        require(msg.sender == voter, "not voter");
         voted[_tokenId] = false;
     }
 
-    function attach(uint256 _tokenId) external {
-        require(msg.sender == voter);
-        attachments[_tokenId] = attachments[_tokenId] + 1;
-    }
-
-    function detach(uint256 _tokenId) external {
-        require(msg.sender == voter);
-        attachments[_tokenId] = attachments[_tokenId] - 1;
-    }
-
+    /// @inheritdoc IVotingEscrow
     function setfluxMultiplier(uint256 _fluxMultiplier) external {
         require(msg.sender == admin, "not admin");
         require(_fluxMultiplier > 0, "fluxMultiplier must be greater than 0");
@@ -580,23 +600,26 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
         emit AdminUpdated(pendingAdmin);
     }
 
+    /// @inheritdoc IVotingEscrow
     function setfluxPerVeALCX(uint256 _fluxPerVeALCX) external {
         require(msg.sender == admin, "not admin");
         fluxPerVeALCX = _fluxPerVeALCX;
         emit FluxPerVeALCXUpdated(_fluxPerVeALCX);
     }
 
+    /// @inheritdoc IVotingEscrow
     function setClaimFee(uint256 _claimFeeBps) external {
         require(msg.sender == admin, "not admin");
         claimFeeBps = _claimFeeBps;
         emit ClaimFeeUpdated(_claimFeeBps);
     }
 
+    /// @inheritdoc IVotingEscrow
     function merge(uint256 _from, uint256 _to) external {
-        require(attachments[_from] == 0 && !voted[_from], "attached");
+        require(!voted[_from], "voting in progress for token");
         require(_from != _to, "must be different tokens");
-        require(_isApprovedOrOwner(msg.sender, _from));
-        require(_isApprovedOrOwner(msg.sender, _to));
+        require(_isApprovedOrOwner(msg.sender, _from), "not approved or owner");
+        require(_isApprovedOrOwner(msg.sender, _to), "not approved or owner");
 
         LockedBalance memory _locked0 = locked[_from];
         LockedBalance memory _locked1 = locked[_to];
@@ -634,8 +657,8 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
 
     /// @inheritdoc IVotingEscrow
     function updateLock(uint256 _tokenId) external {
-        require(isMaxLocked(_tokenId), "not max locked");
         require(msg.sender == voter, "not voter");
+        require(isMaxLocked(_tokenId), "not max locked");
 
         locked[_tokenId].end = ((block.timestamp + MAXTIME) / WEEK) * WEEK;
     }
@@ -689,7 +712,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
      * @param _maxLockEnabled Is max lock being enabled
      */
     function updateUnlockTime(uint256 _tokenId, uint256 _lockDuration, bool _maxLockEnabled) external nonreentrant {
-        require(_isApprovedOrOwner(msg.sender, _tokenId));
+        require(_isApprovedOrOwner(msg.sender, _tokenId), "not approved or owner");
 
         LockedBalance memory _locked = locked[_tokenId];
 
@@ -716,8 +739,8 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
      * @dev Only possible if the lock has expired
      */
     function withdraw(uint256 _tokenId) public nonreentrant {
-        require(_isApprovedOrOwner(msg.sender, _tokenId));
-        require(attachments[_tokenId] == 0 && !voted[_tokenId], "attached");
+        require(_isApprovedOrOwner(msg.sender, _tokenId), "not approved or owner");
+        require(!voted[_tokenId], "voting in progress for token");
 
         LockedBalance memory _locked = locked[_tokenId];
 
@@ -734,7 +757,10 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
         _checkpoint(_tokenId, _locked, LockedBalance(0, 0, false, 0));
 
         // Withdraws BPT from reward pool
-        require(IRewardPoolManager(rewardPoolManager).withdrawFromRewardPool(value));
+        require(
+            IRewardPoolManager(rewardPoolManager).withdrawFromRewardPool(value),
+            "withdraw from reward pool failed"
+        );
 
         require(IERC20(BPT).transfer(ownerOf(_tokenId), value));
 
@@ -750,7 +776,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
 
     /// @inheritdoc IVotingEscrow
     function startCooldown(uint256 _tokenId) external {
-        require(_isApprovedOrOwner(msg.sender, _tokenId));
+        require(_isApprovedOrOwner(msg.sender, _tokenId), "not approved or owner");
 
         LockedBalance memory _locked = locked[_tokenId];
 
@@ -901,7 +927,7 @@ contract VotingEscrow is IERC721, IERC721Metadata, IVotes, IVotingEscrow {
      */
     function _transferFrom(address _from, address _to, uint256 _tokenId, address _sender) internal {
         require(_to != address(0), "to address is zero address");
-        require(attachments[_tokenId] == 0 && !voted[_tokenId], "attached");
+        require(!voted[_tokenId], "voting in progress for token");
         require(_isApprovedOrOwner(_sender, _tokenId));
         require(idToOwner[_tokenId] == _from, "from address is not owner");
 

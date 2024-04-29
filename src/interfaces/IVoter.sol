@@ -10,9 +10,7 @@ interface IVoter {
 
     event Abstained(address indexed voter, address indexed pool, uint256 tokenId, uint256 weight);
     event AdminUpdated(address newAdmin);
-    event Attach(address indexed owner, address indexed gauge, uint256 tokenId);
     event Deposit(address indexed account, address indexed gauge, uint256 tokenId, uint256 amount);
-    event Detach(address indexed owner, address indexed gauge, uint256 tokenId);
     event DistributeReward(address indexed sender, address indexed gauge, uint256 amount);
     event EmergencyCouncilUpdated(address newCouncil);
     event GaugeCreated(address indexed gauge, address creator, address indexed bribe, address indexed pool);
@@ -25,6 +23,7 @@ interface IVoter {
     event Whitelisted(address indexed whitelister, address indexed token);
     event RemovedFromWhitelist(address indexed whitelister, address indexed token);
 
+    /// @notice VeALCX contract address
     function veALCX() external view returns (address);
 
     function admin() external view returns (address);
@@ -34,8 +33,6 @@ interface IVoter {
     function totalWeight() external view returns (uint256);
 
     function isWhitelisted(address token) external view returns (bool);
-
-    function getPoolVote(uint256 tokenId) external view returns (address[] memory);
 
     /**
      * @notice Whitelist a token to be a permitted bribe token
@@ -62,6 +59,38 @@ interface IVoter {
      * @return uint256 Maximum flux amount
      */
     function maxFluxBoost(uint256 _tokenId) external view returns (uint256);
+
+    /**
+     * @notice get the pool vote for a given tokenId
+     * @param _tokenId ID of the veALCX token
+     */
+    function getPoolVote(uint256 _tokenId) external view returns (address[] memory);
+
+    /**
+     * @notice get the length of the pools array
+     */
+    function length() external view returns (uint256);
+
+    /**
+     * @notice Set the Minter contract address
+     * @param _minter address of the Minter contract
+     */
+    function setMinter(address _minter) external;
+
+    /**
+     * @notice Set the Emergency Council address
+     * @param _council address of the Emergency Council contract
+     */
+    function setEmergencyCouncil(address _council) external;
+
+    /**
+     * @notice Swap a new reward token for an old reward token
+     * @param gaugeAddress Address of the gauge to swap reward for
+     * @param tokenIndex Current index of the reward token in the rewards array
+     * @param oldToken The old token reward address
+     * @param newToken The new token reward address
+     */
+    function swapReward(address gaugeAddress, uint256 tokenIndex, address oldToken, address newToken) external;
 
     /**
      * @notice Set the max veALCX voting power can be boosted by with flux
@@ -111,22 +140,6 @@ interface IVoter {
     function createGauge(address _pool, GaugeType _gaugeType) external returns (address);
 
     /**
-     * @notice Attach veALCX token to a gauge
-     * @param _tokenId ID of the token being attached
-     * @param account  Address of owner
-     * @dev Can only be called by an active gauge
-     */
-    function attachTokenToGauge(uint256 _tokenId, address account) external;
-
-    /**
-     * @notice Detach veALCX token to a gauge
-     * @param _tokenId ID of the token being detached
-     * @param account  Address of owner
-     * @dev Can only be called by a gauge
-     */
-    function detachTokenFromGauge(uint256 _tokenId, address account) external;
-
-    /**
      * @notice Send the distribution of emissions to the Voter contract
      * @param amount Amount of rewards being distributed
      */
@@ -136,4 +149,18 @@ interface IVoter {
      * @notice Distribute rewards and bribes to all gauges
      */
     function distribute() external;
+
+    /**
+     * @notice Update the rewards and voting of a list of gauges
+     * @param _gauges Array of gauge addresses to update
+     */
+    function updateFor(address[] memory _gauges) external;
+
+    /**
+     * @notice Claim the bribes for a given token id
+     * @param _bribes Array of bribe addresses to claim from
+     * @param _tokens Array of bribe addresses and coenciding token addresses to claim
+     * @param _tokenId ID of the veALCX token to claim bribes for
+     */
+    function claimBribes(address[] memory _bribes, address[][] memory _tokens, uint256 _tokenId) external;
 }

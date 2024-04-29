@@ -56,7 +56,14 @@ interface IBaseGauge {
 
     /**
      * @notice Distribute the appropriate rewards to a gauge
-     * @param amount    The amount of rewards being sent
+     * @dev This function may require different implementation depending on destination
+     * @param amount The amount of rewards being sent
      */
     function notifyRewardAmount(uint256 amount) external;
+
+    /**
+     * @notice Update the receiver address
+     * @param _receiver The destination address of the rewards
+     */
+    function updateReceiver(address _receiver) external;
 }

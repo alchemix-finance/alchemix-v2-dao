@@ -100,7 +100,10 @@ contract TimelockExecutor is AccessControl, IERC721Receiver, IERC1155Receiver {
      * @dev See {IERC165-supportsInterface}.
      */
     function supportsInterface(bytes4 interfaceId) public view virtual override(AccessControl, IERC165) returns (bool) {
-        return interfaceId == type(IERC1155Receiver).interfaceId;
+        return
+            interfaceId == type(IERC1155Receiver).interfaceId ||
+            interfaceId == type(IERC721Receiver).interfaceId ||
+            interfaceId == type(AccessControl).interfaceId;
     }
 
     /**
@@ -276,7 +279,7 @@ contract TimelockExecutor is AccessControl, IERC721Receiver, IERC1155Receiver {
         bytes32 predecessor,
         bytes32 descriptionHash,
         uint256 chainId
-    ) public payable virtual onlyRole(EXECUTOR_ROLE) {
+    ) public virtual onlyRole(EXECUTOR_ROLE) {
         require(targets.length == values.length, "TimelockExecutor: length mismatch");
         require(targets.length == payloads.length, "TimelockExecutor: length mismatch");
 

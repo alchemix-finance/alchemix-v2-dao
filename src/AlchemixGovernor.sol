@@ -61,6 +61,10 @@ contract AlchemixGovernor is L2Governor, L2GovernorVotes, L2GovernorVotesQuorumF
         emit AdminUpdated(pendingAdmin);
     }
 
+    /**
+     * @dev Set the % of total supply required to create a proposal
+     * @param numerator The new numerator value for the quorum fraction
+     */
     function setProposalNumerator(uint256 numerator) external {
         require(msg.sender == admin, "not admin");
         require(numerator <= MAX_PROPOSAL_NUMERATOR, "numerator too high");
@@ -68,12 +72,20 @@ contract AlchemixGovernor is L2Governor, L2GovernorVotes, L2GovernorVotesQuorumF
         emit ProposalNumberSet(numerator);
     }
 
+    /**
+     * @dev Set the value for the voting delay as defined in L2Governor.sol
+     * @param newDelay The new number of days voting will be delayed by
+     */
     function setVotingDelay(uint256 newDelay) external {
         require(msg.sender == admin, "not admin");
         votingDelay = newDelay;
         emit VotingDelaySet(votingDelay);
     }
 
+    /**
+     * @dev Set the value for the voting period as defined in L2Governor.sol
+     * @param newPeriod The new number of days voting will be open for
+     */
     function setVotingPeriod(uint256 newPeriod) external {
         require(msg.sender == admin, "not admin");
         votingPeriod = newPeriod;

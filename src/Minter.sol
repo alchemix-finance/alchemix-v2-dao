@@ -23,16 +23,25 @@ contract Minter is IMinter {
     // Allows minting once per epoch (epoch = 2 week, reset every Thursday 00:00 UTC)
     uint256 public immutable DURATION = 2 weeks;
     uint256 public immutable BPS = 10_000;
-    uint256 public constant TAIL_EMISSIONS_RATE = 2194e18; // Tail emissions rate
+    /// @notice The ALCX tail emissions rate
+    uint256 public constant TAIL_EMISSIONS_RATE = 2194e18;
 
+    /// @notice Amount of emissions minted per epoch
     uint256 public epochEmissions;
+    /// @notice The active period
     uint256 public activePeriod;
+    /// @notice The stepdown rate of emissions
     uint256 public stepdown;
+    /// @notice The current amount of ALCX rewards
     uint256 public rewards;
+    /// @notice The current circulating supply of ALCX emissions
     uint256 public supply;
-    uint256 public veAlcxEmissionsRate; // bps of emissions going to veALCX holders
-    uint256 public timeEmissionsRate; // bps of emissions going to TIME stakers
-    uint256 public treasuryEmissionsRate; // bps of emissions going to treasury
+    /// @notice The bps of emissions going to veALCX holders
+    uint256 public veAlcxEmissionsRate;
+    /// @notice The bps of emissions going to TIME stakers
+    uint256 public timeEmissionsRate;
+    /// @notice The bps of emissions going to treasury
+    uint256 public treasuryEmissionsRate;
 
     address public admin;
     address public pendingAdmin;
@@ -105,6 +114,7 @@ contract Minter is IMinter {
         emit AdminUpdated(pendingAdmin);
     }
 
+    /// @inheritdoc IMinter
     function setTreasury(address _treasury) external {
         require(msg.sender == admin, "not admin");
         require(_treasury != address(0), "treasury cannot be 0x0");
@@ -122,6 +132,8 @@ contract Minter is IMinter {
 
     /// @inheritdoc IMinter
     function updatePeriod() external returns (uint256) {
+        require(msg.sender == address(voter), "not voter");
+
         uint256 period = activePeriod;
 
         if (block.timestamp >= period + DURATION && initializer == address(0)) {

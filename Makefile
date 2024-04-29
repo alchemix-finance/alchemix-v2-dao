@@ -75,3 +75,19 @@ test_file_debug_test :; FOUNDRY_PROFILE=$(PROFILE) forge test $(FORK_URL) $(MATC
 
 # runs single test within file with added verbosity for failing test from a given block: "make test_file_block_debug_test FILE=Minter TEST=testUnwrap"
 test_file_block_debug_test :; FOUNDRY_PROFILE=$(PROFILE) forge test $(FORK_URL) $(MATCH_PATH) $(MATCH_TEST) $(FORK_BLOCK) -vvv
+
+# | File                       | % Lines            | % Statements       | % Branches       | % Funcs          |
+# |----------------------------|--------------------|--------------------|------------------|------------------|
+# | src/RewardsDistributor.sol | 90.00% (126/140)   | 87.44% (174/199)   | 69.70% (46/66)   | 80.00% (12/15)   |
+# | src/Bribe.sol              | 92.47% (135/146)   | 93.44% (171/183)   | 78.38% (58/74)   | 78.95% (15/19)   |
+# | src/VotingEscrow.sol       | 93.96% (467/497)   | 94.13% (577/613)   | 77.65% (205/264) | 90.00% (72/80)   |
+# | src/Voter.sol              | 98.86% (173/175)   | 99.01% (200/202)   | 83.96% (89/106)  | 96.67% (29/30)   |
+# | src/Minter.sol             | 100.00% (48/48)    | 100.00% (61/61)    | 88.46% (23/26)   | 100.00% (9/9)    |
+# | src/FluxToken.sol          | 97.06% (66/68)     | 97.40% (75/77)     | 90.32% (56/62)   | 100.00% (19/19)  |
+# | src/RevenueHandler.sol     | 100.00% (94/94)    | 100.00% (115/115)  | 93.18% (41/44)   | 100.00% (15/15)  |
+# | src/RewardPoolManager.sol  | 100.00% (47/47)    | 100.00% (55/55)    | 94.12% (32/34)   | 100.00% (13/13)  |
+# | src/AlchemixGovernor.sol   | 100.00% (16/16)    | 100.00% (17/17)    | 100.00% (12/12)  | 100.00% (6/6)    |
+# | src/BaseGauge.sol          | 100.00% (13/13)    | 100.00% (13/13)    | 100.00% (14/14)  | 80.00% (4/5)     |
+# | src/BribeFactory.sol       | 100.00% (1/1)      | 100.00% (2/2)      | 100.00% (0/0)    | 100.00% (1/1)    |
+# | src/GaugeFactory.sol       | 100.00% (2/2)      | 100.00% (4/4)      | 100.00% (0/0)    | 100.00% (2/2)    |
+# | src/PassthroughGauge.sol   | 100.00% (2/2)      | 100.00% (2/2)      | 100.00% (0/0)    | 100.00% (1/1)    |

@@ -1,31 +1,44 @@
 // SPDX-License-Identifier: GPL-3
 pragma solidity ^0.8.15;
-
+import "lib/forge-std/src/console2.sol";
 import "src/interfaces/IBribe.sol";
 import "src/interfaces/IBaseGauge.sol";
 import "src/interfaces/IVoter.sol";
 import "src/interfaces/IVotingEscrow.sol";
 import "src/libraries/Math.sol";
 import "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /**
  * @title  Bribe
  * @notice Implementation of bribe contract to be used with gauges
  */
 contract Bribe is IBribe {
-    uint256 internal constant DURATION = 2 weeks; // Rewards released over voting period
+    using SafeERC20 for IERC20;
+
+    /// @notice Rewards released over voting period
+    uint256 internal constant DURATION = 2 weeks;
+    /// @notice Duration of time when bribes are accepted
     uint256 internal constant BRIBE_LAG = 1 days;
+    /// @notice Maximum number of reward tokens a gauge can accept
     uint256 internal constant MAX_REWARD_TOKENS = 16;
 
     /// @notice The number of checkpoints
     uint256 public supplyNumCheckpoints;
+    /// @notice Number of voting period checkpoints
     uint256 public votingNumCheckpoints;
+    /// @notice Total votes allocated to the gauge
     uint256 public totalSupply;
+    /// @notice Total current votes in a voting period (this is reset each period)
     uint256 public totalVoting;
 
+    /// @notice veALCX contract address
     address public immutable veALCX;
+    /// @notice Voter contract address
     address public immutable voter;
-    address public gauge; // Address of the gauge that the bribes are for
+    /// @notice Address of the gauge that the bribes are for
+    address public gauge;
+    /// @notice List of reward tokens
     address[] public rewards;
 
     /// @notice A record of balance checkpoints for each account, by index
@@ -34,11 +47,17 @@ contract Bribe is IBribe {
     mapping(uint256 => uint256) public numCheckpoints;
     /// @notice A record of balance checkpoints for each token, by index
     mapping(uint256 => SupplyCheckpoint) public supplyCheckpoints;
+    /// @notice A record of balance checkpoints for each voting period
     mapping(uint256 => VotingCheckpoint) public votingCheckpoints;
+    /// @notice A record of reward tokens that are accepted
     mapping(address => bool) public isReward;
+    /// @notice A record of token rewards per epoch for each reward token
     mapping(address => mapping(uint256 => uint256)) public tokenRewardsPerEpoch;
+    /// @notice Current votes allocated of a veALCX voter
     mapping(uint256 => uint256) public balanceOf;
+    /// @notice The end of the current voting period
     mapping(address => uint256) public periodFinish;
+    /// @notice The last time rewards were claimed
     mapping(address => mapping(uint256 => uint256)) public lastEarn;
 
     // Re-entrancy check
@@ -74,6 +93,7 @@ contract Bribe is IBribe {
 
     /// @inheritdoc IBribe
     function lastTimeRewardApplicable(address token) public view returns (uint256) {
+        // Return the current period if it's still active, otherwise return the next period
         return Math.min(block.timestamp, periodFinish[token]);
     }
 
@@ -90,7 +110,7 @@ contract Bribe is IBribe {
 
     /// @inheritdoc IBribe
     function notifyRewardAmount(address token, uint256 amount) external lock {
-        require(amount > 0);
+        require(amount > 0, "reward amount must be greater than 0");
 
         // If the token has been whitelisted by the voter contract, add it to the rewards list
         require(IVoter(voter).isWhitelisted(token), "bribe tokens must be whitelisted");
@@ -100,7 +120,8 @@ contract Bribe is IBribe {
         uint256 adjustedTstamp = getEpochStart(block.timestamp);
         uint256 epochRewards = tokenRewardsPerEpoch[token][adjustedTstamp];
 
-        _safeTransferFrom(token, msg.sender, address(this), amount);
+        IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
+
         tokenRewardsPerEpoch[token][adjustedTstamp] = epochRewards + amount;
         periodFinish[token] = adjustedTstamp + DURATION;
 
@@ -109,37 +130,26 @@ contract Bribe is IBribe {
 
     /// @inheritdoc IBribe
     function addRewardToken(address token) external {
-        require(msg.sender == gauge);
+        require(msg.sender == gauge, "not being set by a gauge");
         _addRewardToken(token);
     }
 
     /// @inheritdoc IBribe
     function swapOutRewardToken(uint256 oldTokenIndex, address oldToken, address newToken) external {
-        require(msg.sender == voter);
-        require(IVoter(voter).isWhitelisted(newToken), "bribe tokens must be whitelisted");
-        require(rewards[oldTokenIndex] == oldToken);
-        require(newToken != address(0));
+        require(msg.sender == voter, "Only voter can execute");
+        require(IVoter(voter).isWhitelisted(newToken), "New token must be whitelisted");
+        require(rewards[oldTokenIndex] == oldToken, "Old token mismatch");
+
+        // Check that the newToken does not already exist in the rewards array
+        for (uint256 i = 0; i < rewards.length; i++) {
+            require(rewards[i] != newToken, "New token already exists");
+        }
 
         isReward[oldToken] = false;
         isReward[newToken] = true;
 
-        // Check if the newToken already exists in the rewards list
-        for (uint256 i = 0; i < rewards.length; i++) {
-            if (rewards[i] == newToken) {
-                // If it exists, swap out the old token
-                rewards[oldTokenIndex] = rewards[i];
-
-                // Then remove the duplicate
-                rewards[i] = rewards[rewards.length - 1];
-                rewards.pop();
-                break;
-            }
-        }
-
-        // If the old token wasn't updated, swap it out
-        if (rewards[oldTokenIndex] != newToken) {
-            rewards[oldTokenIndex] = newToken;
-        }
+        // Since we've now ensured the new token doesn't exist, we can safely update
+        rewards[oldTokenIndex] = newToken;
 
         emit RewardTokenSwapped(oldToken, newToken);
     }
@@ -175,6 +185,7 @@ contract Bribe is IBribe {
         return lower;
     }
 
+    /// @inheritdoc IBribe
     function getPriorVotingIndex(uint256 timestamp) public view returns (uint256) {
         uint256 nCheckpoints = votingNumCheckpoints;
         if (nCheckpoints == 0) {
@@ -185,7 +196,6 @@ contract Bribe is IBribe {
         if (votingCheckpoints[nCheckpoints - 1].timestamp < timestamp) {
             return (nCheckpoints - 1);
         }
-
         // Check implicit zero balance
         if (votingCheckpoints[0].timestamp > timestamp) {
             return 0;
@@ -207,6 +217,7 @@ contract Bribe is IBribe {
         return lower;
     }
 
+    /// @inheritdoc IBribe
     function earned(address token, uint256 tokenId) public view returns (uint256) {
         if (numCheckpoints[tokenId] == 0) {
             return 0;
@@ -281,14 +292,14 @@ contract Bribe is IBribe {
             lastEarn[tokens[i]][tokenId] = block.timestamp;
 
             _writeCheckpoint(tokenId, balanceOf[tokenId]);
-            _writeSupplyCheckpoint();
 
-            _safeTransfer(tokens[i], _owner, _reward);
+            IERC20(tokens[i]).safeTransfer(_owner, _reward);
 
             emit ClaimRewards(_owner, tokens[i], _reward);
         }
     }
 
+    /// @inheritdoc IBribe
     function deposit(uint256 amount, uint256 tokenId) external {
         require(msg.sender == voter);
 
@@ -304,6 +315,7 @@ contract Bribe is IBribe {
         emit Deposit(msg.sender, tokenId, amount);
     }
 
+    /// @inheritdoc IBribe
     function withdraw(uint256 amount, uint256 tokenId) external {
         require(msg.sender == voter);
 
@@ -373,19 +385,5 @@ contract Bribe is IBribe {
 
     function _bribeStart(uint256 timestamp) internal pure returns (uint256) {
         return timestamp - (timestamp % (DURATION));
-    }
-
-    function _safeTransfer(address token, address to, uint256 value) internal {
-        require(token.code.length > 0);
-        (bool success, bytes memory data) = token.call(abi.encodeWithSelector(IERC20.transfer.selector, to, value));
-        require(success && (data.length == 0 || abi.decode(data, (bool))));
-    }
-
-    function _safeTransferFrom(address token, address from, address to, uint256 value) internal {
-        require(token.code.length > 0);
-        (bool success, bytes memory data) = token.call(
-            abi.encodeWithSelector(IERC20.transferFrom.selector, from, to, value)
-        );
-        require(success && (data.length == 0 || abi.decode(data, (bool))));
     }
 }

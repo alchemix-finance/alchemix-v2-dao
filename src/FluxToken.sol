@@ -24,14 +24,23 @@ contract FluxToken is ERC20("Flux", "FLUX"), IFluxToken {
 
     /// @dev The address which enables the minting of tokens.
     address public minter;
+    /// @notice The address of the voter contract.
     address public voter;
+    /// @notice The address of the veALCX contract.
     address public veALCX;
-    address public alchemechNFT; // TOKE
-    address public patronNFT; // ETH
-    address public admin; // the timelock executor
-    address public pendingAdmin; // the timelock executor
+    /// @notice The address of the alchemechNFT contract (valued in TOKE).
+    address public alchemechNFT;
+    /// @notice The address of the patronNFT contract (valued in ETH).
+    address public patronNFT;
+    /// @notice The address of the admin and will be the timelock executor.
+    address public admin;
+    /// @notice The address of the pending admin.
+    address public pendingAdmin;
+    /// @notice The date the contract was deployed.
     uint256 public deployDate;
-    uint256 public alchemechMultiplier = 5; // .05% ratio of flux for alchemechNFT holders
+    /// @notice The multiplier for alchemechNFT holders (.05% ratio of FLUX for alchemechNFT holders)
+    uint256 public alchemechMultiplier = 5;
+    /// @notice The ratio of FLUX patron NFT holders receive (.4%)
     uint256 public bptMultiplier = 40;
 
     uint256 public immutable oneYear = 365 days;
@@ -94,6 +103,7 @@ contract FluxToken is ERC20("Flux", "FLUX"), IFluxToken {
         patronNFT = _patronNFT;
     }
 
+    /// @inheritdoc IFluxToken
     function setNftMultiplier(uint256 _nftMultiplier) external {
         require(msg.sender == admin, "not admin");
         require(_nftMultiplier != 0, "FluxToken: nftMultiplier cannot be zero");
@@ -101,6 +111,7 @@ contract FluxToken is ERC20("Flux", "FLUX"), IFluxToken {
         alchemechMultiplier = _nftMultiplier;
     }
 
+    /// @inheritdoc IFluxToken
     function setBptMultiplier(uint256 _bptMultiplier) external {
         require(msg.sender == admin, "not admin");
         require(_bptMultiplier != 0, "FluxToken: bptMultiplier cannot be zero");
@@ -202,7 +213,7 @@ contract FluxToken is ERC20("Flux", "FLUX"), IFluxToken {
 
     // Given an amount of eth, calculate how much FLUX it would earn in a year if it were deposited into veALCX
     function getClaimableFlux(uint256 _amount, address _nft) public view returns (uint256 claimableFlux) {
-        uint256 bpt = _calculateBPT(_amount);
+        uint256 bpt = calculateBPT(_amount);
 
         uint256 veMul = IVotingEscrow(veALCX).MULTIPLIER();
         uint256 veMax = IVotingEscrow(veALCX).MAXTIME();
@@ -218,7 +229,7 @@ contract FluxToken is ERC20("Flux", "FLUX"), IFluxToken {
         }
     }
 
-    function _calculateBPT(uint256 _amount) public view returns (uint256 bptOut) {
+    function calculateBPT(uint256 _amount) public view returns (uint256 bptOut) {
         bptOut = _amount * bptMultiplier;
     }
 }

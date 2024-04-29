@@ -21,7 +21,19 @@ contract VotingTest is BaseTest {
         hevm.warp(period + nextEpoch);
         hevm.roll(block.number + 1);
 
-        minter.updatePeriod();
+        voter.distribute();
+
+        deal(address(alcx), address(voter), TOKEN_100K);
+
+        hevm.expectRevert(abi.encodePacked("not voter"));
+        sushiGauge.notifyRewardAmount(TOKEN_100K);
+
+        hevm.prank(address(voter));
+        hevm.expectRevert(abi.encodePacked("zero amount"));
+        sushiGauge.notifyRewardAmount(0);
+
+        hevm.prank(address(voter));
+        sushiGauge.notifyRewardAmount(TOKEN_100K);
 
         uint256 distributorBal2 = alcx.balanceOf(address(distributor));
         uint256 voterBal2 = alcx.balanceOf(address(voter));
@@ -44,7 +56,7 @@ contract VotingTest is BaseTest {
         hevm.prank(admin);
         voter.vote(tokenId, pools, weights, 0);
 
-        minter.updatePeriod();
+        voter.distribute();
 
         uint256 distributorBal3 = alcx.balanceOf(address(distributor));
         uint256 voterBal3 = alcx.balanceOf(address(voter));
@@ -83,6 +95,7 @@ contract VotingTest is BaseTest {
         hevm.startPrank(admin);
         hevm.expectRevert(abi.encodePacked("no rewards to claim"));
         voter.claimBribes(bribes, tokens, tokenId);
+
         distributor.claim(tokenId, false);
         hevm.stopPrank();
 
@@ -95,7 +108,7 @@ contract VotingTest is BaseTest {
 
         // Move forward a week relative to period
         hevm.warp(period + nextEpoch);
-        minter.updatePeriod();
+        voter.distribute();
 
         hevm.startPrank(admin);
         voter.claimBribes(bribes, tokens, tokenId);
@@ -143,6 +156,10 @@ contract VotingTest is BaseTest {
     function testInvalidGauge() public {
         uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
 
+        hevm.prank(voter.admin());
+        hevm.expectRevert(abi.encodePacked("exists"));
+        voter.createGauge(alUsdPoolAddress, IVoter.GaugeType.Passthrough);
+
         hevm.startPrank(admin);
 
         uint256 period = minter.activePeriod();
@@ -165,6 +182,39 @@ contract VotingTest is BaseTest {
         voter.vote(tokenId, pools, weights, 0);
 
         hevm.stopPrank();
+    }
+
+    function testManageGauge() public {
+        address emergencyCouncil = voter.emergencyCouncil();
+        address gaugeAddress = voter.gauges(alUsdPoolAddress);
+
+        bool isGaugeAlive = voter.isAlive(gaugeAddress);
+        assertEq(isGaugeAlive, true, "gauge should be alive");
+
+        hevm.expectRevert(abi.encodePacked("not emergency council"));
+        voter.killGauge(gaugeAddress);
+
+        hevm.prank(emergencyCouncil);
+        voter.killGauge(gaugeAddress);
+
+        hevm.prank(emergencyCouncil);
+        hevm.expectRevert(abi.encodePacked("gauge already dead"));
+        voter.killGauge(gaugeAddress);
+
+        hevm.prank(beef);
+        hevm.expectRevert(abi.encodePacked("not emergency council"));
+        voter.reviveGauge(gaugeAddress);
+
+        hevm.prank(emergencyCouncil);
+        hevm.expectRevert(abi.encodePacked("invalid gauge"));
+        voter.reviveGauge(beef);
+
+        hevm.prank(emergencyCouncil);
+        voter.reviveGauge(gaugeAddress);
+
+        hevm.prank(emergencyCouncil);
+        hevm.expectRevert(abi.encodePacked("gauge already alive"));
+        voter.reviveGauge(gaugeAddress);
     }
 
     function testNextEpochVoteOrReset() public {
@@ -206,10 +256,16 @@ contract VotingTest is BaseTest {
         // Next epoch
         hevm.warp(block.timestamp + nextEpoch);
 
-        // Resetting succeeds
+        hevm.stopPrank();
+
+        // Resetting fails when not approved or owner
+        hevm.prank(beef);
+        hevm.expectRevert(abi.encodePacked("not approved or owner"));
         voter.reset(tokenId);
 
-        hevm.stopPrank();
+        // Resetting succeeds
+        hevm.prank(admin);
+        voter.reset(tokenId);
     }
 
     // veALCX holders should be able to accrue their unclaimed flux over epochs
@@ -402,6 +458,10 @@ contract VotingTest is BaseTest {
         hevm.expectRevert(abi.encodePacked("bribe tokens must be whitelisted"));
         IBribe(bribeAddress).notifyRewardAmount(usdc, TOKEN_100K);
 
+        // Bribe amount must be greater than 0
+        hevm.expectRevert(abi.encodePacked("reward amount must be greater than 0"));
+        IBribe(bribeAddress).notifyRewardAmount(usdc, 0);
+
         uint256 rewardApplicable = IBribe(bribeAddress).lastTimeRewardApplicable(bal);
 
         assertEq(rewardApplicable, block.timestamp, "reward applicable should be current timestamp");
@@ -410,7 +470,7 @@ contract VotingTest is BaseTest {
         assertEq(TOKEN_100K, IERC20(bal).balanceOf(bribeAddress), "bribe contract missing bribes");
 
         // Epoch start should equal the current block.timestamp rounded to a week
-        assertEq(block.timestamp - (block.timestamp % (7 days)), IBribe(bribeAddress).getEpochStart(block.timestamp));
+        assertEq(block.timestamp - (block.timestamp % (2 weeks)), IBribe(bribeAddress).getEpochStart(block.timestamp));
 
         // Rewards list should increase after adding bribe
         assertEq(IBribe(bribeAddress).rewardsListLength(), rewardsLength + 1);
@@ -507,6 +567,45 @@ contract VotingTest is BaseTest {
         );
     }
 
+    function testPriorVotingIndexZero() public {
+        uint256 initialTimestamp = block.timestamp;
+
+        uint256 tokenId1 = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+
+        address bribeAddress = voter.bribes(address(sushiGauge));
+
+        // Prior index should be zero when nCheckpoints is zero
+        uint256 priorIndex = IBribe(bribeAddress).getPriorVotingIndex(initialTimestamp);
+        assertEq(priorIndex, 0, "prior voting index should be 0");
+
+        uint256 earned = IBribe(bribeAddress).earned(address(alcx), tokenId1);
+        assertEq(earned, 0, "earned should be 0 when there are no checkpoints for a token");
+
+        // Add BAL bribes to sushiGauge
+        createThirdPartyBribe(bribeAddress, bal, TOKEN_100K);
+
+        address[] memory pools = new address[](1);
+        pools[0] = sushiPoolAddress;
+        uint256[] memory weights = new uint256[](1);
+        weights[0] = 5000;
+
+        address[] memory bribes = new address[](1);
+        bribes[0] = address(bribeAddress);
+        address[][] memory tokens = new address[][](2);
+        tokens[0] = new address[](1);
+        tokens[0][0] = bal;
+
+        hevm.prank(admin);
+        voter.vote(tokenId1, pools, weights, 0);
+
+        // Fast forward epochs
+        hevm.warp(block.timestamp + nextEpoch * 5);
+
+        // Prior index should be zero when timestamp is before first checkpoint timestamp
+        uint256 priorIndexNow = IBribe(bribeAddress).getPriorVotingIndex(initialTimestamp - nextEpoch * 5);
+        assertEq(priorIndexNow, 0, "prior voting index should be 0");
+    }
+
     // Test impact of voting on bribes earned
     function testBribeAccounting() public {
         uint256 tokenId1 = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
@@ -540,7 +639,7 @@ contract VotingTest is BaseTest {
         hevm.prank(beef);
         voter.vote(tokenId2, pools, weights, 0);
 
-        minter.updatePeriod();
+        voter.distribute();
 
         uint256 earnedBribes1 = IBribe(bribeAddress).earned(bal, tokenId1);
         uint256 earnedBribes2 = IBribe(bribeAddress).earned(bal, tokenId2);
@@ -615,7 +714,7 @@ contract VotingTest is BaseTest {
         hevm.prank(holder);
         voter.poke(tokenId3);
 
-        minter.updatePeriod();
+        voter.distribute();
 
         hevm.warp(block.timestamp + nextEpoch);
 
@@ -665,8 +764,8 @@ contract VotingTest is BaseTest {
         assertEq(earnedBribes0, 0, "no bribes should be earned yet");
 
         // Start second epoch
-        hevm.warp(block.timestamp + nextEpoch);
-        minter.updatePeriod();
+        hevm.warp(newEpoch());
+        voter.distribute();
 
         uint256 earnedBribes1 = IBribe(bribeAddress).earned(bal, tokenId1);
 
@@ -688,8 +787,8 @@ contract VotingTest is BaseTest {
         assertEq(earnedBribes1, IERC20(bal).balanceOf(admin), "admin should receive bribes");
 
         // Start third epoch
-        hevm.warp(block.timestamp + nextEpoch);
-        minter.updatePeriod();
+        hevm.warp(newEpoch());
+        voter.distribute();
 
         uint256 earnedBribes2 = IBribe(bribeAddress).earned(bal, tokenId2);
         assertEq(earnedBribes2, earnedBribes1, "earned bribes from previous epoch should remain");
@@ -700,8 +799,8 @@ contract VotingTest is BaseTest {
         assertEq(earnedBribes1 + earnedBribes2, IERC20(bal).balanceOf(admin), "admin should receive both bribes");
 
         // Start fourth epoch
-        hevm.warp(block.timestamp + nextEpoch);
-        minter.updatePeriod();
+        hevm.warp(newEpoch());
+        voter.distribute();
 
         // Add more bribes
         createThirdPartyBribe(bribeAddress, bal, TOKEN_100K);
@@ -720,8 +819,8 @@ contract VotingTest is BaseTest {
         voter.vote(tokenId1, pools, weights, 0);
 
         // Start fifth epoch
-        hevm.warp(block.timestamp + nextEpoch);
-        minter.updatePeriod();
+        hevm.warp(newEpoch());
+        voter.distribute();
 
         uint256 earnedBribes4 = IBribe(bribeAddress).earned(bal, tokenId1);
 
@@ -733,6 +832,43 @@ contract VotingTest is BaseTest {
             IERC20(bal).balanceOf(admin),
             "admin should receive bribes"
         );
+    }
+
+    function testGetRewardForOwner() public {
+        uint256 tokenId1 = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+
+        address bribeAddress = voter.bribes(address(sushiGauge));
+
+        // Add BAL bribes to sushiGauge
+        createThirdPartyBribe(bribeAddress, bal, TOKEN_100K);
+
+        address[] memory pools = new address[](1);
+        pools[0] = sushiPoolAddress;
+        uint256[] memory weights = new uint256[](1);
+        weights[0] = 5000;
+
+        address[] memory bribes = new address[](1);
+        bribes[0] = address(bribeAddress);
+        address[][] memory tokens = new address[][](1);
+        tokens[0] = new address[](1);
+        tokens[0][0] = bal;
+
+        // in epoch i, user votes with balance x
+        hevm.prank(admin);
+        voter.vote(tokenId1, pools, weights, 0);
+
+        // Start second epoch i+1
+        hevm.warp(newEpoch());
+        createThirdPartyBribe(bribeAddress, bal, TOKEN_100K);
+
+        // Claim bribes from epoch i
+        hevm.prank(admin);
+        voter.claimBribes(bribes, tokens, tokenId1);
+
+        hevm.warp(newEpoch());
+        hevm.prank(admin);
+        hevm.expectRevert(abi.encodePacked("no rewards to claim"));
+        voter.claimBribes(bribes, tokens, tokenId1);
     }
 
     function testBugTotalBribeWeights() public {
@@ -843,8 +979,8 @@ contract VotingTest is BaseTest {
         voter.vote(tokenId1, pools, weights, 0);
 
         // ------------------- Start second epoch i+1
-        hevm.warp(block.timestamp + nextEpoch);
-        minter.updatePeriod();
+        hevm.warp(newEpoch());
+        voter.distribute();
 
         uint256 earnedBribes1 = IBribe(bribeAddress).earned(bal, tokenId1);
         assertEq(earnedBribes1, TOKEN_100K, "bribes from voting should be earned");
@@ -856,17 +992,17 @@ contract VotingTest is BaseTest {
         assertEq(earnedBribes1, IERC20(bal).balanceOf(admin), "admin should receive bribes");
 
         // ------------------- Start third epoch i+3
-        hevm.warp(block.timestamp + nextEpoch);
-        minter.updatePeriod();
-        hevm.warp(block.timestamp + nextEpoch);
-        minter.updatePeriod();
+        hevm.warp(newEpoch());
+        voter.distribute();
+        hevm.warp(newEpoch());
+        voter.distribute();
         // in epoch i+3, admin votes again
         hevm.prank(admin);
         voter.vote(tokenId1, pools, weights, 0);
 
         // ------------------- Start fourth epoch i+4
-        hevm.warp(block.timestamp + nextEpoch);
-        minter.updatePeriod();
+        hevm.warp(newEpoch());
+        voter.distribute();
 
         // INTENDED BEHAVIOUR: since the bribes for epoch i were already claimed in epoch i+1
         // --and no more bribes were notified after that-- there should be no available earnings at epoch i+4.
@@ -877,6 +1013,117 @@ contract VotingTest is BaseTest {
         hevm.expectRevert(abi.encodePacked("no rewards to claim"));
         hevm.prank(admin);
         voter.claimBribes(bribes, tokens, tokenId1);
+    }
+
+    function testBugVotingSupply() public {
+        uint256 tokenId1 = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+        uint256 tokenId2 = createVeAlcx(beef, TOKEN_1, MAXTIME, false);
+        address bribeAddress = voter.bribes(address(sushiGauge));
+
+        // Add BAL bribes to sushiGauge
+        createThirdPartyBribe(bribeAddress, bal, TOKEN_100K);
+
+        address[] memory pools = new address[](1);
+        pools[0] = sushiPoolAddress;
+        uint256[] memory weights = new uint256[](1);
+        weights[0] = 5000;
+
+        address[] memory bribes = new address[](1);
+        bribes[0] = address(bribeAddress);
+        address[][] memory tokens = new address[][](1);
+        tokens[0] = new address[](1);
+        tokens[0][0] = bal;
+
+        // in epoch i, attacker votes with balance x
+        hevm.prank(admin);
+        voter.vote(tokenId1, pools, weights, 0);
+
+        hevm.prank(beef);
+        voter.vote(tokenId2, pools, weights, 0);
+
+        // ------------------- Start second epoch i+1
+        hevm.warp(newEpoch());
+        createThirdPartyBribe(bribeAddress, bal, TOKEN_100K);
+
+        // attacker calls Voter.distribute(), which triggers Bribe.resetVoting(), therefore setting totalVoting = 0.
+        // the attacker votes again with balance x which triggers a new supply checkpoint which includes only attacker's vote x
+        // Attacker calls Bribe.getRewardForOwner() which sends all rewards of an epoch to the attacker.
+        hevm.startPrank(admin);
+        voter.distribute();
+        voter.vote(tokenId1, pools, weights, 0);
+        voter.claimBribes(bribes, tokens, tokenId1);
+        hevm.stopPrank();
+
+        // If this attack is successful then an additional voter should not be able to claim bribes
+        // Additional voter votes
+        hevm.prank(beef);
+        voter.vote(tokenId2, pools, weights, 0);
+
+        hevm.warp(newEpoch());
+        voter.distribute();
+
+        hevm.prank(admin);
+        voter.claimBribes(bribes, tokens, tokenId1);
+        hevm.prank(beef);
+        voter.claimBribes(bribes, tokens, tokenId2);
+
+        // This test failing indicates that the attack was successful
+        assertEq(IERC20(bal).balanceOf(admin), IERC20(bal).balanceOf(beef), "earned bribes are not equal");
+    }
+
+    function testBugExtraCheckpoint() public {
+        uint256 tokenId1 = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+        uint256 tokenId2 = createVeAlcx(beef, TOKEN_1, MAXTIME, false);
+        address bribeAddress = voter.bribes(address(sushiGauge));
+
+        // Add BAL bribes to sushiGauge
+        createThirdPartyBribe(bribeAddress, bal, TOKEN_100K);
+
+        address[] memory pools = new address[](1);
+        pools[0] = sushiPoolAddress;
+        uint256[] memory weights = new uint256[](1);
+        weights[0] = 5000;
+
+        address[] memory bribes = new address[](1);
+        bribes[0] = address(bribeAddress);
+        address[][] memory tokens = new address[][](1);
+        tokens[0] = new address[](1);
+        tokens[0][0] = bal;
+
+        hevm.prank(admin);
+        voter.vote(tokenId1, pools, weights, 0);
+
+        hevm.prank(beef);
+        voter.vote(tokenId2, pools, weights, 0);
+
+        // Start second epoch i+1
+        hevm.warp(newEpoch());
+        voter.distribute();
+        createThirdPartyBribe(bribeAddress, bal, TOKEN_100K);
+
+        // When claiming a reward in contract Bribe a new checkpoint is added for the tokenId
+        hevm.prank(admin);
+        voter.claimBribes(bribes, tokens, tokenId1);
+
+        // A checkpoint in an epoch might exist even if the user did not actively vote.
+        // The user can therefore claim rewards for this epoch in the future,
+        // causing solvency issues as the users that voted cannot receive their share of bribes.
+
+        // If this is the case beef wouldn't be able to claim all of the bribes from epoch i + 1
+        hevm.prank(beef);
+        voter.vote(tokenId2, pools, weights, 0);
+
+        hevm.warp(newEpoch());
+        voter.distribute();
+
+        // Beef should earn all of the bribes from epoch i + 1 in addition to their bribes from epoch i
+        assertEq(IBribe(bribeAddress).earned(bal, tokenId2), (TOKEN_100K / 2) + TOKEN_100K, "earned bribes incorrect");
+
+        hevm.prank(beef);
+        voter.claimBribes(bribes, tokens, tokenId2);
+
+        // This test failing indicates that the attack was successful
+        assertGt(IERC20(bal).balanceOf(beef), IERC20(bal).balanceOf(admin), "beef should capture more bribes");
     }
 
     // Voting power should be dependent on epoch at which vote is cast
@@ -907,8 +1154,8 @@ contract VotingTest is BaseTest {
 
         assertEq(usedWeight1, usedWeight2, "used weight should be equal");
 
-        hevm.warp(block.timestamp + 6 days);
-        minter.updatePeriod();
+        hevm.warp(newEpoch());
+        voter.distribute();
 
         hevm.prank(dead);
         voter.vote(tokenId3, pools, weights, 0);
@@ -954,7 +1201,7 @@ contract VotingTest is BaseTest {
 
         hevm.warp(block.timestamp + 5 weeks);
 
-        minter.updatePeriod();
+        voter.distribute();
 
         uint256 votingPower2 = veALCX.balanceOfToken(tokenId);
 
@@ -977,8 +1224,8 @@ contract VotingTest is BaseTest {
     // veALCX voting power should decay to 0
     function testVotingPowerDecay() public {
         // Kick off epoch cycle
-        hevm.warp(block.timestamp + nextEpoch);
-        minter.updatePeriod();
+        hevm.warp(newEpoch());
+        voter.distribute();
 
         uint256 tokenId1 = createVeAlcx(admin, TOKEN_1, 3 weeks, false);
         uint256 tokenId2 = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
@@ -988,7 +1235,7 @@ contract VotingTest is BaseTest {
         tokens[1] = tokenId2;
 
         address[] memory pools = new address[](1);
-        pools[0] = alETHPool;
+        pools[0] = sushiPoolAddress;
         uint256[] memory weights = new uint256[](1);
         weights[0] = 5000;
 
@@ -1001,19 +1248,24 @@ contract VotingTest is BaseTest {
         uint256 totalWeight1 = voter.totalWeight();
 
         // Move to the next epoch
-        hevm.warp(block.timestamp + nextEpoch);
-        minter.updatePeriod();
+        hevm.warp(newEpoch());
+        voter.distribute();
 
         // Move to when token1 expires
         hevm.warp(block.timestamp + 3 weeks);
 
         // Mock poking idle tokens to sync voting
         hevm.stopPrank();
+
+        // Only admin can poke tokens
+        hevm.expectRevert(abi.encodePacked("not admin"));
+        voter.pokeTokens(tokens);
+
         hevm.prank(voter.admin());
         voter.pokeTokens(tokens);
         hevm.startPrank(admin);
 
-        minter.updatePeriod();
+        voter.distribute();
 
         // tokenId1 represents user who voted once and expired
         uint256 usedWeight = voter.usedWeights(tokenId1);
@@ -1025,8 +1277,8 @@ contract VotingTest is BaseTest {
         assertGt(usedWeight1, usedWeight2, "used weight should decrease");
         assertGt(totalWeight1, totalWeight2, "total weight should decrease");
 
-        hevm.warp(block.timestamp + nextEpoch);
-        minter.updatePeriod();
+        hevm.warp(newEpoch());
+        voter.distribute();
 
         uint256 balance = veALCX.balanceOfToken(tokenId1);
 
@@ -1042,7 +1294,62 @@ contract VotingTest is BaseTest {
         hevm.stopPrank();
     }
 
+    function testGaugeAdminFunctions() public {
+        address gaugeAdmin = sushiGauge.admin();
+
+        hevm.prank(beef);
+        hevm.expectRevert(abi.encodePacked("not admin"));
+        sushiGauge.setAdmin(beef);
+
+        hevm.prank(beef);
+        hevm.expectRevert(abi.encodePacked("not admin"));
+        sushiGauge.updateReceiver(beef);
+
+        hevm.prank(gaugeAdmin);
+        sushiGauge.setAdmin(beef);
+
+        hevm.prank(gaugeAdmin);
+        hevm.expectRevert(abi.encodePacked("not pending admin"));
+        sushiGauge.acceptAdmin();
+
+        hevm.prank(beef);
+        sushiGauge.acceptAdmin();
+
+        hevm.prank(beef);
+        hevm.expectRevert(abi.encodePacked("cannot be zero address"));
+        sushiGauge.updateReceiver(address(0));
+
+        hevm.prank(beef);
+        hevm.expectRevert(abi.encodePacked("same receiver"));
+        sushiGauge.updateReceiver(sushiPoolAddress);
+
+        hevm.prank(beef);
+        sushiGauge.updateReceiver(admin);
+
+        address newReceiver = sushiGauge.receiver();
+        assertEq(newReceiver, admin, "receiver should be updated");
+    }
+
     function testAdminFunctions() public {
+        hevm.expectRevert(abi.encodePacked("not voter"));
+        veALCX.updateLock(1);
+
+        hevm.prank(address(voter));
+        hevm.expectRevert(abi.encodePacked("not max locked"));
+        veALCX.updateLock(1);
+
+        hevm.expectRevert(abi.encodePacked("not emergency council"));
+        voter.setEmergencyCouncil(devmsig);
+
+        address emergencyCouncil = voter.emergencyCouncil();
+
+        hevm.prank(emergencyCouncil);
+        hevm.expectRevert(abi.encodePacked("cannot be zero address"));
+        voter.setEmergencyCouncil(address(0));
+
+        hevm.prank(emergencyCouncil);
+        voter.setEmergencyCouncil(devmsig);
+
         hevm.expectRevert(abi.encodePacked("not admin"));
         voter.setMinter(admin);
 
@@ -1051,6 +1358,15 @@ contract VotingTest is BaseTest {
 
         hevm.expectRevert(abi.encodePacked("not admin"));
         voter.setBoostMultiplier(1000);
+
+        hevm.expectRevert(abi.encodePacked("not admin"));
+        voter.whitelist(dai);
+
+        hevm.expectRevert(abi.encodePacked("not admin"));
+        voter.removeFromWhitelist(dai);
+
+        hevm.expectRevert(abi.encodePacked("not admin"));
+        voter.createGauge(alUsdPoolAddress, IVoter.GaugeType.Passthrough);
 
         hevm.prank(address(timelockExecutor));
         voter.setAdmin(devmsig);
@@ -1061,12 +1377,189 @@ contract VotingTest is BaseTest {
         hevm.startPrank(devmsig);
 
         voter.acceptAdmin();
+
+        hevm.expectRevert(abi.encodePacked("Boost multiplier is out of bounds"));
+        voter.setBoostMultiplier(10_000 + 1);
+
         voter.setBoostMultiplier(1000);
 
+        hevm.expectRevert(abi.encodePacked("cannot be zero address"));
+        voter.whitelist(address(0));
+
+        assertEq(voter.isWhitelisted(address(0)), false, "zero address should not be whitelisted");
+
+        hevm.expectRevert(abi.encodePacked("token not whitelisted"));
+        voter.removeFromWhitelist(dai);
+
+        voter.whitelist(dai);
+
+        hevm.expectRevert(abi.encodePacked("token already whitelisted"));
         voter.whitelist(dai);
 
         assertEq(voter.isWhitelisted(dai), true, "whitelisting failed");
 
+        voter.removeFromWhitelist(dai);
+
+        assertEq(voter.isWhitelisted(dai), false, "remove whitelisting failed");
+
         hevm.stopPrank();
+    }
+
+    function testAddingRewardTokenErrors() public {
+        address bribeAddress = voter.bribes(address(sushiGauge));
+        hevm.prank(admin);
+        hevm.expectRevert(abi.encodePacked("not being set by a gauge"));
+        IBribe(bribeAddress).addRewardToken(usdt);
+
+        hevm.prank(address(voter));
+        hevm.expectRevert(abi.encodePacked("New token must be whitelisted"));
+        IBribe(bribeAddress).swapOutRewardToken(0, dai, usdt);
+
+        hevm.prank(address(timelockExecutor));
+        voter.whitelist(usdt);
+
+        hevm.prank(address(voter));
+        hevm.expectRevert(abi.encodePacked("Old token mismatch"));
+        IBribe(bribeAddress).swapOutRewardToken(0, usdc, usdt);
+
+        hevm.prank(address(sushiGauge));
+        IBribe(bribeAddress).addRewardToken(usdt);
+
+        hevm.prank(address(voter));
+        hevm.expectRevert(abi.encodePacked("New token already exists"));
+        IBribe(bribeAddress).swapOutRewardToken(1, usdt, usdt);
+    }
+
+    function testSwapOutRewardToken() public {
+        address bribeAddress = voter.bribes(address(sushiGauge));
+
+        hevm.prank(beef);
+        hevm.expectRevert(abi.encodePacked("only admin can swap reward tokens"));
+        voter.swapReward(address(sushiGauge), 0, dai, usdt);
+
+        hevm.prank(address(timelockExecutor));
+        voter.whitelist(usdt);
+
+        hevm.prank(address(sushiGauge));
+        IBribe(bribeAddress).addRewardToken(usdt);
+
+        assertEq(IBribe(bribeAddress).rewards(0), address(alcx), "reward token should be alcx");
+        assertEq(IBribe(bribeAddress).rewards(1), usdt, "reward token should be usdt");
+
+        hevm.prank(address(timelockExecutor));
+        voter.whitelist(dai);
+
+        hevm.prank(address(voter));
+        IBribe(bribeAddress).swapOutRewardToken(1, usdt, dai);
+
+        assertEq(IBribe(bribeAddress).rewards(1), dai, "reward token should have updated to be dai");
+    }
+
+    function testNotifyRewardAmountNoVotes() public {
+        deal(address(alcx), address(minter), TOKEN_100K);
+
+        uint256 minterAlcxBalance = IERC20(alcx).balanceOf(address(minter));
+        assertEq(minterAlcxBalance, TOKEN_100K, "minter should have balance");
+
+        uint256 voterAlcxBalance = IERC20(alcx).balanceOf(address(voter));
+        assertEq(voterAlcxBalance, 0, "voter should have no balance");
+
+        hevm.expectRevert(abi.encodePacked("only minter can send rewards"));
+        voter.notifyRewardAmount(TOKEN_100K);
+
+        hevm.prank(address(minter));
+        // Distributing rewards without any votes should revert
+        hevm.expectRevert(abi.encodePacked("no votes"));
+        voter.notifyRewardAmount(TOKEN_100K);
+
+        uint256 minterAlcxBalanceAfter = IERC20(alcx).balanceOf(address(minter));
+        assertEq(minterAlcxBalanceAfter, TOKEN_100K, "minter should have the same balance");
+    }
+
+    function testNotifyRewardAmount() public {
+        // Create a token and vote to create votes
+        uint256 tokenId1 = createVeAlcx(admin, TOKEN_1, 3 weeks, false);
+
+        uint256[] memory tokens = new uint256[](2);
+        tokens[0] = tokenId1;
+
+        address[] memory pools = new address[](1);
+        pools[0] = sushiPoolAddress;
+        uint256[] memory weights = new uint256[](1);
+        weights[0] = 5000;
+
+        hevm.prank(admin);
+        voter.vote(tokenId1, pools, weights, 0);
+
+        deal(address(alcx), address(minter), TOKEN_100K);
+
+        uint256 minterAlcxBalance = IERC20(alcx).balanceOf(address(minter));
+        assertEq(minterAlcxBalance, TOKEN_100K, "minter should have balance");
+
+        uint256 voterAlcxBalance = IERC20(alcx).balanceOf(address(voter));
+        assertEq(voterAlcxBalance, 0, "voter should have no balance");
+
+        hevm.startPrank(address(minter));
+        alcx.approve(address(voter), TOKEN_100K);
+        voter.notifyRewardAmount(TOKEN_100K);
+        hevm.stopPrank();
+
+        uint256 minterAlcxBalanceAfter = IERC20(alcx).balanceOf(address(minter));
+        assertEq(minterAlcxBalanceAfter, 0, "minter should have distributed its balance");
+
+        uint256 voterAlcxBalanceAfter = IERC20(alcx).balanceOf(address(voter));
+        assertEq(voterAlcxBalanceAfter, TOKEN_100K, "voter should have received balance");
+    }
+
+    function testSettingGauge() public {
+        address bribeAddress = voter.bribes(address(sushiGauge));
+
+        hevm.expectRevert(abi.encodePacked("gauge already set"));
+        IBribe(bribeAddress).setGauge(devmsig);
+    }
+
+    function testVotingErrors() public {
+        uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
+
+        address[] memory pools = new address[](0);
+
+        uint256[] memory weights = new uint256[](2);
+        weights[0] = 5000;
+        weights[1] = 5000;
+
+        uint256[] memory weights2 = new uint256[](0);
+
+        address[] memory pools2 = new address[](6);
+        pools2[0] = sushiPoolAddress;
+        pools2[1] = sushiPoolAddress;
+        pools2[2] = sushiPoolAddress;
+        pools2[3] = sushiPoolAddress;
+        pools2[4] = sushiPoolAddress;
+        pools2[5] = sushiPoolAddress;
+
+        uint256[] memory weights3 = new uint256[](6);
+        weights3[0] = 5000;
+        weights3[1] = 5000;
+        weights3[2] = 5000;
+        weights3[3] = 5000;
+        weights3[4] = 5000;
+        weights3[5] = 5000;
+
+        address[] memory gauges = new address[](1);
+        gauges[0] = address(sushiGauge);
+
+        hevm.expectRevert(abi.encodePacked("not approved or owner"));
+        voter.vote(tokenId, pools, weights, 0);
+
+        hevm.startPrank(admin);
+
+        hevm.expectRevert(abi.encodePacked("pool vote and weights mismatch"));
+        voter.vote(tokenId, pools, weights, 0);
+
+        hevm.expectRevert(abi.encodePacked("no pools voted for"));
+        voter.vote(tokenId, pools, weights2, 0);
+
+        hevm.expectRevert(abi.encodePacked("invalid pools"));
+        voter.vote(tokenId, pools2, weights3, 0);
     }
 }

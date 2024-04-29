@@ -45,63 +45,6 @@ contract VotingEscrowTest is BaseTest {
         hevm.stopPrank();
     }
 
-    // Test depositing, withdrawing from a rewardPool (Aura pool)
-    function testRewardPool() public {
-        // Reward pool should be set
-        assertEq(rewardPool, rewardPoolManager.rewardPool());
-
-        deal(bpt, address(rewardPoolManager), TOKEN_1);
-
-        // Initial amount of bal and aura rewards earned
-        uint256 rewardBalanceBefore1 = IERC20(bal).balanceOf(admin);
-        uint256 rewardBalanceBefore2 = IERC20(aura).balanceOf(admin);
-        assertEq(rewardBalanceBefore1, 0, "rewardBalanceBefore1 should be 0");
-        assertEq(rewardBalanceBefore2, 0, "rewardBalanceBefore2 should be 0");
-
-        // Initial BPT balance of rewardPoolManager
-        uint256 amount = IERC20(bpt).balanceOf(address(rewardPoolManager));
-        assertEq(amount, TOKEN_1);
-
-        // Deposit BPT balance into rewardPool
-        hevm.prank(address(veALCX));
-        rewardPoolManager.depositIntoRewardPool(amount);
-
-        uint256 amountAfterDeposit = IERC20(bpt).balanceOf(address(rewardPoolManager));
-        assertEq(amountAfterDeposit, 0, "full balance should be deposited");
-
-        uint256 rewardPoolBalance = IRewardPool4626(rewardPool).balanceOf(address(rewardPoolManager));
-        assertEq(rewardPoolBalance, amount, "rewardPool balance should equal amount deposited");
-
-        // Fast forward to accumulate rewards
-        hevm.warp(block.timestamp + 2 weeks);
-
-        hevm.prank(admin);
-        rewardPoolManager.claimRewardPoolRewards();
-        uint256 rewardBalanceAfter1 = IERC20(bal).balanceOf(address(admin));
-        uint256 rewardBalanceAfter2 = IERC20(aura).balanceOf(address(admin));
-
-        // After claiming rewards admin bal balance should increase
-        assertGt(rewardBalanceAfter1, rewardBalanceBefore1, "should accumulate bal rewards");
-        assertGt(rewardBalanceAfter2, rewardBalanceBefore2, "should accumulate aura rewards");
-
-        hevm.prank(address(veALCX));
-        rewardPoolManager.withdrawFromRewardPool(amount);
-
-        // veALCX BPT balance should equal original amount after withdrawing from rewardPool
-        uint256 amountAfterWithdraw = IERC20(bpt).balanceOf(address(veALCX));
-        assertEq(amountAfterWithdraw, amount, "should equal original amount");
-
-        // Only rewardPoolManager admin can update rewardPool
-        hevm.expectRevert(abi.encodePacked("not admin"));
-        rewardPoolManager.setRewardPool(sushiPoolAddress);
-
-        hevm.prank(admin);
-        rewardPoolManager.setRewardPool(sushiPoolAddress);
-
-        // Reward pool should update
-        assertEq(sushiPoolAddress, rewardPoolManager.rewardPool(), "rewardPool not updated");
-    }
-
     function testUpdateLockDuration() public {
         hevm.startPrank(admin);
 
@@ -199,7 +142,7 @@ contract VotingEscrowTest is BaseTest {
         uint256 voteTimestamp1 = block.timestamp;
 
         hevm.warp(block.timestamp + nextEpoch * 2);
-        minter.updatePeriod();
+        voter.distribute();
 
         // Creates a new checkpoint at index 1
         createVeAlcx(admin, TOKEN_1, MAXTIME, false);
@@ -207,7 +150,7 @@ contract VotingEscrowTest is BaseTest {
         uint256 voteTimestamp2 = block.timestamp;
 
         hevm.warp(block.timestamp + nextEpoch * 5);
-        minter.updatePeriod();
+        voter.distribute();
 
         // Creates a new checkpoint at index 2
         createVeAlcx(admin, TOKEN_1, MAXTIME, false);
@@ -235,8 +178,8 @@ contract VotingEscrowTest is BaseTest {
 
         uint256 originalVotingPower = veALCX.balanceOfToken(tokenId);
 
-        hevm.warp(block.timestamp + nextEpoch);
-        minter.updatePeriod();
+        hevm.warp(newEpoch());
+        voter.distribute();
 
         uint256 decayedTimestamp = block.timestamp;
 
@@ -247,15 +190,15 @@ contract VotingEscrowTest is BaseTest {
         uint256 getOriginalVotingPower = veALCX.balanceOfTokenAt(tokenId, originalTimestamp);
         assertEq(getOriginalVotingPower, originalVotingPower, "voting power should be equal");
 
-        hevm.warp(block.timestamp + nextEpoch);
-        minter.updatePeriod();
+        hevm.warp(newEpoch());
+        voter.distribute();
 
         // Getting the voting power at a point in time should return the expected result
         uint256 getDecayedVotingPower = veALCX.balanceOfTokenAt(tokenId, decayedTimestamp);
         assertEq(getDecayedVotingPower, decayedVotingPower, "voting powers should be equal");
 
         // Token is expired starting in this epoch
-        hevm.warp(block.timestamp + nextEpoch);
+        hevm.warp(newEpoch());
 
         uint256 expiredVotingPower = veALCX.balanceOfToken(tokenId);
         assertEq(expiredVotingPower, 0, "voting power should be 0 after lock expires");
@@ -309,9 +252,9 @@ contract VotingEscrowTest is BaseTest {
 
         voter.reset(tokenId);
 
-        hevm.warp(block.timestamp + THREE_WEEKS);
+        hevm.warp(newEpoch());
 
-        minter.updatePeriod();
+        voter.distribute();
 
         uint256 unclaimedAlcx = distributor.claimable(tokenId);
         uint256 unclaimedFlux = flux.getUnclaimedFlux(tokenId);
@@ -322,7 +265,7 @@ contract VotingEscrowTest is BaseTest {
         hevm.expectRevert(abi.encodePacked("Cooldown period in progress"));
         veALCX.withdraw(tokenId);
 
-        hevm.warp(block.timestamp + nextEpoch);
+        hevm.warp(newEpoch());
 
         veALCX.withdraw(tokenId);
 
@@ -346,8 +289,8 @@ contract VotingEscrowTest is BaseTest {
 
     function testFluxAccrual() public {
         uint256 tokenId1 = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
-        uint256 tokenId2 = createVeAlcx(beef, TOKEN_1, 3 weeks, false);
-        uint256 tokenId3 = createVeAlcx(holder, TOKEN_1, 3 weeks, false);
+        uint256 tokenId2 = createVeAlcx(beef, TOKEN_1, 5 weeks, false);
+        uint256 tokenId3 = createVeAlcx(holder, TOKEN_1, 5 weeks, false);
 
         hevm.prank(admin);
         voter.reset(tokenId1);
@@ -364,8 +307,8 @@ contract VotingEscrowTest is BaseTest {
         assertGt(unclaimedFlux1, unclaimedFlux2, "unclaimed flux should be greater for longer lock");
 
         // Start new epoch
-        hevm.warp(block.timestamp + nextEpoch);
-        minter.updatePeriod();
+        hevm.warp(newEpoch());
+        voter.distribute();
 
         hevm.prank(holder);
         voter.reset(tokenId3);
@@ -374,6 +317,15 @@ contract VotingEscrowTest is BaseTest {
         uint256 unclaimedFlux3 = flux.getUnclaimedFlux(tokenId3);
 
         assertGt(unclaimedFlux3, unclaimedFlux2, "unclaimed flux should be greater for active voter");
+    }
+
+    function testOnlyDepositorFunctions() public {
+        // Distributor should be set
+        hevm.expectRevert(abi.encodePacked("only depositor"));
+        distributor.setDepositor(beef);
+
+        hevm.expectRevert(abi.encodePacked("only depositor"));
+        distributor.checkpointToken();
     }
 
     // Voting should not impact amount of ALCX rewards earned
@@ -385,15 +337,15 @@ contract VotingEscrowTest is BaseTest {
         voter.reset(tokenId1);
 
         // Start new epoch
-        hevm.warp(block.timestamp + nextEpoch);
-        minter.updatePeriod();
+        hevm.warp(newEpoch());
+        voter.distribute();
 
         hevm.prank(admin);
         voter.reset(tokenId1);
 
         // Start new epoch
-        hevm.warp(block.timestamp + nextEpoch);
-        minter.updatePeriod();
+        hevm.warp(newEpoch());
+        voter.distribute();
 
         uint256 claimable1 = distributor.claimable(tokenId1);
         uint256 claimable2 = distributor.claimable(tokenId2);
@@ -467,17 +419,22 @@ contract VotingEscrowTest is BaseTest {
     // Check merging of two veALCX
     function testMergeTokens() public {
         uint256 tokenId1 = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
-        uint256 tokenId2 = createVeAlcx(admin, TOKEN_100K, FIVE_WEEKS, false);
+        uint256 tokenId2 = createVeAlcx(admin, TOKEN_100K, MAXTIME / 2, false);
+        uint256 tokenId3 = createVeAlcx(beef, TOKEN_100K, MAXTIME / 2, false);
+
+        hevm.prank(beef);
+        hevm.expectRevert(abi.encodePacked("not approved or owner"));
+        veALCX.merge(tokenId1, tokenId2);
 
         hevm.startPrank(admin);
 
         uint256 lockEnd1 = veALCX.lockEnd(tokenId1);
 
-        assertEq(lockEnd1, ((block.timestamp + MAXTIME) / 1 weeks) * 1 weeks);
+        assertEq(lockEnd1, ((block.timestamp + MAXTIME) / ONE_WEEK) * ONE_WEEK);
         assertEq(veALCX.lockedAmount(tokenId1), TOKEN_1);
 
         // Vote to trigger flux accrual
-        hevm.warp(block.timestamp + nextEpoch);
+        hevm.warp(newEpoch());
 
         address[] memory pools = new address[](1);
         pools[0] = alETHPool;
@@ -486,9 +443,9 @@ contract VotingEscrowTest is BaseTest {
         voter.vote(tokenId1, pools, weights, 0);
         voter.vote(tokenId2, pools, weights, 0);
 
-        minter.updatePeriod();
+        voter.distribute();
 
-        hevm.warp(block.timestamp + nextEpoch);
+        hevm.warp(newEpoch());
 
         // Reset to allow merging of tokens
         voter.reset(tokenId1);
@@ -499,6 +456,9 @@ contract VotingEscrowTest is BaseTest {
 
         hevm.expectRevert(abi.encodePacked("must be different tokens"));
         veALCX.merge(tokenId1, tokenId1);
+
+        hevm.expectRevert(abi.encodePacked("not approved or owner"));
+        veALCX.merge(tokenId1, tokenId3);
 
         veALCX.merge(tokenId1, tokenId2);
 
@@ -551,6 +511,12 @@ contract VotingEscrowTest is BaseTest {
 
         // Fast forward to lock end of tokenId2
         hevm.warp(block.timestamp + THREE_WEEKS);
+
+        hevm.expectRevert(abi.encodePacked("not approved or owner"));
+        veALCX.withdraw(tokenId1);
+
+        hevm.expectRevert(abi.encodePacked("not approved or owner"));
+        veALCX.startCooldown(tokenId1);
 
         hevm.startPrank(admin);
 
@@ -655,6 +621,9 @@ contract VotingEscrowTest is BaseTest {
         hevm.prank(address(veALCX));
         flux.mint(admin, ragequitAmount);
 
+        hevm.expectRevert(abi.encodePacked("not approved or owner"));
+        veALCX.updateUnlockTime(tokenId, 1 days, true);
+
         hevm.startPrank(admin);
         flux.approve(address(veALCX), ragequitAmount);
         veALCX.startCooldown(tokenId);
@@ -731,9 +700,8 @@ contract VotingEscrowTest is BaseTest {
     function testGetPastTotalSupply() public {
         createVeAlcx(admin, TOKEN_1, MAXTIME, false);
 
-        minter.updatePeriod();
-        hevm.warp(block.timestamp + 1 weeks + 1);
-        hevm.roll(block.number + 1 weeks / 12);
+        hevm.warp(newEpoch());
+        hevm.roll(block.number + ONE_WEEK / 12);
 
         assertGt(
             veALCX.getPastTotalSupply(block.timestamp - 2 days),
@@ -741,7 +709,7 @@ contract VotingEscrowTest is BaseTest {
             "before second update"
         );
 
-        minter.updatePeriod();
+        voter.distribute();
 
         assertGt(
             veALCX.getPastTotalSupply(block.timestamp - 2 days),
@@ -749,8 +717,8 @@ contract VotingEscrowTest is BaseTest {
             "after second update"
         );
 
-        hevm.warp(block.timestamp + 1 weeks + 1);
-        hevm.roll(block.number + 1 weeks / 12);
+        hevm.warp(newEpoch());
+        hevm.roll(block.number + ONE_WEEK / 12);
 
         assertGt(
             veALCX.getPastTotalSupply(block.timestamp - 2 days),
@@ -758,7 +726,7 @@ contract VotingEscrowTest is BaseTest {
             "before third update"
         );
 
-        minter.updatePeriod();
+        voter.distribute();
 
         assertGt(
             veALCX.getPastTotalSupply(block.timestamp - 2 days),
@@ -766,8 +734,8 @@ contract VotingEscrowTest is BaseTest {
             "after third update"
         );
 
-        hevm.warp(block.timestamp + 1 weeks + 1);
-        hevm.roll(block.number + 1 weeks / 12);
+        hevm.warp(newEpoch());
+        hevm.roll(block.number + ONE_WEEK / 12);
 
         assertGt(
             veALCX.getPastTotalSupply(block.timestamp - 2 days),
@@ -779,9 +747,8 @@ contract VotingEscrowTest is BaseTest {
     function testTotalSupplyAtT() public {
         createVeAlcx(admin, TOKEN_1, MAXTIME, false);
 
-        minter.updatePeriod();
-        hevm.warp(block.timestamp + 1 weeks + 1);
-        hevm.roll(block.number + 1 weeks / 12);
+        hevm.warp(newEpoch());
+        hevm.roll(block.number + ONE_WEEK / 12);
 
         assertGt(
             veALCX.totalSupplyAtT(block.timestamp - 2 days),
@@ -789,7 +756,7 @@ contract VotingEscrowTest is BaseTest {
             "before second update"
         );
 
-        minter.updatePeriod();
+        voter.distribute();
 
         assertGt(
             veALCX.totalSupplyAtT(block.timestamp - 2 days),
@@ -797,8 +764,8 @@ contract VotingEscrowTest is BaseTest {
             "after second update"
         );
 
-        hevm.warp(block.timestamp + 1 weeks + 1);
-        hevm.roll(block.number + 1 weeks / 12);
+        hevm.warp(newEpoch());
+        hevm.roll(block.number + ONE_WEEK / 12);
 
         assertGt(
             veALCX.totalSupplyAtT(block.timestamp - 2 days),
@@ -806,12 +773,12 @@ contract VotingEscrowTest is BaseTest {
             "before third update"
         );
 
-        minter.updatePeriod();
+        voter.distribute();
 
         // Check that the RewardsDistributor and veALCX are in sync
         uint256 timeCursor = distributor.timeCursor();
-        uint256 veSupply = distributor.veSupply(timeCursor - 1 weeks);
-        uint256 supplyAt = veALCX.totalSupplyAtT(timeCursor - 1 weeks);
+        uint256 veSupply = distributor.veSupply(timeCursor - ONE_WEEK);
+        uint256 supplyAt = veALCX.totalSupplyAtT(timeCursor - ONE_WEEK);
 
         assertEq(veSupply, supplyAt, "veSupply should equal supplyAt");
 
@@ -821,8 +788,8 @@ contract VotingEscrowTest is BaseTest {
             "after third update"
         );
 
-        hevm.warp(block.timestamp + 1 weeks + 1);
-        hevm.roll(block.number + 1 weeks / 12);
+        hevm.warp(newEpoch());
+        hevm.roll(block.number + ONE_WEEK / 12);
 
         assertGt(
             veALCX.totalSupplyAtT(block.timestamp - 2 days),
@@ -834,9 +801,8 @@ contract VotingEscrowTest is BaseTest {
     function testBalanceOfTokenAt() public {
         uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
 
-        minter.updatePeriod();
-        hevm.warp(block.timestamp + 1 weeks + 1);
-        hevm.roll(block.number + 1 weeks / 12);
+        hevm.warp(newEpoch());
+        hevm.roll(block.number + ONE_WEEK / 12);
 
         assertGt(
             veALCX.balanceOfTokenAt(tokenId, block.timestamp - 2 days),
@@ -844,7 +810,7 @@ contract VotingEscrowTest is BaseTest {
             "before second update"
         );
 
-        minter.updatePeriod();
+        voter.distribute();
         deal(bpt, address(this), TOKEN_1);
         IERC20(bpt).approve(address(veALCX), TOKEN_1);
         veALCX.depositFor(tokenId, TOKEN_1);
@@ -855,8 +821,8 @@ contract VotingEscrowTest is BaseTest {
             "after second update"
         );
 
-        hevm.warp(block.timestamp + 1 weeks + 1);
-        hevm.roll(block.number + 1 weeks / 12);
+        hevm.warp(newEpoch());
+        hevm.roll(block.number + ONE_WEEK / 12);
 
         assertGt(
             veALCX.balanceOfTokenAt(tokenId, block.timestamp - 2 days),
@@ -864,7 +830,7 @@ contract VotingEscrowTest is BaseTest {
             "before third update"
         );
 
-        minter.updatePeriod();
+        voter.distribute();
         deal(bpt, address(this), TOKEN_1);
         IERC20(bpt).approve(address(veALCX), TOKEN_1);
         veALCX.depositFor(tokenId, TOKEN_1);
@@ -875,8 +841,8 @@ contract VotingEscrowTest is BaseTest {
             "after third update"
         );
 
-        hevm.warp(block.timestamp + 1 weeks + 1);
-        hevm.roll(block.number + 1 weeks / 12);
+        hevm.warp(newEpoch());
+        hevm.roll(block.number + ONE_WEEK / 12);
 
         assertGt(
             veALCX.balanceOfTokenAt(tokenId, block.timestamp - 2 days),
@@ -890,7 +856,6 @@ contract VotingEscrowTest is BaseTest {
 
         uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
 
-        minter.updatePeriod();
         hevm.warp(block.timestamp + 3 days);
         hevm.roll(block.number + 3 days / 12);
 
@@ -920,9 +885,7 @@ contract VotingEscrowTest is BaseTest {
     function testManipulatePastSupplyWithDeposit() public {
         uint256 tokenId = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
 
-        minter.updatePeriod();
-        hevm.warp(block.timestamp + 1 weeks + 1);
-        hevm.roll(block.number + 1 weeks / 12);
+        hevm.warp(newEpoch());
 
         uint256 t2Dp1 = block.timestamp - (2 days + 1);
         uint256 t2Dm1 = block.timestamp - (2 days - 1);
@@ -935,7 +898,7 @@ contract VotingEscrowTest is BaseTest {
         deal(bpt, address(this), TOKEN_1);
         IERC20(bpt).approve(address(veALCX), TOKEN_1);
         veALCX.depositFor(tokenId, TOKEN_1);
-        minter.updatePeriod();
+        voter.distribute();
 
         assertEq(veALCX.totalSupplyAtT(t2Dp1), bal2DaysPlus1, "after deposit, 2 days + 1");
         assertEq(veALCX.totalSupplyAtT(t2Dm1), bal2DaysMinus1, "after deposit, 2 days - 1");
@@ -948,7 +911,7 @@ contract VotingEscrowTest is BaseTest {
         assertEq(numCheckpoints, 1, "numCheckpoints should be 1");
 
         hevm.warp(block.timestamp + nextEpoch * 45);
-        minter.updatePeriod();
+        voter.distribute();
 
         uint256 totalPower = veALCX.totalSupply();
         uint256 tokenPower = veALCX.balanceOfToken(tokenId1);
@@ -982,5 +945,74 @@ contract VotingEscrowTest is BaseTest {
         // Beef should now have the voting power of admin's tokens
         uint256 newVotingPowerBeef = veALCX.getVotes(beef);
         assertEq(newVotingPowerBeef, balanceOfTokens, "incorrect voting power");
+    }
+
+    function testAdminFunctions() public {
+        hevm.expectRevert(abi.encodePacked("not admin"));
+        veALCX.setTreasury(beef);
+
+        hevm.expectRevert(abi.encodePacked("not admin"));
+        veALCX.setVoter(beef);
+
+        hevm.expectRevert(abi.encodePacked("not admin"));
+        veALCX.setRewardsDistributor(beef);
+
+        hevm.expectRevert(abi.encodePacked("not admin"));
+        veALCX.setfluxMultiplier(0);
+
+        hevm.expectRevert(abi.encodePacked("not admin"));
+        veALCX.setRewardPoolManager(beef);
+
+        hevm.expectRevert(abi.encodePacked("not admin"));
+        veALCX.setAdmin(beef);
+
+        hevm.expectRevert(abi.encodePacked("not admin"));
+        veALCX.setfluxPerVeALCX(0);
+
+        hevm.expectRevert(abi.encodePacked("not voter"));
+        veALCX.voting(0);
+
+        hevm.expectRevert(abi.encodePacked("not voter"));
+        veALCX.abstain(0);
+
+        hevm.prank(admin);
+        veALCX.setAdmin(beef);
+
+        hevm.expectRevert(abi.encodePacked("not pending admin"));
+        veALCX.acceptAdmin();
+
+        hevm.prank(admin);
+        hevm.expectRevert(abi.encodePacked("treasury cannot be 0x0"));
+        veALCX.setTreasury(address(0));
+
+        hevm.prank(admin);
+        hevm.expectRevert(abi.encodePacked("fluxMultiplier must be greater than 0"));
+        veALCX.setfluxMultiplier(0);
+
+        hevm.prank(admin);
+        veALCX.setTreasury(beef);
+        assertEq(veALCX.treasury(), beef, "incorrect treasury");
+
+        hevm.expectRevert(abi.encodePacked("owner not found"));
+        veALCX.approve(admin, 100);
+
+        hevm.expectRevert(abi.encodePacked("cannot delegate to zero address"));
+        veALCX.delegate(address(0));
+
+        hevm.prank(beef);
+        veALCX.acceptAdmin();
+
+        hevm.startPrank(beef);
+
+        veALCX.setfluxPerVeALCX(10);
+        assertEq(veALCX.fluxPerVeALCX(), 10, "incorrect flux per veALCX");
+
+        veALCX.setfluxMultiplier(10);
+        assertEq(veALCX.fluxMultiplier(), 10, "incorrect flux multiplier");
+
+        veALCX.setClaimFee(1000);
+        assertEq(veALCX.claimFeeBps(), 1000, "incorrect claim fee");
+
+        hevm.stopPrank();
     }
 }

@@ -6,6 +6,7 @@ import "src/interfaces/IBribe.sol";
 import "src/interfaces/IBaseGauge.sol";
 import "src/interfaces/IVoter.sol";
 import "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /**
  * @title  Base Gauge
@@ -13,16 +14,26 @@ import "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
  * @notice Gauges are used to incentivize pools, they emit or passthrough reward tokens
  */
 abstract contract BaseGauge is IBaseGauge {
-    uint256 internal constant DURATION = 2 weeks; // Rewards released over voting period
+    using SafeERC20 for IERC20;
+
+    /// @notice Rewards released over voting period
+    uint256 internal constant DURATION = 2 weeks;
     uint256 internal constant BRIBE_LAG = 1 days;
     uint256 internal constant MAX_REWARD_TOKENS = 16;
 
-    address public ve; // Ve token used for gauges
-    address public bribe; // Address of bribe contract
-    address public voter; // Address of voter contract
+    /// @notice veALCX token used for gauges
+    address public ve;
+    /// @notice Address of bribe contract
+    address public bribe;
+    /// @notice Address of voter contract
+    address public voter;
+    /// @notice Address of admin
     address public admin;
+    /// @notice Address of pending admin
     address public pendingAdmin;
+    /// @notice Address that receives the ALCX rewards
     address public receiver;
+    /// @notice Address of the reward token
     address public rewardToken;
 
     // Re-entrancy check
@@ -32,21 +43,6 @@ abstract contract BaseGauge is IBaseGauge {
         _unlocked = 2;
         _;
         _unlocked = 1;
-    }
-
-    /*
-        View functions
-    */
-
-    function getVotingStage(uint256 timestamp) external pure returns (VotingStage) {
-        uint256 modTime = timestamp % (1 weeks);
-        if (modTime < BRIBE_LAG) {
-            return VotingStage.BribesPhase;
-        } else if (modTime >= BRIBE_LAG && modTime < (BRIBE_LAG + DURATION)) {
-            return VotingStage.VotesPhase;
-        } else {
-            return VotingStage.RewardsPhase;
-        }
     }
 
     /*
@@ -63,6 +59,7 @@ abstract contract BaseGauge is IBaseGauge {
         admin = pendingAdmin;
     }
 
+    /// @inheritdoc IBaseGauge
     function updateReceiver(address _receiver) external {
         require(msg.sender == admin, "not admin");
         require(_receiver != address(0), "cannot be zero address");
@@ -74,7 +71,7 @@ abstract contract BaseGauge is IBaseGauge {
     function notifyRewardAmount(uint256 _amount) external lock {
         require(msg.sender == voter, "not voter");
         require(_amount > 0, "zero amount");
-        _safeTransferFrom(rewardToken, msg.sender, address(this), _amount);
+        IERC20(rewardToken).safeTransferFrom(msg.sender, address(this), _amount);
 
         emit NotifyReward(msg.sender, rewardToken, _amount);
 
@@ -84,20 +81,6 @@ abstract contract BaseGauge is IBaseGauge {
     /*
         Internal functions
     */
-
-    function _safeTransfer(address token, address to, uint256 value) internal {
-        require(token.code.length > 0);
-        (bool success, bytes memory data) = token.call(abi.encodeWithSelector(IERC20.transfer.selector, to, value));
-        require(success && (data.length == 0 || abi.decode(data, (bool))));
-    }
-
-    function _safeTransferFrom(address token, address from, address to, uint256 value) internal {
-        require(token.code.length > 0);
-        (bool success, bytes memory data) = token.call(
-            abi.encodeWithSelector(IERC20.transferFrom.selector, from, to, value)
-        );
-        require(success && (data.length == 0 || abi.decode(data, (bool))));
-    }
 
     /**
      * @notice Override function to implement passthrough logic

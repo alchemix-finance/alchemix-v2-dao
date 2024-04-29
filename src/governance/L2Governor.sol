@@ -227,6 +227,8 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
      */
     function proposalEta(uint256 proposalId) external view virtual returns (uint256) {
         uint256 eta = _timelock.getTimestamp(_timelockIds[proposalId]);
+        // Returns the timestamp at which an operation becomes ready (0 for
+        //  * unset operations, 1 for done operations)
         return eta == 1 ? 0 : eta; // _DONE_TIMESTAMP (1) should be replaced with a 0 value
     }
 
@@ -436,7 +438,7 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
         bytes[] memory calldatas,
         bytes32 descriptionHash,
         uint256 chainId
-    ) internal virtual onlyGovernance returns (uint256) {
+    ) public virtual onlyGovernance returns (uint256) {
         uint256 proposalId = hashProposal(targets, values, calldatas, descriptionHash, chainId);
         ProposalState status = state(proposalId);
 
@@ -600,7 +602,7 @@ abstract contract L2Governor is Context, ERC165, EIP712, IGovernor, IERC721Recei
     /**
      * @dev Relays a transaction or function call to an arbitrary target. In cases where the governance executor
      * is some contract other than the governor itself, like when using a timelock, this function can be invoked
-     * in a governance proposal to recover tokens or Ether that was sent to the governor contract by mistake.
+     * in a governance proposal.
      * Note that if the executor is simply the governor itself, use of `relay` is redundant.
      */
     function relay(address target, uint256 value, bytes calldata data) external virtual onlyGovernance {

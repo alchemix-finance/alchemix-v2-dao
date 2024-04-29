@@ -47,17 +47,27 @@ contract RevenueHandler is IRevenueHandler, Ownable {
         uint256 lastClaimEpoch;
     }
 
-    uint256 internal constant WEEK = 1 weeks;
+    uint256 internal constant WEEK = 2 weeks;
     uint256 internal constant BPS = 10_000;
 
+    /// @notice The veALCX contract address.
     address public immutable veALCX;
+    /// @notice The list of revenue tokens.
     address[] public revenueTokens;
-    mapping(address => address) public alchemists; // alchemist => alchemic-token
-    mapping(address => RevenueTokenConfig) public revenueTokenConfigs; // token => RevenueTokenConfig
-    mapping(uint256 => mapping(address => uint256)) public epochRevenues; // epoch => (debtToken => epoch revenue)
-    mapping(uint256 => mapping(address => Claimable)) public userCheckpoints; // tokenId => (debtToken => Claimable)
+    /// @notice A mapping of alchemists to their alchemic-tokens.
+    mapping(address => address) public alchemists;
+    /// @notice A mapping of revenue tokens to their configurations.
+    mapping(address => RevenueTokenConfig) public revenueTokenConfigs;
+    /// @notice A mapping of epoch to a mapping of debtToken to epoch revenue.
+    mapping(uint256 => mapping(address => uint256)) public epochRevenues;
+    /// @notice A mapping of tokenId to a mapping of debtToken to a user's claimable amount.
+    mapping(uint256 => mapping(address => Claimable)) public userCheckpoints;
+
+    /// @notice The current epoch.
     uint256 public currentEpoch;
+    /// @notice The address of the treasury.
     address public treasury;
+    /// @notice The percentage of revenue that goes to the treasury.
     uint256 public treasuryPct;
 
     constructor(address _veALCX, address _treasury, uint256 _treasuryPct) Ownable() {
@@ -194,6 +204,8 @@ contract RevenueHandler is IRevenueHandler, Ownable {
 
         // If the alchemist is defined we know it has an alchemic-token
         if (alchemists[alchemist] != address(0)) {
+            require(token == IAlchemistV2(alchemist).debtToken(), "Invalid alchemist/alchemic-token pair");
+
             (, address[] memory deposits) = IAlchemistV2(alchemist).accounts(recipient);
             IERC20(token).approve(alchemist, amount);
 

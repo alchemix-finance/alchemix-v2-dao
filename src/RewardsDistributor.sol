@@ -27,22 +27,35 @@ contract RewardsDistributor is IRewardsDistributor, ReentrancyGuard {
     address public immutable BURN_ADDRESS = address(0);
     uint256 public immutable BPS = 10_000;
 
+    /// @notice Balancer pool ID specific to the ALCX/WETH pool
     bytes32 public balancerPoolId;
 
+    /// @notice The start time of the epoch
     uint256 public startTime;
+    /// @notice Tracking of the epoch timestamp
     uint256 public timeCursor;
+    /// @notice The last time rewards were claimed for a veALCX holder
     uint256 public lastTokenTime;
+    /// @notice The last balance of the rewards token
     uint256 public tokenLastBalance;
 
+    /// @notice The address of the VotingEscrow (veALCX) contract
     address public immutable votingEscrow;
+    /// @notice The address of the rewards token
     address public rewardsToken;
+    /// @notice The address of token locked in the VotingEscrow contract
     address public lockedToken;
+    /// @notice The depositor address of rewards (Minter)
     address public depositor;
 
+    /// @notice The total weight of veALCX tokens
     uint256[1000000000000000] public veSupply;
+    /// @notice The total rewards distributed
     uint256[1000000000000000] public tokensPerWeek;
 
+    /// @notice The time cursor of a veALCX holder
     mapping(uint256 => uint256) public timeCursorOf;
+    /// @notice The epoch of a veALCX holder
     mapping(uint256 => uint256) public userEpochOf;
 
     IWETH9 public immutable WETH;
@@ -123,14 +136,13 @@ contract RewardsDistributor is IRewardsDistributor, ReentrancyGuard {
         External functions
     */
 
-    /**
-     * @notice
-     */
+    /// @inheritdoc IRewardsDistributor
     function checkpointToken() external {
-        assert(msg.sender == depositor);
+        require(msg.sender == depositor, "only depositor");
         _checkpointToken();
     }
 
+    /// @inheritdoc IRewardsDistributor
     function checkpointTotalSupply() external {
         _checkpointTotalSupply();
     }
@@ -199,7 +211,7 @@ contract RewardsDistributor is IRewardsDistributor, ReentrancyGuard {
 
     /// @dev Once off event on contract initialize
     function setDepositor(address _depositor) external {
-        require(msg.sender == depositor);
+        require(msg.sender == depositor, "only depositor");
         depositor = _depositor;
         emit DepositorUpdated(_depositor);
     }

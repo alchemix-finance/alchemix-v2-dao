@@ -8,8 +8,8 @@ import "lib/v2-foundry/src/interfaces/IAlchemistV2.sol";
 import "lib/v2-foundry/src/interfaces/IWhitelist.sol";
 
 contract RevenueHandlerTest is BaseTest {
-    uint256 ONE_EPOCH_TIME = 1 weeks;
-    uint256 ONE_EPOCH_BLOCKS = (1 weeks) / 12;
+    uint256 ONE_EPOCH_TIME = 2 weeks;
+    uint256 ONE_EPOCH_BLOCKS = (2 weeks) / 12;
     uint256 DELTA = 65;
 
     IAlchemistV2 public alusdAlchemist = IAlchemistV2(0x5C6374a2ac4EBC38DeA0Fc1F8716e5Ea1AdD94dd);
@@ -262,7 +262,7 @@ contract RevenueHandlerTest is BaseTest {
         revenueHandler.claim(tokenId1, alusd, address(alusdAlchemist), claimable, address(this));
 
         hevm.warp(period + nextEpoch);
-        minter.updatePeriod();
+        voter.distribute();
 
         claimable = revenueHandler.claimable(tokenId1, alusd);
         uint256 claimable2 = revenueHandler.claimable(tokenId2, alusd);
@@ -275,6 +275,8 @@ contract RevenueHandlerTest is BaseTest {
     }
 
     function testClaimRevenueOneEpoch() external {
+        revenueHandler.addAlchemicToken(address(alethAlchemist));
+
         uint256 revAmt = 1000e18;
         uint256 tokenId = _setupClaimableRevenue(revAmt);
 
@@ -285,7 +287,11 @@ contract RevenueHandlerTest is BaseTest {
         uint256 debtAmt = 5000e18;
         _takeDebt(debtAmt);
 
+        hevm.expectRevert(abi.encodePacked("Invalid alchemist/alchemic-token pair"));
+        revenueHandler.claim(tokenId, alusd, address(alethAlchemist), claimable, address(this));
+
         revenueHandler.claim(tokenId, alusd, address(alusdAlchemist), claimable, address(this));
+
         (int256 finalDebt, ) = alusdAlchemist.accounts(address(this));
         assertApproxEq(debtAmt - claimable, uint256(finalDebt), uint256(finalDebt) / DELTA);
     }
@@ -304,6 +310,22 @@ contract RevenueHandlerTest is BaseTest {
         uint256 balAfter = IERC20(bal).balanceOf(address(this));
 
         assertEq(balAfter, claimable, "should be equal to amount claimed");
+    }
+
+    function testNotEnoughRevenueToClaim() external {
+        uint256 revAmt = 1000e18;
+        uint256 tokenId = _setupClaimableNonAlchemicRevenue(revAmt, bal);
+        uint256 balBefore = IERC20(bal).balanceOf(address(this));
+
+        assertEq(balBefore, 0, "should have no bal before claiming");
+
+        uint256 claimable = revenueHandler.claimable(tokenId, bal);
+
+        hevm.prank(address(revenueHandler));
+        IERC20(bal).transfer(admin, claimable);
+
+        hevm.expectRevert(abi.encodePacked("Not enough revenue to claim"));
+        revenueHandler.claim(tokenId, bal, address(0), claimable, address(this));
     }
 
     function testClaimNonApprovedRevenue() external {
@@ -599,5 +621,27 @@ contract RevenueHandlerTest is BaseTest {
             revenueHandler.setTreasuryPct(newPct);
             assertEq(revenueHandler.treasuryPct(), newPct);
         }
+    }
+
+    function testEnableRevenueToken() external {
+        address revenueToken = revenueHandler.revenueTokens(0);
+
+        hevm.expectRevert(abi.encodePacked("Token enabled"));
+        revenueHandler.enableRevenueToken(revenueToken);
+
+        revenueHandler.disableRevenueToken(revenueToken);
+
+        hevm.expectRevert(abi.encodePacked("Token disabled"));
+        revenueHandler.disableRevenueToken(revenueToken);
+
+        revenueHandler.enableRevenueToken(revenueToken);
+    }
+
+    function testSetTreasury() external {
+        hevm.expectRevert(abi.encodePacked("treasury cannot be 0x0"));
+        revenueHandler.setTreasury(address(0));
+
+        revenueHandler.setTreasury(admin);
+        assertEq(revenueHandler.treasury(), admin, "treasury should be admin");
     }
 }

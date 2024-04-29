@@ -17,10 +17,8 @@ contract MinterTest is BaseTest {
     function testEpochEmissions() external {
         uint256 treasuryBalanceBefore = alcx.balanceOf(address(devmsig));
 
-        uint256 period = minter.activePeriod();
-
         // Set the block timestamp to be the next epoch
-        hevm.warp(period + nextEpoch);
+        hevm.warp(newEpoch());
 
         uint256 currentTotalEmissions = minter.circulatingEmissionsSupply();
         uint256 epochEmissions = minter.epochEmission();
@@ -42,7 +40,7 @@ contract MinterTest is BaseTest {
         );
 
         // Mint emissions for epoch
-        minter.updatePeriod();
+        voter.distribute();
 
         uint256 distributorBalance = alcx.balanceOf(address(distributor));
         uint256 voterBalance = alcx.balanceOf(address(voter));
@@ -62,15 +60,13 @@ contract MinterTest is BaseTest {
 
     // Test reaching emissions tail
     function testTailEmissions() external {
-        uint256 period = minter.activePeriod();
-
         // Mint emissions for the amount of epochs until tail emissions target
-        hevm.warp(period + nextEpoch);
-        minter.updatePeriod();
+        hevm.warp(newEpoch());
+        voter.distribute();
 
         for (uint8 i = 1; i <= epochsUntilTail; ++i) {
-            hevm.warp(block.timestamp + nextEpoch);
-            minter.updatePeriod();
+            hevm.warp(newEpoch());
+            voter.distribute();
         }
 
         uint256 tailRewards = minter.rewards();
@@ -112,13 +108,9 @@ contract MinterTest is BaseTest {
 
     // Verify the setup paramaters and emissions schedule are working as expected
     function testWeeklyEmissionsSchedule() public {
-        uint256 period = minter.activePeriod();
-
         initializeVotingEscrow();
 
         uint256 startingRewards = minter.rewards();
-
-        minter.updatePeriod();
 
         // Rewards should equal the starting amount contract was initialized with
         assertEq(startingRewards, rewards);
@@ -127,19 +119,19 @@ contract MinterTest is BaseTest {
         assertEq(distributor.claimable(tokenId), 0);
 
         // Fast forward one epoch
-        hevm.warp(period + nextEpoch);
+        hevm.warp(newEpoch());
         hevm.roll(block.number + 1);
 
-        minter.updatePeriod();
+        voter.distribute();
 
         // After one epoch rewards amount should decrease by the defined stepdown amount
         assertEq(minter.stepdown(), startingRewards - minter.rewards());
 
         // Fast forward one epoch
-        hevm.warp(block.timestamp + nextEpoch);
+        hevm.warp(newEpoch());
         hevm.roll(block.number + 1);
 
-        minter.updatePeriod();
+        voter.distribute();
 
         // After two epochs the amount of ALCX claimable for a veALCX token should increase
         assertGt(distributor.claimable(tokenId), 0);
@@ -154,16 +146,14 @@ contract MinterTest is BaseTest {
         // Initial balance of accounts ALCX
         uint256 alcxBalanceBefore = alcx.balanceOf(admin);
 
-        minter.updatePeriod();
-
         // After no epoch has passed, amount claimable should be 0
         assertEq(distributor.claimable(tokenId), 0, "amount claimable should be 0");
 
         // Fast forward one epoch
-        hevm.warp(block.timestamp + nextEpoch);
+        hevm.warp(newEpoch());
         hevm.roll(block.number + 1);
 
-        minter.updatePeriod();
+        voter.distribute();
 
         // Initial ALCX balance of the rewards distributor
         uint256 distributorBalanceBefore = alcx.balanceOf(address(distributor));
@@ -203,13 +193,11 @@ contract MinterTest is BaseTest {
     // Rewards require an epoch to pass before there is a claimable amount
     // Rewards are dependent on time in epoch in which veALCX was created
     function testRewardsWithinEpoch() public {
-        uint256 period = minter.activePeriod();
-
         initializeVotingEscrow();
 
         // Get a fresh epoch
-        hevm.warp(period + nextEpoch);
-        minter.updatePeriod();
+        hevm.warp(newEpoch());
+        voter.distribute();
 
         uint256 tokenId1 = createVeAlcx(admin, TOKEN_1, MAXTIME, false);
 
@@ -220,12 +208,12 @@ contract MinterTest is BaseTest {
         uint256 tokenId2 = createVeAlcx(beef, TOKEN_1, MAXTIME, false);
 
         // Finish the epoch
-        hevm.warp(block.timestamp + nextEpoch);
-        minter.updatePeriod();
+        hevm.warp(newEpoch());
+        voter.distribute();
 
         // Go to the next epoch
-        hevm.warp(block.timestamp + nextEpoch);
-        minter.updatePeriod();
+        hevm.warp(newEpoch());
+        voter.distribute();
 
         uint256 claimable1 = distributor.claimable(tokenId1);
         uint256 claimable2 = distributor.claimable(tokenId2);
@@ -235,8 +223,6 @@ contract MinterTest is BaseTest {
 
     // Compound claiming adds ALCX rewards into their exisiting veALCX position
     function testCompoundRewards() public {
-        uint256 period = minter.activePeriod();
-
         initializeVotingEscrow();
 
         hevm.startPrank(admin);
@@ -244,16 +230,14 @@ contract MinterTest is BaseTest {
         // Initial amount of BPT locked in a veALCX position
         (uint256 initLockedAmount, , , ) = veALCX.locked(tokenId);
 
-        minter.updatePeriod();
-
         // After no epoch has passed, amount claimable should be 0
         assertEq(distributor.claimable(tokenId), 0, "amount claimable should be 0");
 
         // Fast forward one epoch
-        hevm.warp(period + nextEpoch);
+        hevm.warp(newEpoch());
         hevm.roll(block.number + 1);
 
-        minter.updatePeriod();
+        voter.distribute();
 
         (uint256 amount, ) = distributor.amountToCompound(distributor.claimable(tokenId));
 
@@ -276,10 +260,10 @@ contract MinterTest is BaseTest {
         assertEq(wethBalanceBefore - wethBalanceAfter, amount);
 
         // Fast forward one epoch
-        hevm.warp(block.timestamp + nextEpoch);
+        hevm.warp(newEpoch());
         hevm.roll(block.number + 1);
 
-        minter.updatePeriod();
+        voter.distribute();
 
         // Make sure account has enough eth to compound
         (amount, ) = distributor.amountToCompound(distributor.claimable(tokenId));
@@ -293,56 +277,56 @@ contract MinterTest is BaseTest {
 
     // Compound claiming should revert if user doesn't provide enough weth
     function testCompoundRewardsFailure() public {
-        uint256 period = minter.activePeriod();
-
         initializeVotingEscrow();
 
         hevm.startPrank(admin);
-
-        minter.updatePeriod();
 
         assertEq(distributor.claimable(tokenId), 0, "amount claimable should be 0");
         assertEq(distributor.claim(tokenId, true), 0, "amount claimed should be 0");
 
         // Fast forward one epoch
-        hevm.warp(period + nextEpoch);
+        hevm.warp(newEpoch());
         hevm.roll(block.number + 1);
 
-        minter.updatePeriod();
+        voter.distribute();
 
         // Set weth balance to 0
         weth.transfer(dead, weth.balanceOf(admin));
 
         hevm.expectRevert(abi.encodePacked("insufficient balance to compound"));
         distributor.claim(tokenId, true);
+
+        hevm.stopPrank();
+
+        hevm.expectRevert(abi.encodePacked("not approved"));
+        distributor.claim(tokenId, true);
     }
 
     // Compound claiming should revert if user doesn't provide enough weth
     function testCompoundRewardsFailureETH() public {
-        uint256 period = minter.activePeriod();
-
         deal(admin, 100 ether);
 
         initializeVotingEscrow();
 
         hevm.startPrank(admin);
 
-        minter.updatePeriod();
-
         assertEq(distributor.claimable(tokenId), 0, "amount claimable should be 0");
         assertEq(distributor.claim(tokenId, true), 0, "amount claimed should be 0");
 
         // Fast forward one epoch
-        hevm.warp(period + nextEpoch);
+        hevm.warp(newEpoch());
         hevm.roll(block.number + 1);
 
-        minter.updatePeriod();
+        voter.distribute();
 
         // Set weth balance to 0
         weth.transfer(dead, weth.balanceOf(admin));
 
         hevm.expectRevert(abi.encodePacked("insufficient balance to compound"));
         distributor.claim(tokenId, true);
+
+        hevm.expectRevert(abi.encodePacked("Value must be 0 if not compounding"));
+        distributor.claim{ value: 1 ether }(tokenId, false);
 
         distributor.claim{ value: 100 ether }(tokenId, true);
         assertGt(admin.balance, 0);
@@ -356,11 +340,18 @@ contract MinterTest is BaseTest {
         hevm.expectRevert(abi.encodePacked("not initializer"));
         minter.initialize();
 
+        hevm.prank(address(0));
+        hevm.expectRevert(abi.encodePacked("already initialized"));
+        minter.initialize();
+
         hevm.expectRevert(abi.encodePacked("not admin"));
         minter.setAdmin(devmsig);
 
         hevm.expectRevert(abi.encodePacked("not admin"));
         minter.setVeAlcxEmissionsRate(1000);
+
+        hevm.expectRevert(abi.encodePacked("not voter"));
+        minter.updatePeriod();
 
         hevm.prank(admin);
         minter.setAdmin(devmsig);
@@ -371,6 +362,10 @@ contract MinterTest is BaseTest {
         hevm.startPrank(devmsig);
 
         minter.acceptAdmin();
+
+        hevm.expectRevert(abi.encodePacked("cannot be greater than 100%"));
+        minter.setVeAlcxEmissionsRate(10_000 * 2);
+
         minter.setVeAlcxEmissionsRate(1000);
 
         hevm.stopPrank();
