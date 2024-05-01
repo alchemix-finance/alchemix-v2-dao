@@ -245,6 +245,10 @@ contract Voter is IVoter {
         );
         require(block.timestamp < IVotingEscrow(veALCX).lockEnd(_tokenId), "cannot vote with expired token");
 
+        if (block.timestamp >= IMinter(minter).activePeriod() + 2 weeks) {
+            IMinter(minter).updatePeriod();
+        }
+
         _vote(_tokenId, _poolVote, _weights, _boost);
     }
 
